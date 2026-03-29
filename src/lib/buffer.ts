@@ -1,0 +1,304 @@
+const BUFFER_API_KEY = process.env.BUFFER_API_KEY || '';
+const BUFFER_GRAPHQL_URL = 'https://api.buffer.com';
+
+export interface BufferChannel {
+  id: string;
+  name: string;
+  service: string;
+  avatar: string;
+}
+
+export interface BufferOrganization {
+  id: string;
+  name: string;
+  channels: BufferChannel[];
+}
+
+export interface BufferPost {
+  id: string;
+  status: string;
+  text: string;
+  dueAt: string | null;
+  createdAt: string;
+  channelId: string;
+  channelService: string;
+  shareMode: string;
+}
+
+export interface BufferPostWithAnalytics {
+  id: string;
+  status: string;
+  text: string;
+  dueAt: string | null;
+  createdAt: string;
+  channelId: string;
+  channelService: string;
+  channelName: string;
+  shareMode: string;
+  statistics: {
+    likes: number;
+    comments: number;
+    reach: number;
+    impressions: number;
+    saves: number;
+    shares: number;
+    clicks: number;
+    engagementRate: number;
+  };
+  brand: 'affectly' | 'pacebrain';
+  hashtags: string[];
+  captionLength: number;
+  mediaType: 'image' | 'video' | 'carousel' | 'text';
+}
+
+export interface SchedulePostParams {
+  channelId: string;
+  organizationId: string;
+  text: string;
+  imageUrls?: string[];
+  scheduledAt?: string; // ISO date string
+  mode: 'addToQueue' | 'shareNow' | 'customScheduled';
+}
+
+async function bufferGraphQL<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+  const response = await fetch(BUFFER_GRAPHQL_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${BUFFER_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error(`Buffer GraphQL error [${response.status}]:`, errorBody);
+    throw new Error(`Buffer API error (HTTP ${response.status}): ${errorBody}`);
+  }
+
+  const json = await response.json();
+  if (json.errors?.length) {
+    const msg = json.errors.map((e: { message: string }) => e.message).join('; ');
+    console.error('Buffer GraphQL errors:', json.errors);
+    throw new Error(`Buffer GraphQL error: ${msg}`);
+  }
+
+  return json.data as T;
+}
+
+export async function getOrganizationsAndChannels(): Promise<BufferOrganization[]> {
+  const data = await bufferGraphQL<{
+    account: { organizations: BufferOrganization[] };
+  }>(`{
+    account {
+      organizations {
+        id
+        name
+        channels {
+          id
+          name
+          service
+          avatar
+        }
+      }
+    }
+  }`);
+  return data.account.organizations;
+}
+
+export async function createPost(params: SchedulePostParams): Promise<BufferPost> {
+  // Buffer GraphQL schema:
+  // channelId: ChannelId!, mode: ShareMode!, schedulingType: SchedulingType! (required)
+  // PostActionPayload is a UNION -> use ... on PostActionSuccess { post { ... } }
+  const schedulingType = params.mode === 'customScheduled' ? 'automatic' : 'automatic';
+  const dueAtField = params.mode === 'customScheduled' && params.scheduledAt
+    ? `dueAt: "${params.scheduledAt}"`
+    : '';
+  const assetsField = params.imageUrls?.length
+    ? `assets: { images: [${params.imageUrls.map(url => `{ url: ${JSON.stringify(url)} }`).join(', ')}] }`
+    : '';
+
+  const query = `mutation {
+    createPost(input: {
+      channelId: "${params.channelId}"
+      text: ${JSON.stringify(params.text)}
+      mode: ${params.mode}
+      schedulingType: ${schedulingType}
+      source: "social-studio"
+      metadata: { instagram: { type: post, shouldShareToFeed: true } }
+      ${dueAtField}
+      ${assetsField}
+    }) {
+      ... on PostActionSuccess {
+        post {
+          id
+          status
+          text
+          dueAt
+          createdAt
+          channelId
+          channelService
+          shareMode
+        }
+      }
+      ... on InvalidInputError { message }
+      ... on NotFoundError { message }
+      ... on UnauthorizedError { message }
+      ... on UnexpectedError { message }
+      ... on LimitReachedError { message }
+      ... on RestProxyError { message }
+    }
+  }`;
+
+  const data = await bufferGraphQL<{ createPost: Record<string, unknown> }>(query);
+  const result = data.createPost;
+
+  // Check for error union types
+  if ('message' in result && !('post' in result)) {
+    throw new Error(`Buffer error: ${result.message}`);
+  }
+
+  if (!result.post) {
+    throw new Error(`Buffer returned unexpected response: ${JSON.stringify(result)}`);
+  }
+
+  return result.post as BufferPost;
+}
+
+async function fetchPostsByStatus(orgId: string, statuses: string[], limit = 50): Promise<BufferPost[]> {
+  try {
+    const statusFilter = statuses.length > 0
+      ? `filter: { status: [${statuses.join(', ')}] }`
+      : '';
+    const data = await bufferGraphQL<{
+      posts: { edges: Array<{ node: BufferPost }> };
+    }>(`{
+      posts(input: { organizationId: "${orgId}" ${statusFilter ? `, ${statusFilter}` : ''} }, first: ${limit}) {
+        edges {
+          node {
+            id
+            status
+            text
+            dueAt
+            createdAt
+            channelId
+            channelService
+            shareMode
+          }
+        }
+      }
+    }`);
+    return data.posts?.edges?.map(e => e.node) || [];
+  } catch (error) {
+    console.error('Failed to fetch posts:', error);
+    return [];
+  }
+}
+
+export async function getSentPosts(): Promise<BufferPost[]> {
+  try {
+    const orgs = await getOrganizationsAndChannels();
+    const allPosts: BufferPost[] = [];
+    for (const org of orgs) {
+      const posts = await fetchPostsByStatus(org.id, ['sent'], 50);
+      allPosts.push(...posts);
+    }
+    allPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return allPosts;
+  } catch (error) {
+    console.error('Failed to fetch sent posts:', error);
+    return [];
+  }
+}
+
+export async function getQueuedPosts(): Promise<BufferPost[]> {
+  try {
+    const orgs = await getOrganizationsAndChannels();
+    const allPosts: BufferPost[] = [];
+    for (const org of orgs) {
+      const posts = await fetchPostsByStatus(org.id, ['scheduled', 'pending'], 50);
+      allPosts.push(...posts);
+    }
+    allPosts.sort((a, b) => {
+      const aDate = a.dueAt || a.createdAt;
+      const bDate = b.dueAt || b.createdAt;
+      return new Date(aDate).getTime() - new Date(bDate).getTime();
+    });
+    return allPosts;
+  } catch (error) {
+    console.error('Failed to fetch queued posts:', error);
+    return [];
+  }
+}
+
+export async function createIdea(
+  organizationId: string,
+  title: string,
+  text: string
+): Promise<{ id: string; content: { title: string; text: string } }> {
+  const query = `mutation {
+    createIdea(input: {
+      organizationId: "${organizationId}"
+      content: {
+        title: ${JSON.stringify(title)}
+        text: ${JSON.stringify(text)}
+      }
+    }) {
+      ... on Idea {
+        id
+        content {
+          title
+          text
+        }
+      }
+    }
+  }`;
+
+  const data = await bufferGraphQL<{ createIdea: { id: string; content: { title: string; text: string } } }>(query);
+  return data.createIdea;
+}
+
+export async function getSentPostsWithAnalytics(): Promise<BufferPostWithAnalytics[]> {
+  try {
+    const orgs = await getOrganizationsAndChannels();
+    const allPosts: BufferPostWithAnalytics[] = [];
+
+    // Build channel name lookup for brand detection
+    const channelMap = new Map<string, { name: string; brand: 'affectly' | 'pacebrain' }>();
+    for (const org of orgs) {
+      for (const channel of org.channels) {
+        const brand = channel.name.toLowerCase().includes('affectly') ? 'affectly' as const : 'pacebrain' as const;
+        channelMap.set(channel.id, { name: channel.name, brand });
+      }
+    }
+
+    for (const org of orgs) {
+      // Fetch ALL posts (sent + scheduled) using correct top-level posts query
+      const posts = await fetchPostsByStatus(org.id, [], 100);
+
+      for (const post of posts) {
+        const channelInfo = channelMap.get(post.channelId) || { name: 'Unknown', brand: 'pacebrain' as const };
+        const hashtags = (post.text.match(/#\w+/g) || []).map(t => t.toLowerCase());
+
+        allPosts.push({
+          ...post,
+          channelName: channelInfo.name,
+          statistics: {
+            likes: 0, comments: 0, reach: 0, impressions: 0,
+            saves: 0, shares: 0, clicks: 0, engagementRate: 0,
+          },
+          brand: channelInfo.brand,
+          hashtags,
+          captionLength: post.text.replace(/#\w+/g, '').trim().length,
+          mediaType: 'image',
+        });
+      }
+    }
+
+    allPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return allPosts;
+  } catch (error) {
+    console.error('Failed to fetch posts with analytics:', error);
+    return [];
+  }
+}
