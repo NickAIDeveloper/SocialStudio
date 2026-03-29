@@ -15,9 +15,28 @@ export interface ScrapedPost {
   imageUrl: string;
   isVideo: boolean;
   brand: 'affectly' | 'pacebrain';
+  /** Hashtags extracted from caption */
+  hashtags: string[];
+  /** Caption length in characters */
+  captionLength: number;
+  /** Day of week posted (e.g. "Monday") */
+  dayOfWeek: string;
+  /** Hour posted (0-23) */
+  hourPosted: number;
+  /** Whether this is from a competitor account */
+  isCompetitor: boolean;
+  /** Instagram handle this was scraped from */
+  accountHandle: string;
 }
 
 export interface ScrapeResult {
+  posts: ScrapedPost[];
+  scrapedAt: string;
+  accounts: string[];
+  errors: string[];
+}
+
+export interface CompetitorScrapeResult {
   posts: ScrapedPost[];
   scrapedAt: string;
   accounts: string[];
@@ -29,6 +48,7 @@ export interface ScrapeResult {
 // ---------------------------------------------------------------------------
 
 const DATA_PATH = path.join(process.cwd(), 'src', 'data', 'scraped-posts.json');
+const COMPETITOR_DATA_PATH = path.join(process.cwd(), 'src', 'data', 'scraped-competitors.json');
 
 export function loadScrapedData(): ScrapeResult | null {
   try {
@@ -51,14 +71,59 @@ export function saveScrapedData(data: ScrapeResult): void {
   }
 }
 
+export function loadCompetitorData(): CompetitorScrapeResult | null {
+  try {
+    const raw = fs.readFileSync(COMPETITOR_DATA_PATH, 'utf-8');
+    return JSON.parse(raw) as CompetitorScrapeResult;
+  } catch {
+    return null;
+  }
+}
+
+export function saveCompetitorData(data: CompetitorScrapeResult): void {
+  try {
+    const dir = path.dirname(COMPETITOR_DATA_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(COMPETITOR_DATA_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Failed to save competitor data:', err);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const ACCOUNTS: { handle: string; brand: 'affectly' | 'pacebrain' }[] = [
+const OWN_ACCOUNTS: { handle: string; brand: 'affectly' | 'pacebrain' }[] = [
   { handle: 'affectly.app', brand: 'affectly' },
   { handle: 'pacebrain.app', brand: 'pacebrain' },
 ];
+
+const COMPETITOR_ACCOUNTS: { handle: string; brand: 'affectly' | 'pacebrain' }[] = [
+  // Affectly competitors (wellness / mental health)
+  { handle: 'calm', brand: 'affectly' },
+  { handle: 'headspace', brand: 'affectly' },
+  { handle: 'wysa_buddy', brand: 'affectly' },
+  { handle: 'nedratawwab', brand: 'affectly' },
+  // PaceBrain competitors (running / fitness)
+  { handle: 'strava', brand: 'pacebrain' },
+  { handle: 'nikerunning', brand: 'pacebrain' },
+  { handle: 'garmin', brand: 'pacebrain' },
+  { handle: 'corosexplore', brand: 'pacebrain' },
+];
+
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function extractPostMetadata(caption: string, timestamp: string) {
+  const hashtags = (caption.match(/#\w+/g) || []).map((t) => t.toLowerCase());
+  const captionLength = caption.length;
+  const date = timestamp ? new Date(timestamp) : new Date();
+  const dayOfWeek = DAYS_OF_WEEK[date.getDay()];
+  const hourPosted = date.getHours();
+  return { hashtags, captionLength, dayOfWeek, hourPosted };
+}
 
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -89,10 +154,13 @@ function parseOgDescription(content: string): { likes: number; comments: number;
 }
 
 // ---------------------------------------------------------------------------
-// Main scraper
+// Core scraper (reusable for own + competitor accounts)
 // ---------------------------------------------------------------------------
 
-export async function scrapeInstagramAccounts(): Promise<ScrapeResult> {
+async function scrapeAccounts(
+  accountList: { handle: string; brand: 'affectly' | 'pacebrain' }[],
+  options: { isCompetitor: boolean; maxPostsPerAccount: number },
+): Promise<{ posts: ScrapedPost[]; accounts: string[]; errors: string[] }> {
   const allPosts: ScrapedPost[] = [];
   const errors: string[] = [];
   const accounts: string[] = [];
@@ -103,7 +171,6 @@ export async function scrapeInstagramAccounts(): Promise<ScrapeResult> {
   } catch (err) {
     return {
       posts: [],
-      scrapedAt: new Date().toISOString(),
       accounts: [],
       errors: [`Failed to launch browser: ${err instanceof Error ? err.message : String(err)}`],
     };
@@ -114,22 +181,18 @@ export async function scrapeInstagramAccounts(): Promise<ScrapeResult> {
     const page = await context.newPage();
     page.setDefaultTimeout(10_000);
 
-    for (const { handle, brand } of ACCOUNTS) {
+    for (const { handle, brand } of accountList) {
       accounts.push(handle);
 
       try {
-        // Navigate to profile
         await page.goto(`https://www.instagram.com/${handle}/`, {
           waitUntil: 'domcontentloaded',
           timeout: 15_000,
         });
 
-        // Wait for main content
-        await page.waitForSelector('article, main', { timeout: 15_000 }).catch(() => {
-          // Page may still have loaded enough content
-        });
+        await page.waitForSelector('article, main', { timeout: 15_000 }).catch(() => {});
 
-        // Scroll a few times to load more posts
+        // Scroll to load more posts
         for (let i = 0; i < 4; i++) {
           await page.evaluate(() => window.scrollBy(0, window.innerHeight));
           await page.waitForTimeout(1_000);
@@ -150,12 +213,10 @@ export async function scrapeInstagramAccounts(): Promise<ScrapeResult> {
           return hrefs;
         });
 
-        // Limit to 20 posts per account
-        const linksToScrape = postLinks.slice(0, 20);
+        const linksToScrape = postLinks.slice(0, options.maxPostsPerAccount);
 
         for (const link of linksToScrape) {
           try {
-            // Extract shortcode from URL
             const shortcodeMatch = link.match(/\/(p|reel)\/([\w-]+)/);
             const shortcode = shortcodeMatch ? shortcodeMatch[2] : '';
             const isVideo = link.includes('/reel/');
@@ -165,7 +226,6 @@ export async function scrapeInstagramAccounts(): Promise<ScrapeResult> {
               timeout: 10_000,
             });
 
-            // Try og:description first (most reliable)
             let likes = 0;
             let comments = 0;
             let caption = '';
@@ -184,7 +244,6 @@ export async function scrapeInstagramAccounts(): Promise<ScrapeResult> {
               caption = parsed.caption;
             }
 
-            // Fallback: try to get likes from page content
             if (likes === 0) {
               const likesText = await page
                 .locator('section span')
@@ -200,39 +259,29 @@ export async function scrapeInstagramAccounts(): Promise<ScrapeResult> {
               }
             }
 
-            // Get image URL from og:image
             const ogImage = await page
               .locator('meta[property="og:image"]')
               .getAttribute('content')
               .catch(() => null);
+            if (ogImage) imageUrl = ogImage;
 
-            if (ogImage) {
-              imageUrl = ogImage;
-            }
-
-            // Get timestamp from time element
             const timeEl = await page
               .locator('time[datetime]')
               .first()
               .getAttribute('datetime')
               .catch(() => null);
+            if (timeEl) timestamp = timeEl;
 
-            if (timeEl) {
-              timestamp = timeEl;
-            }
-
-            // Fallback caption from page if og:description didn't have it
             if (!caption) {
               const captionEl = await page
                 .locator('h1, div[role="presentation"] span')
                 .first()
                 .textContent()
                 .catch(() => null);
-
-              if (captionEl) {
-                caption = captionEl.trim();
-              }
+              if (captionEl) caption = captionEl.trim();
             }
+
+            const meta = extractPostMetadata(caption, timestamp);
 
             allPosts.push({
               shortcode,
@@ -243,19 +292,24 @@ export async function scrapeInstagramAccounts(): Promise<ScrapeResult> {
               imageUrl,
               isVideo,
               brand,
+              hashtags: meta.hashtags,
+              captionLength: meta.captionLength,
+              dayOfWeek: meta.dayOfWeek,
+              hourPosted: meta.hourPosted,
+              isCompetitor: options.isCompetitor,
+              accountHandle: handle,
             });
           } catch (postErr) {
             errors.push(
-              `Failed to scrape post ${link}: ${postErr instanceof Error ? postErr.message : String(postErr)}`
+              `Failed to scrape post ${link}: ${postErr instanceof Error ? postErr.message : String(postErr)}`,
             );
           }
 
-          // Rate limit between posts
           await page.waitForTimeout(1_500);
         }
       } catch (accountErr) {
         errors.push(
-          `Failed to scrape @${handle}: ${accountErr instanceof Error ? accountErr.message : String(accountErr)}`
+          `Failed to scrape @${handle}: ${accountErr instanceof Error ? accountErr.message : String(accountErr)}`,
         );
       }
     }
@@ -263,15 +317,30 @@ export async function scrapeInstagramAccounts(): Promise<ScrapeResult> {
     await browser.close();
   } catch (globalErr) {
     errors.push(
-      `Browser error: ${globalErr instanceof Error ? globalErr.message : String(globalErr)}`
+      `Browser error: ${globalErr instanceof Error ? globalErr.message : String(globalErr)}`,
     );
     await browser.close().catch(() => {});
   }
 
-  return {
-    posts: allPosts,
-    scrapedAt: new Date().toISOString(),
-    accounts,
-    errors,
-  };
+  return { posts: allPosts, accounts, errors };
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+export async function scrapeInstagramAccounts(): Promise<ScrapeResult> {
+  const result = await scrapeAccounts(OWN_ACCOUNTS, {
+    isCompetitor: false,
+    maxPostsPerAccount: 20,
+  });
+  return { ...result, scrapedAt: new Date().toISOString() };
+}
+
+export async function scrapeCompetitorAccounts(): Promise<CompetitorScrapeResult> {
+  const result = await scrapeAccounts(COMPETITOR_ACCOUNTS, {
+    isCompetitor: true,
+    maxPostsPerAccount: 12,
+  });
+  return { ...result, scrapedAt: new Date().toISOString() };
 }

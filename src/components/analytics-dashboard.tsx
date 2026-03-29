@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { analyzeBufferPosts } from '@/lib/buffer-analyzer';
+import type { BufferPostWithAnalytics as LibBufferPost } from '@/lib/buffer';
+import type { IntelligenceReport } from '@/lib/content-intelligence';
 import {
   Heart,
   MessageCircle,
@@ -102,7 +105,7 @@ interface BufferAnalysis {
 // ---------------------------------------------------------------------------
 
 type SortKey = 'engagement' | 'likes' | 'comments' | 'saves' | 'reach' | 'recent';
-type TabKey = 'overview' | 'posts' | 'strategy';
+type TabKey = 'overview' | 'posts' | 'strategy' | 'intelligence';
 type BrandFilter = 'all' | 'affectly' | 'pacebrain';
 
 function fmt(n: number): string {
@@ -268,6 +271,7 @@ function PostCard({ post, label, labelColor }: { post: BufferPostWithAnalytics; 
 function OverviewTab({ analysis, posts }: { analysis: BufferAnalysis; posts: BufferPostWithAnalytics[] }) {
   const { summary, contentPatterns, timing } = analysis;
   const hasReach = summary.totalReach > 0;
+  const igCount = posts.filter((p) => p.id.startsWith('ig-')).length;
 
   // Rank posts by engagement (reach-based if available, otherwise likes+comments)
   const ranked = useMemo(() => {
@@ -295,16 +299,34 @@ function OverviewTab({ analysis, posts }: { analysis: BufferAnalysis; posts: Buf
         <div className={cardClass}>
           <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Total Posts</p>
           <p className="text-3xl font-mono font-bold text-white">{fmt(summary.totalPosts)}</p>
+          {igCount > 0 && (
+            <p className="text-xs text-teal-400/70 mt-1">{igCount} from Instagram</p>
+          )}
         </div>
         <div className={cardClass}>
-          <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Avg Engagement Rate</p>
+          <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Total Likes</p>
+          <p className="text-3xl font-mono font-bold text-white">{fmt(summary.totalLikes)}</p>
+        </div>
+        <div className={cardClass}>
+          <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Total Comments</p>
+          <p className="text-3xl font-mono font-bold text-white">{fmt(summary.totalComments)}</p>
+        </div>
+        <div className={cardClass}>
+          <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Avg Engagement</p>
           <p className={cn('text-3xl font-mono font-bold', engColor)}>
-            {pct(summary.avgEngagementRate)}%
+            {pct(summary.avgEngagementRate)}{hasReach ? '%' : ''}
+          </p>
+          <p className="text-xs text-zinc-500 mt-1">
+            {hasReach ? 'engagement rate' : 'likes + comments per post'}
           </p>
         </div>
+      </div>
+
+      {/* Secondary metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className={cardClass}>
           <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Total Reach</p>
-          <p className="text-3xl font-mono font-bold text-white">
+          <p className="text-2xl font-mono font-bold text-white">
             {hasReach ? fmt(summary.totalReach) : '\u2014'}
           </p>
         </div>
@@ -683,6 +705,318 @@ function StrategyTab({ analysis }: { analysis: BufferAnalysis }) {
 }
 
 // ---------------------------------------------------------------------------
+// Tab: Intelligence
+// ---------------------------------------------------------------------------
+
+function IntelligenceTab() {
+  const [report, setReport] = useState<IntelligenceReport | null>(null);
+  const [loadingReport, setLoadingReport] = useState(true);
+  const [scrapingCompetitors, setScrapingCompetitors] = useState(false);
+  const [compScrapeInfo, setCompScrapeInfo] = useState<string | null>(null);
+  const [reportKey, setReportKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadReport() {
+      setLoadingReport(true);
+      try {
+        const res = await fetch('/api/scrape?action=intelligence');
+        const data = await res.json();
+        if (!cancelled) setReport(data.report || null);
+      } catch {
+        // Intelligence data not available
+      } finally {
+        if (!cancelled) setLoadingReport(false);
+      }
+    }
+    loadReport();
+    return () => { cancelled = true; };
+  }, [reportKey]);
+
+  async function handleCompetitorScrape() {
+    setScrapingCompetitors(true);
+    setCompScrapeInfo(null);
+    try {
+      const res = await fetch('/api/scrape?target=competitors', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setCompScrapeInfo(`Synced ${data.postsScraped} competitor posts from ${data.accounts.length} accounts`);
+        setReportKey((k) => k + 1);
+      } else {
+        setCompScrapeInfo(`Sync failed: ${data.error}`);
+      }
+    } catch {
+      setCompScrapeInfo('Competitor sync failed');
+    } finally {
+      setScrapingCompetitors(false);
+    }
+  }
+
+  if (loadingReport) {
+    return (
+      <div className="space-y-4">
+        <div className={cn(cardClass, 'animate-pulse h-20')} />
+        <div className={cn(cardClass, 'animate-pulse h-40')} />
+      </div>
+    );
+  }
+
+  const fmtHour = (h: number) => {
+    if (h === 0) return '12 AM';
+    if (h < 12) return `${h} AM`;
+    if (h === 12) return '12 PM';
+    return `${h - 12} PM`;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Competitor sync button */}
+      <div className={cn(cardClass, 'flex items-center justify-between')}>
+        <div>
+          <p className="text-sm font-semibold text-white">Competitor Intelligence</p>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            Scrape competitor Instagram accounts to compare strategies and find what works.
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <button
+            onClick={handleCompetitorScrape}
+            disabled={scrapingCompetitors}
+            className={cn(
+              'flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+              scrapingCompetitors
+                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20',
+            )}
+          >
+            {scrapingCompetitors ? (
+              <>
+                <span className="h-3 w-3 rounded-full border-2 border-blue-400/30 border-t-blue-400 animate-spin" />
+                Scraping competitors...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-3.5 w-3.5" />
+                Sync Competitors
+              </>
+            )}
+          </button>
+          {compScrapeInfo && <p className="text-xs text-zinc-400">{compScrapeInfo}</p>}
+        </div>
+      </div>
+
+      {!report ? (
+        <div className={cn(cardClass, 'text-center py-8')}>
+          <Target className="w-10 h-10 text-zinc-500 mx-auto mb-3" />
+          <h3 className="text-lg font-semibold text-white">No Intelligence Data Yet</h3>
+          <p className="text-sm text-zinc-400 mt-1 max-w-md mx-auto">
+            Sync your Instagram posts first, then optionally sync competitors for a full comparison report.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Action plan */}
+          {report.actionPlan.length > 0 && (
+            <>
+              <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-400" /> Action Plan
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {report.actionPlan.map((item, i) => (
+                  <div key={i} className={cn(cardClass, 'border-l-2 border-amber-400/40')}>
+                    <p className="text-sm font-semibold text-white">{item.title}</p>
+                    <p className="text-xs text-zinc-400 mt-1">{item.description}</p>
+                    <p className="text-[10px] text-zinc-600 mt-2">{item.basedOn}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Winning vs Losing patterns */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {report.ownPerformance.winningPatterns.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-green-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4" /> What&apos;s Working
+                </h3>
+                <div className="space-y-2">
+                  {report.ownPerformance.winningPatterns.map((p, i) => (
+                    <div key={i} className={cn(cardClass, 'border-l-2 border-green-400/40')}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-white">{p.pattern}</p>
+                        <span className="text-xs text-green-400 font-mono">{p.avgEngagement.toFixed(1)} avg</span>
+                      </div>
+                      <p className="text-xs text-zinc-500 mt-1">{p.count} posts use this pattern</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {report.ownPerformance.losingPatterns.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-red-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+                  <TrendingDown className="w-4 h-4" /> What&apos;s Not Working
+                </h3>
+                <div className="space-y-2">
+                  {report.ownPerformance.losingPatterns.map((p, i) => (
+                    <div key={i} className={cn(cardClass, 'border-l-2 border-red-400/40')}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-white">{p.pattern}</p>
+                        <span className="text-xs text-red-400 font-mono">{p.avgEngagement.toFixed(1)} avg</span>
+                      </div>
+                      <p className="text-xs text-zinc-500 mt-1">{p.count} posts use this pattern</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Insights grid */}
+          {report.insights.length > 0 && (
+            <>
+              <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide flex items-center gap-2">
+                <Lightbulb className="w-4 h-4 text-teal-400" /> Insights
+              </h3>
+              <div className="space-y-3">
+                {report.insights.map((insight, i) => (
+                  <div key={i} className={cardClass}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={cn(
+                        'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full',
+                        insight.priority === 'high' ? 'bg-red-400/10 text-red-400'
+                          : insight.priority === 'medium' ? 'bg-amber-400/10 text-amber-400'
+                            : 'bg-blue-400/10 text-blue-400',
+                      )}>
+                        {insight.priority}
+                      </span>
+                      <span className="text-[10px] text-zinc-500 uppercase tracking-wider">{insight.category}</span>
+                    </div>
+                    <p className="text-sm font-medium text-white">{insight.title}</p>
+                    <p className="text-xs text-zinc-400 mt-1">{insight.description}</p>
+                    <p className="text-xs text-teal-400/70 mt-1">{insight.action}</p>
+                    {insight.dataPoints.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {insight.dataPoints.map((dp, j) => (
+                          <span key={j} className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded">
+                            {dp}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Timing heatmap */}
+          {report.ownPerformance.timingInsights.bestWindows.length > 0 && (
+            <>
+              <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide flex items-center gap-2">
+                <Clock className="w-4 h-4" /> Best Posting Windows
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                {report.ownPerformance.timingInsights.bestWindows.map((w, i) => (
+                  <div key={i} className={cn(cardClass, i === 0 && 'border-teal-400/30 border')}>
+                    <p className="text-xs text-zinc-500">{w.day}</p>
+                    <p className="text-lg font-mono font-bold text-white">{fmtHour(w.hour)}</p>
+                    <p className="text-xs text-teal-400">{w.avgEngagement.toFixed(1)} avg eng</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Hashtag insights */}
+          {report.ownPerformance.hashtagInsights.topPerforming.length > 0 && (
+            <>
+              <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide flex items-center gap-2">
+                <Hash className="w-4 h-4" /> Top Hashtags
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {report.ownPerformance.hashtagInsights.topPerforming.map((t, i) => (
+                  <span key={i} className="bg-zinc-800 text-zinc-300 text-xs px-3 py-1.5 rounded-lg">
+                    {t.tag} <span className="text-teal-400 ml-1">{t.avgEngagement.toFixed(1)}</span>
+                    <span className="text-zinc-600 ml-1">({t.useCount}x)</span>
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Competitor benchmarks */}
+          {report.competitorBenchmarks.length > 0 && (
+            <>
+              <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide flex items-center gap-2">
+                <Target className="w-4 h-4 text-blue-400" /> Competitor Benchmarks
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {report.competitorBenchmarks.map((comp, i) => (
+                  <div key={i} className={cardClass}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="text-sm font-semibold text-white">@{comp.handle}</p>
+                        <span className={cn(
+                          'text-[10px] px-2 py-0.5 rounded-full font-medium',
+                          comp.brand === 'affectly' ? 'bg-teal-400/10 text-teal-400' : 'bg-blue-400/10 text-blue-400',
+                        )}>
+                          {comp.brand === 'affectly' ? 'Affectly' : 'PaceBrain'} competitor
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-mono font-bold text-white">{comp.avgEngagement}</p>
+                        <p className="text-[10px] text-zinc-500">avg engagement</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                      <div>
+                        <p className="text-xs text-zinc-500">Posts</p>
+                        <p className="text-sm font-mono text-white">{comp.totalPosts}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-zinc-500">Avg Likes</p>
+                        <p className="text-sm font-mono text-white">{comp.avgLikes}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-zinc-500">Avg Comments</p>
+                        <p className="text-sm font-mono text-white">{comp.avgComments}</p>
+                      </div>
+                    </div>
+                    {comp.winningPatterns.length > 0 && (
+                      <div className="mb-2">
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Winning Patterns</p>
+                        <div className="flex flex-wrap gap-1">
+                          {comp.winningPatterns.slice(0, 3).map((wp, j) => (
+                            <span key={j} className="text-[10px] bg-green-400/10 text-green-400 px-2 py-0.5 rounded-full">
+                              {wp.pattern}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {comp.lessonsForUs.length > 0 && (
+                      <div className="border-t border-zinc-800 pt-2 mt-2">
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Lessons for Us</p>
+                        {comp.lessonsForUs.map((lesson, j) => (
+                          <p key={j} className="text-xs text-teal-400/80 mt-0.5">{lesson}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
@@ -697,6 +1031,7 @@ export default function AnalyticsDashboard() {
   const [sortBy, setSortBy] = useState<SortKey>('engagement');
   const [scraping, setScraping] = useState(false);
   const [scrapeInfo, setScrapeInfo] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   async function handleScrape() {
@@ -718,6 +1053,92 @@ export default function AnalyticsDashboard() {
     }
   }
 
+  /** Normalize text for fuzzy caption matching between Buffer and Instagram. */
+  function normalizeCaption(text: string): string {
+    return text
+      .toLowerCase()
+      .replace(/#\w+/g, '')      // strip hashtags
+      .replace(/[^\w\s]/g, '')   // strip punctuation
+      .replace(/\s+/g, ' ')      // collapse whitespace
+      .trim()
+      .slice(0, 80);
+  }
+
+  /**
+   * Merge scraped Instagram data into Buffer posts, then re-compute analysis.
+   * - Matched posts: Instagram likes/comments overwrite Buffer values
+   * - Unmatched scraped posts: added as new entries so Instagram-only posts appear
+   */
+  function mergeScrapedIntoBuffer(
+    bufferPosts: BufferPostWithAnalytics[],
+    scrapedPosts: { shortcode: string; caption: string; likes: number; comments: number; timestamp: string; imageUrl: string; isVideo: boolean; brand: 'affectly' | 'pacebrain' }[],
+  ): BufferPostWithAnalytics[] {
+    const merged = bufferPosts.map((p) => ({ ...p, statistics: { ...p.statistics } }));
+    const matchedShortcodes = new Set<string>();
+
+    for (const scraped of scrapedPosts) {
+      const scrapedNorm = normalizeCaption(scraped.caption || '');
+      if (scrapedNorm.length < 10) continue;
+
+      const match = merged.find((p) => {
+        const bufferNorm = normalizeCaption(p.text || '');
+        if (bufferNorm.length < 10) return false;
+        // Check if either starts with the other (handles IG prepending "username on Date:")
+        return bufferNorm.startsWith(scrapedNorm.slice(0, 40)) ||
+               scrapedNorm.startsWith(bufferNorm.slice(0, 40)) ||
+               bufferNorm.includes(scrapedNorm.slice(0, 40)) ||
+               scrapedNorm.includes(bufferNorm.slice(0, 40));
+      });
+
+      if (match) {
+        // Update with real Instagram metrics (prefer scraped values when > 0)
+        match.statistics = {
+          ...match.statistics,
+          likes: scraped.likes > 0 ? scraped.likes : match.statistics.likes,
+          comments: scraped.comments > 0 ? scraped.comments : match.statistics.comments,
+        };
+        matchedShortcodes.add(scraped.shortcode);
+      }
+    }
+
+    // Add Instagram-only posts (not found in Buffer) so they appear in analytics
+    for (const scraped of scrapedPosts) {
+      if (matchedShortcodes.has(scraped.shortcode)) continue;
+      if (!scraped.caption || scraped.caption.length < 10) continue;
+
+      // Extract hashtags from caption
+      const hashtags = (scraped.caption.match(/#\w+/g) || []).map((t) => t.toLowerCase());
+
+      merged.push({
+        id: `ig-${scraped.shortcode}`,
+        status: 'sent',
+        text: scraped.caption,
+        dueAt: null,
+        createdAt: scraped.timestamp || new Date().toISOString(),
+        channelId: `instagram-${scraped.brand}`,
+        channelService: 'instagram',
+        channelName: `@${scraped.brand === 'affectly' ? 'affectly.app' : 'pacebrain.app'}`,
+        shareMode: 'direct',
+        statistics: {
+          likes: scraped.likes,
+          comments: scraped.comments,
+          reach: 0,
+          impressions: 0,
+          saves: 0,
+          shares: 0,
+          clicks: 0,
+          engagementRate: 0,
+        },
+        brand: scraped.brand,
+        hashtags,
+        captionLength: scraped.caption.length,
+        mediaType: scraped.isVideo ? 'video' as const : 'image' as const,
+      });
+    }
+
+    return merged;
+  }
+
   useEffect(() => {
     let cancelled = false;
 
@@ -725,42 +1146,61 @@ export default function AnalyticsDashboard() {
       setLoading(true);
       setError(null);
       try {
+        // Fetch Buffer analytics and scraped Instagram data in parallel
         const params = new URLSearchParams({ action: 'analyze', days: String(dateRange) });
         if (brandFilter !== 'all') params.set('brand', brandFilter);
-        const res = await fetch(`/api/buffer?${params}`);
-        if (!res.ok) throw new Error('Failed to fetch analytics');
-        const data = await res.json();
-        if (!cancelled) {
-          const merged = [...(data.posts || [])];
 
-          // Merge scraped Instagram data
-          try {
-            const scrapeRes = await fetch('/api/scrape');
-            const scrapeData = await scrapeRes.json();
-            if (scrapeData.posts?.length > 0) {
-              for (const scraped of scrapeData.posts) {
-                const captionStart = scraped.caption?.slice(0, 50)?.toLowerCase() || '';
-                const match = merged.find(
-                  (p: BufferPostWithAnalytics) =>
-                    captionStart.length > 10 &&
-                    p.text?.toLowerCase()?.startsWith(captionStart)
-                );
-                if (match) {
-                  match.statistics = {
-                    ...match.statistics,
-                    likes: scraped.likes || match.statistics.likes,
-                    comments: scraped.comments || match.statistics.comments,
-                  };
-                }
-              }
-            }
-          } catch {
-            // Scraped data not available, that's fine
+        const [bufferRes, scrapeRes] = await Promise.all([
+          fetch(`/api/buffer?${params}`),
+          fetch('/api/scrape').catch(() => null),
+        ]);
+
+        if (!bufferRes.ok) throw new Error('Failed to fetch analytics');
+        const bufferData = await bufferRes.json();
+
+        if (cancelled) return;
+
+        const bufferPosts: BufferPostWithAnalytics[] = bufferData.posts || [];
+        let scrapedPosts: { shortcode: string; caption: string; likes: number; comments: number; timestamp: string; imageUrl: string; isVideo: boolean; brand: 'affectly' | 'pacebrain' }[] = [];
+        let syncTimestamp: string | null = null;
+
+        if (scrapeRes?.ok) {
+          const scrapeData = await scrapeRes.json();
+          let allScraped = scrapeData.posts || [];
+
+          // Apply the same brand + date filters to scraped posts
+          if (brandFilter !== 'all') {
+            allScraped = allScraped.filter(
+              (p: { brand: string }) => p.brand === brandFilter,
+            );
           }
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - dateRange);
+          allScraped = allScraped.filter(
+            (p: { timestamp: string }) =>
+              !p.timestamp || new Date(p.timestamp) >= cutoff,
+          );
 
-          setPosts(merged);
-          setAnalysis(data.analysis || null);
+          scrapedPosts = allScraped;
+          syncTimestamp = scrapeData.scrapedAt || null;
         }
+
+        if (cancelled) return;
+
+        // Merge Instagram data into Buffer posts
+        const merged = scrapedPosts.length > 0
+          ? mergeScrapedIntoBuffer(bufferPosts, scrapedPosts)
+          : bufferPosts;
+
+        // Re-compute analysis on the merged dataset so Instagram metrics
+        // flow into summary cards, timing insights, and recommendations
+        const freshAnalysis = merged.length > 0
+          ? analyzeBufferPosts(merged as unknown as LibBufferPost[])
+          : bufferData.analysis || null;
+
+        setPosts(merged);
+        setAnalysis(freshAnalysis);
+        setLastSyncedAt(syncTimestamp);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Unknown error');
       } finally {
@@ -770,6 +1210,7 @@ export default function AnalyticsDashboard() {
 
     load();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brandFilter, dateRange, refreshKey]);
 
   const dateOptions: { value: number; label: string }[] = [
@@ -788,6 +1229,7 @@ export default function AnalyticsDashboard() {
     { value: 'overview', label: 'Overview' },
     { value: 'posts', label: 'Posts' },
     { value: 'strategy', label: 'Strategy' },
+    { value: 'intelligence', label: 'Intelligence' },
   ];
 
   return (
@@ -847,6 +1289,11 @@ export default function AnalyticsDashboard() {
           {scrapeInfo && (
             <p className="text-xs text-zinc-400 mt-1">{scrapeInfo}</p>
           )}
+          {lastSyncedAt && !scrapeInfo && (
+            <p className="text-xs text-zinc-500 mt-1">
+              Last synced {relativeTime(lastSyncedAt)}
+            </p>
+          )}
         </div>
 
         {/* Trend badge */}
@@ -900,6 +1347,7 @@ export default function AnalyticsDashboard() {
             <PostsTab posts={posts} analysis={analysis} sortBy={sortBy} setSortBy={setSortBy} />
           )}
           {activeTab === 'strategy' && <StrategyTab analysis={analysis} />}
+          {activeTab === 'intelligence' && <IntelligenceTab />}
         </>
       )}
     </div>
