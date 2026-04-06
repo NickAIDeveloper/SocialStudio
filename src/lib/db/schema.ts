@@ -8,6 +8,7 @@ import {
   integer,
   jsonb,
   uniqueIndex,
+  boolean as pgBoolean,
 } from 'drizzle-orm/pg-core';
 
 // ── Users ──────────────────────────────────────────────────────────────────────
@@ -179,7 +180,61 @@ export const userPreferences = pgTable('user_preferences', {
     'center'
   ),
   timezone: varchar('timezone', { length: 50 }).default('UTC'),
+  onboardingCompleted: pgBoolean('onboarding_completed').notNull().default(false),
+  onboardingStep: integer('onboarding_step').notNull().default(0),
 });
+
+// ── Scraped Accounts ──────────────────────────────────────────────────────────
+
+export const scrapedAccounts = pgTable(
+  'scraped_accounts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    handle: varchar('handle', { length: 100 }).notNull(),
+    isCompetitor: pgBoolean('is_competitor').notNull().default(true),
+    followerCount: integer('follower_count'),
+    lastScrapedAt: timestamp('last_scraped_at', { mode: 'date' }),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('scraped_account_user_handle_idx').on(t.userId, t.handle)]
+);
+
+// ── Scraped Posts ─────────────────────────────────────────────────────────────
+
+export const scrapedPosts = pgTable(
+  'scraped_posts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id').notNull().references(() => scrapedAccounts.id, { onDelete: 'cascade' }),
+    shortcode: varchar('shortcode', { length: 50 }).notNull(),
+    caption: text('caption'),
+    likes: integer('likes').notNull().default(0),
+    comments: integer('comments').notNull().default(0),
+    imageUrl: text('image_url'),
+    isVideo: pgBoolean('is_video').notNull().default(false),
+    hashtags: text('hashtags'),
+    postedAt: timestamp('posted_at', { mode: 'date' }),
+    scrapedAt: timestamp('scraped_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('scraped_post_user_shortcode_idx').on(t.userId, t.shortcode)]
+);
+
+// ── Insights Cache ────────────────────────────────────────────────────────────
+
+export const insightsCache = pgTable(
+  'insights_cache',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    type: varchar('type', { length: 20 }).notNull(),
+    data: jsonb('data'),
+    healthScore: integer('health_score'),
+    computedAt: timestamp('computed_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('insights_cache_user_type_idx').on(t.userId, t.type)]
+);
 
 // ── Inferred Types ─────────────────────────────────────────────────────────────
 
@@ -194,3 +249,8 @@ export type SelectPost = typeof posts.$inferSelect;
 
 export type InsertLinkedAccount = typeof linkedAccounts.$inferInsert;
 export type SelectLinkedAccount = typeof linkedAccounts.$inferSelect;
+
+export type InsertScrapedAccount = typeof scrapedAccounts.$inferInsert;
+export type SelectScrapedAccount = typeof scrapedAccounts.$inferSelect;
+export type InsertScrapedPost = typeof scrapedPosts.$inferInsert;
+export type SelectScrapedPost = typeof scrapedPosts.$inferSelect;

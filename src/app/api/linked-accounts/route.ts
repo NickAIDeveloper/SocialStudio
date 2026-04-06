@@ -43,9 +43,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!['buffer', 'pixabay'].includes(provider)) {
+    const VALID_PROVIDERS = ['buffer', 'pixabay', 'unsplash', 'pexels', 'openai_images'];
+
+    if (!VALID_PROVIDERS.includes(provider)) {
       return NextResponse.json(
-        { error: 'Invalid provider. Must be "buffer" or "pixabay"' },
+        { error: `Invalid provider. Must be one of: ${VALID_PROVIDERS.join(', ')}` },
         { status: 400 }
       );
     }
@@ -90,6 +92,51 @@ export async function POST(request: NextRequest) {
       }
 
       metadata = { totalHits: data.totalHits };
+    }
+
+    if (provider === 'unsplash') {
+      const res = await fetch('https://api.unsplash.com/photos/random?count=1', {
+        headers: { Authorization: `Client-ID ${accessToken}` },
+      });
+
+      if (!res.ok) {
+        return NextResponse.json(
+          { error: 'Invalid Unsplash access key. Please check and try again.' },
+          { status: 400 }
+        );
+      }
+
+      metadata = { validated: true };
+    }
+
+    if (provider === 'pexels') {
+      const res = await fetch('https://api.pexels.com/v1/search?query=test&per_page=1', {
+        headers: { Authorization: accessToken },
+      });
+
+      if (!res.ok) {
+        return NextResponse.json(
+          { error: 'Invalid Pexels API key. Please check and try again.' },
+          { status: 400 }
+        );
+      }
+
+      metadata = { validated: true };
+    }
+
+    if (provider === 'openai_images') {
+      const res = await fetch('https://api.openai.com/v1/models', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!res.ok) {
+        return NextResponse.json(
+          { error: 'Invalid OpenAI API key. Please check and try again.' },
+          { status: 400 }
+        );
+      }
+
+      metadata = { validated: true };
     }
 
     const encryptedToken = encrypt(accessToken);
@@ -141,7 +188,8 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    if (!['buffer', 'pixabay'].includes(provider)) {
+    const VALID_PROVIDERS = ['buffer', 'pixabay', 'unsplash', 'pexels', 'openai_images'];
+    if (!VALID_PROVIDERS.includes(provider)) {
       return NextResponse.json(
         { error: 'Invalid provider' },
         { status: 400 }

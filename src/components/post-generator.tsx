@@ -22,8 +22,10 @@ import {
   optimalPostingTimes,
   competitors,
 } from '@/data/competitor-insights';
-import { suggestedQueries, brandCategories } from '@/lib/pixabay';
-import type { PixabayImage } from '@/lib/pixabay';
+import { suggestedQueries } from '@/lib/pixabay';
+import type { ImageResult } from '@/lib/image-sources';
+import { ImageSourceSelector } from '@/components/image-source-selector';
+import type { ImageSourceSelectorHandle } from '@/components/image-source-selector';
 import { generateCaption as getCaption, extractHookText } from '@/lib/caption-engine';
 
 type Brand = 'affectly' | 'pacebrain';
@@ -119,14 +121,13 @@ export function PostGenerator() {
   const [hashtags, setHashtags] = useState('');
 
   // Image search state
-  const [imageQuery, setImageQuery] = useState('');
-  const [images, setImages] = useState<PixabayImage[]>([]);
-  const [selectedImage, setSelectedImage] = useState<PixabayImage | null>(null);
-  const [selectedCarouselImages, setSelectedCarouselImages] = useState<PixabayImage[]>([]);
+  const [images, setImages] = useState<ImageResult[]>([]);
+  const [selectedImage, setSelectedImage] = useState<ImageResult | null>(null);
+  const [selectedCarouselImages, setSelectedCarouselImages] = useState<ImageResult[]>([]);
   const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null);
   const [processedCarouselUrls, setProcessedCarouselUrls] = useState<(string | null)[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const imageSelectorRef = useRef<ImageSourceSelectorHandle>(null);
 
   // Carousel state
   const [carouselIndex, setCarouselIndex] = useState(0);
@@ -241,11 +242,10 @@ export function PostGenerator() {
 
     // Search for a fresh image aligned to the brand
     const searchTerm = pickFreshQuery(brand);
-    setImageQuery(searchTerm);
     try {
-      const response = await fetch(`/api/pixabay?q=${encodeURIComponent(searchTerm)}&orientation=all&category=${brandCategories[brand] || ''}`);
+      const response = await fetch(`/api/images?source=all&q=${encodeURIComponent(searchTerm)}`);
       const data = await response.json();
-      const hits: PixabayImage[] = data.hits || [];
+      const hits: ImageResult[] = data.images || [];
       setImages(hits);
       if (hits.length > 0) {
         const randomImg = hits[Math.floor(Math.random() * Math.min(hits.length, 8))];
@@ -282,21 +282,7 @@ export function PostGenerator() {
     }
   }, [brand, contentType, textPosition, fontSize, overlayStyle]);
 
-  const searchImages = useCallback(async () => {
-    if (!imageQuery.trim()) return;
-    setIsSearching(true);
-    try {
-      const response = await fetch(`/api/pixabay?q=${encodeURIComponent(imageQuery)}&orientation=all&category=${brandCategories[brand] || ''}`);
-      const data = await response.json();
-      setImages(data.hits || []);
-    } catch (error) {
-      console.error('Image search failed:', error);
-    } finally {
-      setIsSearching(false);
-    }
-  }, [imageQuery]);
-
-  const processImage = useCallback(async (image: PixabayImage) => {
+  const processImage = useCallback(async (image: ImageResult) => {
     setIsProcessing(true);
     try {
       const body: Record<string, unknown> = {
@@ -326,7 +312,7 @@ export function PostGenerator() {
     return null;
   }, [brand, overlayEnabled, overlayText, textPosition, overlayStyle, fontSize]);
 
-  const handleImageSelect = useCallback(async (image: PixabayImage) => {
+  const handleImageSelect = useCallback(async (image: ImageResult) => {
     if (isCarousel) {
       setProcessedCarouselUrls([]);
       setProcessedImageUrl(null);
@@ -485,7 +471,6 @@ export function PostGenerator() {
     setSelectedCarouselImages([]);
     setProcessedImageUrl(null);
     setImages([]);
-    setImageQuery('');
     setCarouselIndex(0);
 
     const randomBrand = pickRandom<Brand>(['affectly', 'pacebrain']);
@@ -516,11 +501,10 @@ export function PostGenerator() {
 
     // Auto-search for a topic-aligned image
     const searchTerm = pickFreshQuery(randomBrand);
-    setImageQuery(searchTerm);
     try {
-      const response = await fetch(`/api/pixabay?q=${encodeURIComponent(searchTerm)}&orientation=all&category=${brandCategories[brand] || ''}`);
+      const response = await fetch(`/api/images?source=all&q=${encodeURIComponent(searchTerm)}`);
       const data = await response.json();
-      const hits: PixabayImage[] = data.hits || [];
+      const hits: ImageResult[] = data.images || [];
       setImages(hits);
       if (hits.length > 0) {
         const randomImg = hits[Math.floor(Math.random() * Math.min(hits.length, 8))];
@@ -617,8 +601,7 @@ export function PostGenerator() {
                   setProcessedImageUrl(null);
                   setProcessedCarouselUrls([]);
                   setImages([]);
-                  setImageQuery('');
-                  setCarouselIndex(0);
+                                setCarouselIndex(0);
                 }}>
                 <SelectTrigger className="bg-zinc-800/60 border-zinc-700/50 text-white h-9 text-sm">
                   <SelectValue />
@@ -786,29 +769,17 @@ export function PostGenerator() {
           <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
             Find Images {isCarousel && <span className="text-teal-400 normal-case">(select up to 10 for carousel)</span>}
           </h3>
-          <div className="flex gap-2">
-            <Input
-              value={imageQuery}
-              onChange={(e) => setImageQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && searchImages()}
-              placeholder="Search for images..."
-              className="bg-zinc-800/60 border-zinc-700/50 text-white h-9 text-sm"
-            />
-            <Button
-              onClick={searchImages}
-              disabled={isSearching}
-              size="sm"
-              className="bg-teal-600 hover:bg-teal-700 text-white h-9 px-4 shrink-0 text-sm"
-            >
-              {isSearching ? 'Searching...' : 'Search'}
-            </Button>
-          </div>
+          <ImageSourceSelector
+            ref={imageSelectorRef}
+            onImagesLoaded={setImages}
+            brand={brand}
+          />
 
           <div className="flex flex-wrap gap-1.5">
             {suggestions.slice(0, 6).map((query) => (
               <button
                 key={query}
-                onClick={() => setImageQuery(query)}
+                onClick={() => imageSelectorRef.current?.triggerSearch(query)}
                 className="text-xs px-2 py-1 rounded-md bg-zinc-800/60 text-zinc-500 hover:text-teal-300 hover:bg-teal-500/10 hover:scale-105 transition-all duration-200"
                 type="button"
               >

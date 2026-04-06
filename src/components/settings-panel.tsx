@@ -10,7 +10,7 @@ interface LinkedAccount {
 }
 
 interface ProviderSectionProps {
-  provider: 'buffer' | 'pixabay';
+  provider: 'buffer' | 'pixabay' | 'unsplash' | 'pexels' | 'openai_images';
   label: string;
   description: string;
   placeholder: string;
@@ -249,6 +249,33 @@ export function SettingsPanel() {
         description="Connect Pixabay to search and use royalty-free stock images"
         placeholder="Paste your Pixabay API key"
         account={getAccount('pixabay')}
+        onConnect={handleConnect}
+        onDisconnect={handleDisconnect}
+      />
+      <ProviderSection
+        provider="unsplash"
+        label="Unsplash"
+        description="Access high-quality photos from the Unsplash library"
+        placeholder="Paste your Unsplash access key"
+        account={getAccount('unsplash')}
+        onConnect={handleConnect}
+        onDisconnect={handleDisconnect}
+      />
+      <ProviderSection
+        provider="pexels"
+        label="Pexels"
+        description="Search and use free stock photos and videos from Pexels"
+        placeholder="Paste your Pexels API key"
+        account={getAccount('pexels')}
+        onConnect={handleConnect}
+        onDisconnect={handleDisconnect}
+      />
+      <ProviderSection
+        provider="openai_images"
+        label="OpenAI Images"
+        description="Generate AI-powered images using OpenAI DALL-E"
+        placeholder="Paste your OpenAI API key"
+        account={getAccount('openai_images')}
         onConnect={handleConnect}
         onDisconnect={handleDisconnect}
       />
