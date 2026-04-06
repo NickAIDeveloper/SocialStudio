@@ -1,0 +1,196 @@
+import {
+  pgTable,
+  primaryKey,
+  uuid,
+  varchar,
+  text,
+  timestamp,
+  integer,
+  jsonb,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
+
+// ── Users ──────────────────────────────────────────────────────────────────────
+
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  passwordHash: text('password_hash'),
+  emailVerified: timestamp('email_verified', { mode: 'date' }),
+  image: text('image'),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow(),
+});
+
+// ── Sessions ───────────────────────────────────────────────────────────────────
+
+export const sessions = pgTable('sessions', {
+  sessionToken: text('session_token').primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  expires: timestamp('expires', { mode: 'date' }).notNull(),
+});
+
+// ── Accounts ───────────────────────────────────────────────────────────────────
+
+export const accounts = pgTable(
+  'accounts',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: varchar('type', { length: 255 }).notNull(),
+    provider: varchar('provider', { length: 255 }).notNull(),
+    providerAccountId: varchar('provider_account_id', { length: 255 }).notNull(),
+    refresh_token: text('refresh_token'),
+    access_token: text('access_token'),
+    expires_at: integer('expires_at'),
+    token_type: varchar('token_type', { length: 255 }),
+    scope: text('scope'),
+    id_token: text('id_token'),
+    session_state: text('session_state'),
+  },
+  (t) => [primaryKey({ columns: [t.provider, t.providerAccountId] })]
+);
+
+// ── Verification Tokens ────────────────────────────────────────────────────────
+
+export const verificationTokens = pgTable(
+  'verification_tokens',
+  {
+    identifier: text('identifier').notNull(),
+    token: text('token').notNull(),
+    expires: timestamp('expires', { mode: 'date' }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('verification_tokens_identifier_token_idx').on(
+      table.identifier,
+      table.token
+    ),
+  ]
+);
+
+// ── Linked Accounts ────────────────────────────────────────────────────────────
+
+export const linkedAccounts = pgTable(
+  'linked_accounts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    provider: varchar('provider', { length: 50 }).notNull(),
+    accessToken: text('access_token'),
+    metadata: jsonb('metadata'),
+    connectedAt: timestamp('connected_at', { mode: 'date' }).defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('linked_accounts_user_id_provider_idx').on(
+      table.userId,
+      table.provider
+    ),
+  ]
+);
+
+// ── Brands ─────────────────────────────────────────────────────────────────────
+
+export const brands = pgTable(
+  'brands',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 100 }).notNull(),
+    slug: varchar('slug', { length: 100 }).notNull(),
+    primaryColor: varchar('primary_color', { length: 7 }).default('#14b8a6'),
+    secondaryColor: varchar('secondary_color', { length: 7 }).default('#0d9488'),
+    logoUrl: text('logo_url'),
+    instagramHandle: varchar('instagram_handle', { length: 100 }),
+    createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('brands_user_id_slug_idx').on(table.userId, table.slug),
+  ]
+);
+
+// ── Posts ───────────────────────────────────────────────────────────────────────
+
+export const posts = pgTable('posts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id')
+    .notNull()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  caption: text('caption').notNull(),
+  hashtags: text('hashtags'),
+  hookText: text('hook_text'),
+  contentType: varchar('content_type', { length: 20 }),
+  overlayStyle: varchar('overlay_style', { length: 20 }),
+  textPosition: varchar('text_position', { length: 10 }),
+  fontSize: integer('font_size').default(80),
+  sourceImageUrl: text('source_image_url'),
+  processedImageUrl: text('processed_image_url'),
+  status: varchar('status', { length: 20 }).notNull().default('draft'),
+  scheduledAt: timestamp('scheduled_at', { mode: 'date' }),
+  publishedAt: timestamp('published_at', { mode: 'date' }),
+  bufferPostId: text('buffer_post_id'),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow(),
+});
+
+// ── Post Analytics ─────────────────────────────────────────────────────────────
+
+export const postAnalytics = pgTable('post_analytics', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  postId: uuid('post_id')
+    .notNull()
+    .references(() => posts.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  likes: integer('likes').default(0),
+  comments: integer('comments').default(0),
+  shares: integer('shares').default(0),
+  impressions: integer('impressions').default(0),
+  fetchedAt: timestamp('fetched_at', { mode: 'date' }).defaultNow(),
+});
+
+// ── User Preferences ───────────────────────────────────────────────────────────
+
+export const userPreferences = pgTable('user_preferences', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  defaultBrandId: uuid('default_brand_id').references(() => brands.id, {
+    onDelete: 'set null',
+  }),
+  defaultOverlayStyle: varchar('default_overlay_style', { length: 20 }).default(
+    'editorial'
+  ),
+  defaultTextPosition: varchar('default_text_position', { length: 10 }).default(
+    'center'
+  ),
+  timezone: varchar('timezone', { length: 50 }).default('UTC'),
+});
+
+// ── Inferred Types ─────────────────────────────────────────────────────────────
+
+export type InsertUser = typeof users.$inferInsert;
+export type SelectUser = typeof users.$inferSelect;
+
+export type InsertBrand = typeof brands.$inferInsert;
+export type SelectBrand = typeof brands.$inferSelect;
+
+export type InsertPost = typeof posts.$inferInsert;
+export type SelectPost = typeof posts.$inferSelect;
+
+export type InsertLinkedAccount = typeof linkedAccounts.$inferInsert;
+export type SelectLinkedAccount = typeof linkedAccounts.$inferSelect;

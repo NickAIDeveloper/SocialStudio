@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -11,6 +12,7 @@ import {
   Calendar,
   BarChart3,
   Users,
+  Settings,
   PanelLeftClose,
   PanelLeft,
 } from 'lucide-react';
@@ -22,11 +24,13 @@ const navItems = [
   { href: '/schedule', label: 'Schedule', icon: Calendar },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/competitors', label: 'Competitors', icon: Users },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const { data: session } = useSession();
 
   return (
     <aside
@@ -122,6 +126,30 @@ export function Sidebar() {
           )}
         </button>
       </div>
+
+      {/* User footer */}
+      {session?.user && (
+        <div className="mt-auto border-t border-zinc-800/60 px-2 py-3">
+          <div className="flex items-center gap-3 px-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-sm font-medium text-zinc-100">
+              {session.user.name?.charAt(0).toUpperCase() ?? '?'}
+            </div>
+            {!collapsed && (
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <span className="truncate text-sm font-medium text-zinc-200">
+                  {session.user.name}
+                </span>
+                <button
+                  onClick={() => signOut({ callbackUrl: '/login' })}
+                  className="mt-0.5 text-left text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

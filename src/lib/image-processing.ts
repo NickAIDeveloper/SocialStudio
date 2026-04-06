@@ -1,8 +1,37 @@
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs/promises';
+import { assertAllowedImageUrl } from '@/lib/url-validation';
 
 const LOGOS_DIR = path.join(process.cwd(), 'public', 'logos');
+
+// In-memory cache for downloaded logo buffers (keyed by URL)
+const LOGO_CACHE_MAX = 50;
+const logoCache = new Map<string, Buffer>();
+
+async function fetchLogoBuffer(url: string): Promise<Buffer> {
+  const cached = logoCache.get(url);
+  if (cached) return cached;
+
+  assertAllowedImageUrl(url);
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch logo from ${url}: ${response.status}`);
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+
+  // Evict oldest entry if cache is full
+  if (logoCache.size >= LOGO_CACHE_MAX) {
+    const firstKey = logoCache.keys().next().value;
+    if (firstKey !== undefined) {
+      logoCache.delete(firstKey);
+    }
+  }
+  logoCache.set(url, buffer);
+
+  return buffer;
+}
 
 export async function removeWhiteBackground(
   inputPath: string,
@@ -113,20 +142,9 @@ export async function removeWhiteBackground(
 export async function compositeLogoOnImage(
   baseImageBuffer: Buffer,
   brand: 'affectly' | 'pacebrain',
-  position: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' = 'bottom-right',
-  logoScale: number = 0.20
+  logoScale: number = 0.22,
+  logoUrl?: string | null
 ): Promise<Buffer> {
-  // Use the icon-only version for PaceBrain (no "PACEBRAIN" text below)
-  const logoFile = brand === 'pacebrain' ? 'pacebrain-icon.png' : `${brand}.png`;
-  const logoPath = path.join(LOGOS_DIR, logoFile);
-
-  try {
-    await fs.access(logoPath);
-  } catch {
-    const originalPath = path.join(LOGOS_DIR, `${brand}-original.png`);
-    await removeWhiteBackground(originalPath, logoPath);
-  }
-
   const baseImage = sharp(baseImageBuffer);
   const baseMetadata = await baseImage.metadata();
 
@@ -134,52 +152,115 @@ export async function compositeLogoOnImage(
     throw new Error('Could not read base image dimensions');
   }
 
-  const logoWidth = Math.round(baseMetadata.width * logoScale);
+  const iconSize = Math.round(baseMetadata.width * logoScale);
 
-  const resizedLogo = await sharp(logoPath)
-    .resize(logoWidth, null, { fit: 'inside', kernel: sharp.kernel.lanczos3 })
-    .sharpen({ sigma: 0.5 })
-    .png()
-    .toBuffer();
+  let resizedLogo: Buffer;
+
+  if (logoUrl) {
+    // Dynamic logo from user-uploaded brand logo (Vercel Blob URL)
+    const logoBuffer = await fetchLogoBuffer(logoUrl);
+    resizedLogo = await sharp(logoBuffer)
+      .resize(iconSize, iconSize, { fit: 'inside', kernel: sharp.kernel.lanczos3 })
+      .sharpen({ sigma: 0.8 })
+      .png()
+      .toBuffer();
+  } else {
+    // Fallback: local logo files from public/logos/
+    const logoFile = brand === 'pacebrain' ? 'pacebrain-icon.png' : `${brand}.png`;
+    const logoPath = path.join(LOGOS_DIR, logoFile);
+
+    try {
+      await fs.access(logoPath);
+    } catch {
+      const originalPath = path.join(LOGOS_DIR, `${brand}-original.png`);
+      await removeWhiteBackground(originalPath, logoPath);
+    }
+
+    resizedLogo = await sharp(logoPath)
+      .resize(iconSize, iconSize, { fit: 'inside', kernel: sharp.kernel.lanczos3 })
+      .sharpen({ sigma: 0.8 })
+      .png()
+      .toBuffer();
+  }
 
   const logoMeta = await sharp(resizedLogo).metadata();
-  const logoH = logoMeta.height || logoWidth;
-  const logoW = logoMeta.width || logoWidth;
+  const logoH = logoMeta.height || iconSize;
+  const logoW = logoMeta.width || iconSize;
 
-  const sidePadding = Math.round(baseMetadata.width * 0.04);
-  // Instagram grid crops to 1:1 from center — if the image is taller than
-  // square, the bottom gets clipped.  Keep the logo well inside the safe
-  // zone so it's visible in both the feed (full image) and the grid
-  // thumbnail (square crop).  For a 1080×1350 (4:5) image the bottom
-  // ~135 px is hidden in the grid, so we use ≈12 % inset from the bottom.
-  const bottomPadding = Math.round(baseMetadata.height * 0.12);
+  let badge: Buffer;
 
-  let left: number;
-  let top: number;
+  if (logoUrl) {
+    // User-uploaded logo: dark pill with logo only (no brand name text)
+    const pillPadX = Math.round(iconSize * 0.18);
+    const pillPadY = Math.round(iconSize * 0.14);
 
-  switch (position) {
-    case 'top-left':
-      left = sidePadding;
-      top = sidePadding;
-      break;
-    case 'top-right':
-      left = baseMetadata.width - logoW - sidePadding;
-      top = sidePadding;
-      break;
-    case 'bottom-left':
-      left = sidePadding;
-      top = baseMetadata.height - logoH - bottomPadding;
-      break;
-    case 'bottom-right':
-    default:
-      left = baseMetadata.width - logoW - sidePadding;
-      top = baseMetadata.height - logoH - bottomPadding;
-      break;
+    const pillW = logoW + pillPadX * 2;
+    const pillH = logoH + pillPadY * 2;
+    const pillR = Math.round(Math.min(pillW, pillH) * 0.18);
+
+    const pillSvg = Buffer.from(
+      `<svg width="${pillW}" height="${pillH}" xmlns="http://www.w3.org/2000/svg">
+        <rect width="${pillW}" height="${pillH}" rx="${pillR}" ry="${pillR}" fill="rgba(0,0,0,0.6)"/>
+      </svg>`
+    );
+
+    badge = await sharp(pillSvg)
+      .composite([{
+        input: resizedLogo,
+        left: Math.round((pillW - logoW) / 2),
+        top: pillPadY,
+      }])
+      .png()
+      .toBuffer();
+  } else {
+    // Local logo: dark pill with icon + brand name text
+    const brandLabel = brand === 'affectly' ? 'affectly' : 'PaceBrain';
+    const textSize = Math.round(iconSize * 0.22);
+    const textGap = Math.round(iconSize * 0.08);
+
+    const pillPadX = Math.round(iconSize * 0.18);
+    const pillPadTop = Math.round(iconSize * 0.14);
+    const pillPadBottom = Math.round(iconSize * 0.14);
+
+    const pillW = logoW + pillPadX * 2;
+    const pillH = logoH + textSize + textGap + pillPadTop + pillPadBottom;
+    const pillR = Math.round(Math.min(pillW, pillH) * 0.18);
+
+    const textX = Math.round(pillW / 2);
+    const textY = pillPadTop + logoH + textGap + textSize;
+
+    const pillSvg = Buffer.from(
+      `<svg width="${pillW}" height="${pillH}" xmlns="http://www.w3.org/2000/svg">
+        <rect width="${pillW}" height="${pillH}" rx="${pillR}" ry="${pillR}" fill="rgba(0,0,0,0.6)"/>
+        <text x="${textX}" y="${textY}" text-anchor="middle"
+              font-family="'Segoe UI', Helvetica, Arial, sans-serif"
+              font-weight="700" font-size="${textSize}" fill="#FFFFFF"
+              letter-spacing="0.5">${escapeXml(brandLabel)}</text>
+      </svg>`
+    );
+
+    badge = await sharp(pillSvg)
+      .composite([{
+        input: resizedLogo,
+        left: Math.round((pillW - logoW) / 2),
+        top: pillPadTop,
+      }])
+      .png()
+      .toBuffer();
   }
+
+  const badgeMeta = await sharp(badge).metadata();
+  const badgeW = badgeMeta.width || iconSize;
+  const badgeH = badgeMeta.height || iconSize;
+
+  // Position: bottom-right with 5% padding from edge
+  const safePadding = Math.round(baseMetadata.width * 0.05);
+  const left = baseMetadata.width - badgeW - safePadding;
+  const top = baseMetadata.height - badgeH - safePadding;
 
   return baseImage
     .composite([{
-      input: resizedLogo,
+      input: badge,
       left: Math.max(0, left),
       top: Math.max(0, top),
     }])
@@ -190,9 +271,9 @@ export async function compositeLogoOnImage(
 export async function createInstagramImage(
   imageUrl: string,
   brand: 'affectly' | 'pacebrain',
-  logoPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' = 'bottom-right'
+  logoUrl?: string | null,
 ): Promise<Buffer> {
-  // Fetch the image
+  assertAllowedImageUrl(imageUrl);
   const response = await fetch(imageUrl);
   if (!response.ok) {
     throw new Error(`Failed to fetch image: ${response.status}`);
@@ -200,7 +281,6 @@ export async function createInstagramImage(
 
   const imageBuffer = Buffer.from(await response.arrayBuffer());
 
-  // Resize to Instagram square (1080x1080)
   const squareImage = await sharp(imageBuffer)
     .resize(1080, 1080, {
       fit: 'cover',
@@ -209,7 +289,7 @@ export async function createInstagramImage(
     .jpeg({ quality: 95 })
     .toBuffer();
 
-  return compositeLogoOnImage(squareImage, brand, logoPosition, 0.20);
+  return compositeLogoOnImage(squareImage, brand, 0.22, logoUrl);
 }
 
 function escapeXml(text: string): string {
@@ -279,16 +359,17 @@ function buildOverlaySvg(
   const colors = BRAND_STYLES[brand];
   const lineHeight = fontSize * 1.35;
   const textBlockH = lines.length * lineHeight;
-  const pad = 80;
+  // 10% padding keeps text inside Instagram's thumbnail safe zone
+  const pad = Math.round(width * 0.10);
 
-  // Text Y based on position
+  // Text Y based on position — kept inside the safe zone vertically too
   let textY: number;
   switch (textPosition) {
     case 'top':
-      textY = pad + fontSize + 20;
+      textY = pad + fontSize;
       break;
     case 'bottom':
-      textY = height - pad - textBlockH + fontSize - 20;
+      textY = height - pad - textBlockH + fontSize;
       break;
     case 'center':
     default:
@@ -416,13 +497,14 @@ function buildOverlaySvg(
 export async function createInstagramImageWithText(
   imageUrl: string,
   brand: 'affectly' | 'pacebrain',
-  logoPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' = 'bottom-right',
   overlayText: string,
   textPosition: TextPosition = 'center',
   _textColor: string = '#FFFFFF',
   fontSize: number = 64,
-  overlayStyle: OverlayStyle = 'editorial'
+  overlayStyle: OverlayStyle = 'editorial',
+  logoUrl?: string | null
 ): Promise<Buffer> {
+  assertAllowedImageUrl(imageUrl);
   const response = await fetch(imageUrl);
   if (!response.ok) {
     throw new Error(`Failed to fetch image: ${response.status}`);
@@ -441,7 +523,8 @@ export async function createInstagramImageWithText(
     .jpeg({ quality: 95 })
     .toBuffer();
 
-  const lines = wrapText(overlayText, 24);
+  // Shorter lines keep text inside the thumbnail safe zone
+  const lines = wrapText(overlayText, 20);
   const svg = buildOverlaySvg(width, height, lines, brand, textPosition, overlayStyle, fontSize);
 
   const imageWithText = await sharp(squareImage)
@@ -449,13 +532,12 @@ export async function createInstagramImageWithText(
     .jpeg({ quality: 95 })
     .toBuffer();
 
-  return compositeLogoOnImage(imageWithText, brand, logoPosition, 0.18);
+  return compositeLogoOnImage(imageWithText, brand, 0.15, logoUrl);
 }
 
 export interface CarouselImageConfig {
   imageUrl: string;
   brand: 'affectly' | 'pacebrain';
-  logoPosition?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
   overlayText?: string;
   textPosition?: TextPosition;
   textColor?: string;
@@ -464,7 +546,8 @@ export interface CarouselImageConfig {
 }
 
 export async function processCarouselImages(
-  images: CarouselImageConfig[]
+  images: CarouselImageConfig[],
+  logoUrl?: string | null
 ): Promise<Buffer[]> {
   const results = await Promise.all(
     images.map((config) => {
@@ -472,19 +555,15 @@ export async function processCarouselImages(
         return createInstagramImageWithText(
           config.imageUrl,
           config.brand,
-          config.logoPosition ?? 'bottom-right',
           config.overlayText,
           config.textPosition ?? 'center',
           config.textColor ?? '#FFFFFF',
           config.fontSize ?? 64,
-          config.overlayStyle ?? 'editorial'
+          config.overlayStyle ?? 'editorial',
+          logoUrl
         );
       }
-      return createInstagramImage(
-        config.imageUrl,
-        config.brand,
-        config.logoPosition ?? 'bottom-right'
-      );
+      return createInstagramImage(config.imageUrl, config.brand, logoUrl);
     })
   );
   return results;

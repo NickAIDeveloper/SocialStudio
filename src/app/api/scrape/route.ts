@@ -8,14 +8,16 @@ import {
   loadCompetitorData,
 } from '@/lib/instagram-scraper';
 import { generateIntelligenceReport } from '@/lib/content-intelligence';
+import { getUserId } from '@/lib/auth-helpers';
 
 export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const target = searchParams.get('target');
-
   try {
+    await getUserId();
+
+    const { searchParams } = new URL(request.url);
+    const target = searchParams.get('target');
     if (target === 'competitors') {
       const result = await scrapeCompetitorAccounts();
       saveCompetitorData(result);
@@ -39,6 +41,9 @@ export async function POST(request: NextRequest) {
       scrapedAt: result.scrapedAt,
     });
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     return NextResponse.json(
       {
         success: false,
@@ -50,6 +55,12 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  try {
+    await getUserId();
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const action = searchParams.get('action');
 

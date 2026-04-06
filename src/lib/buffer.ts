@@ -1,4 +1,3 @@
-const BUFFER_API_KEY = process.env.BUFFER_API_KEY || '';
 const BUFFER_GRAPHQL_URL = 'https://api.buffer.com';
 
 export interface BufferChannel {
@@ -60,11 +59,11 @@ export interface SchedulePostParams {
   mode: 'addToQueue' | 'shareNow' | 'customScheduled';
 }
 
-async function bufferGraphQL<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+async function bufferGraphQL<T>(apiKey: string, query: string, variables?: Record<string, unknown>): Promise<T> {
   const response = await fetch(BUFFER_GRAPHQL_URL, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${BUFFER_API_KEY}`,
+      'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ query, variables }),
@@ -86,10 +85,10 @@ async function bufferGraphQL<T>(query: string, variables?: Record<string, unknow
   return json.data as T;
 }
 
-export async function getOrganizationsAndChannels(): Promise<BufferOrganization[]> {
+export async function getOrganizationsAndChannels(apiKey: string): Promise<BufferOrganization[]> {
   const data = await bufferGraphQL<{
     account: { organizations: BufferOrganization[] };
-  }>(`{
+  }>(apiKey, `{
     account {
       organizations {
         id
@@ -106,29 +105,30 @@ export async function getOrganizationsAndChannels(): Promise<BufferOrganization[
   return data.account.organizations;
 }
 
-export async function createPost(params: SchedulePostParams): Promise<BufferPost> {
+export async function createPost(apiKey: string, params: SchedulePostParams): Promise<BufferPost> {
   // Buffer GraphQL schema:
   // channelId: ChannelId!, mode: ShareMode!, schedulingType: SchedulingType! (required)
   // PostActionPayload is a UNION -> use ... on PostActionSuccess { post { ... } }
-  const schedulingType = params.mode === 'customScheduled' ? 'automatic' : 'automatic';
-  const dueAtField = params.mode === 'customScheduled' && params.scheduledAt
-    ? `dueAt: "${params.scheduledAt}"`
-    : '';
-  const assetsField = params.imageUrls?.length
-    ? `assets: { images: [${params.imageUrls.map(url => `{ url: ${JSON.stringify(url)} }`).join(', ')}] }`
-    : '';
 
-  const query = `mutation {
-    createPost(input: {
-      channelId: "${params.channelId}"
-      text: ${JSON.stringify(params.text)}
-      mode: ${params.mode}
-      schedulingType: ${schedulingType}
-      source: "social-studio"
-      metadata: { instagram: { type: post, shouldShareToFeed: true } }
-      ${dueAtField}
-      ${assetsField}
-    }) {
+  const input: Record<string, unknown> = {
+    channelId: params.channelId,
+    text: params.text,
+    mode: params.mode,
+    schedulingType: 'automatic',
+    source: 'social-studio',
+    metadata: { instagram: { type: 'post', shouldShareToFeed: true } },
+  };
+
+  if (params.mode === 'customScheduled' && params.scheduledAt) {
+    input.dueAt = params.scheduledAt;
+  }
+
+  if (params.imageUrls?.length) {
+    input.assets = { images: params.imageUrls.map(url => ({ url })) };
+  }
+
+  const query = `mutation CreatePost($input: PostCreateInput!) {
+    createPost(input: $input) {
       ... on PostActionSuccess {
         post {
           id
@@ -150,7 +150,7 @@ export async function createPost(params: SchedulePostParams): Promise<BufferPost
     }
   }`;
 
-  const data = await bufferGraphQL<{ createPost: Record<string, unknown> }>(query);
+  const data = await bufferGraphQL<{ createPost: Record<string, unknown> }>(apiKey, query, { input });
   const result = data.createPost;
 
   // Check for error union types
@@ -165,15 +165,13 @@ export async function createPost(params: SchedulePostParams): Promise<BufferPost
   return result.post as BufferPost;
 }
 
-async function fetchPostsByStatus(orgId: string, statuses: string[], limit = 50): Promise<BufferPost[]> {
+async function fetchPostsByStatus(apiKey: string, orgId: string, statuses: string[], limit = 50): Promise<BufferPost[]> {
   try {
     const statusFilter = statuses.length > 0
       ? `filter: { status: [${statuses.join(', ')}] }`
       : '';
-    const data = await bufferGraphQL<{
-      posts: { edges: Array<{ node: BufferPost }> };
-    }>(`{
-      posts(input: { organizationId: "${orgId}" ${statusFilter ? `, ${statusFilter}` : ''} }, first: ${limit}) {
+    const query = `query FetchPosts($orgId: String!, $limit: Int!) {
+      posts(input: { organizationId: $orgId ${statusFilter ? `, ${statusFilter}` : ''} }, first: $limit) {
         edges {
           node {
             id
@@ -187,7 +185,10 @@ async function fetchPostsByStatus(orgId: string, statuses: string[], limit = 50)
           }
         }
       }
-    }`);
+    }`;
+    const data = await bufferGraphQL<{
+      posts: { edges: Array<{ node: BufferPost }> };
+    }>(apiKey, query, { orgId, limit });
     return data.posts?.edges?.map(e => e.node) || [];
   } catch (error) {
     console.error('Failed to fetch posts:', error);
@@ -195,12 +196,12 @@ async function fetchPostsByStatus(orgId: string, statuses: string[], limit = 50)
   }
 }
 
-export async function getSentPosts(): Promise<BufferPost[]> {
+export async function getSentPosts(apiKey: string): Promise<BufferPost[]> {
   try {
-    const orgs = await getOrganizationsAndChannels();
+    const orgs = await getOrganizationsAndChannels(apiKey);
     const allPosts: BufferPost[] = [];
     for (const org of orgs) {
-      const posts = await fetchPostsByStatus(org.id, ['sent'], 50);
+      const posts = await fetchPostsByStatus(apiKey, org.id, ['sent'], 50);
       allPosts.push(...posts);
     }
     allPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -211,12 +212,12 @@ export async function getSentPosts(): Promise<BufferPost[]> {
   }
 }
 
-export async function getQueuedPosts(): Promise<BufferPost[]> {
+export async function getQueuedPosts(apiKey: string): Promise<BufferPost[]> {
   try {
-    const orgs = await getOrganizationsAndChannels();
+    const orgs = await getOrganizationsAndChannels(apiKey);
     const allPosts: BufferPost[] = [];
     for (const org of orgs) {
-      const posts = await fetchPostsByStatus(org.id, ['scheduled', 'pending'], 50);
+      const posts = await fetchPostsByStatus(apiKey, org.id, ['scheduled', 'pending'], 50);
       allPosts.push(...posts);
     }
     allPosts.sort((a, b) => {
@@ -232,18 +233,13 @@ export async function getQueuedPosts(): Promise<BufferPost[]> {
 }
 
 export async function createIdea(
+  apiKey: string,
   organizationId: string,
   title: string,
   text: string
 ): Promise<{ id: string; content: { title: string; text: string } }> {
-  const query = `mutation {
-    createIdea(input: {
-      organizationId: "${organizationId}"
-      content: {
-        title: ${JSON.stringify(title)}
-        text: ${JSON.stringify(text)}
-      }
-    }) {
+  const query = `mutation CreateIdea($input: IdeaCreateInput!) {
+    createIdea(input: $input) {
       ... on Idea {
         id
         content {
@@ -254,13 +250,20 @@ export async function createIdea(
     }
   }`;
 
-  const data = await bufferGraphQL<{ createIdea: { id: string; content: { title: string; text: string } } }>(query);
+  const variables = {
+    input: {
+      organizationId,
+      content: { title, text },
+    },
+  };
+
+  const data = await bufferGraphQL<{ createIdea: { id: string; content: { title: string; text: string } } }>(apiKey, query, variables);
   return data.createIdea;
 }
 
-export async function getSentPostsWithAnalytics(): Promise<BufferPostWithAnalytics[]> {
+export async function getSentPostsWithAnalytics(apiKey: string): Promise<BufferPostWithAnalytics[]> {
   try {
-    const orgs = await getOrganizationsAndChannels();
+    const orgs = await getOrganizationsAndChannels(apiKey);
     const allPosts: BufferPostWithAnalytics[] = [];
 
     // Build channel name lookup for brand detection
@@ -274,7 +277,7 @@ export async function getSentPostsWithAnalytics(): Promise<BufferPostWithAnalyti
 
     for (const org of orgs) {
       // Fetch ALL posts (sent + scheduled) using correct top-level posts query
-      const posts = await fetchPostsByStatus(org.id, [], 100);
+      const posts = await fetchPostsByStatus(apiKey, org.id, [], 100);
 
       for (const post of posts) {
         const channelInfo = channelMap.get(post.channelId) || { name: 'Unknown', brand: 'pacebrain' as const };
