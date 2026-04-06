@@ -47,7 +47,7 @@ export function RegisterForm() {
       if (result?.error) {
         setError('Account created but sign-in failed. Please go to login.');
       } else {
-        router.push('/');
+        router.push('/home');
         router.refresh();
       }
     } catch {

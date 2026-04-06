@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { href: '/', label: 'Home', icon: LayoutDashboard },
+  { href: '/home', label: 'Home', icon: LayoutDashboard },
   { href: '/generate', label: 'Create', icon: PenSquare },
   { href: '/batch', label: 'Batch', icon: Grid3x3 },
   { href: '/schedule', label: 'Schedule', icon: Calendar },
@@ -55,8 +55,8 @@ export function Sidebar() {
       <nav className="flex-1 flex flex-col gap-1 px-2 py-3 overflow-y-auto">
         {navItems.map((item) => {
           const isActive =
-            item.href === '/'
-              ? pathname === '/'
+            item.href === '/home'
+              ? pathname === '/home'
               : pathname.startsWith(item.href);
           const Icon = item.icon;
 

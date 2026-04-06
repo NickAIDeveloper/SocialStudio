@@ -76,7 +76,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (isAuthPage) {
         if (isLoggedIn) {
-          return Response.redirect(new URL('/', request.nextUrl.origin));
+          return Response.redirect(new URL('/home', request.nextUrl.origin));
         }
         return true;
       }
