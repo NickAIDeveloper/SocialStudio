@@ -1,10 +1,9 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import { DrizzleAdapter } from '@auth/drizzle-adapter';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
-import { db } from '@/lib/db';
-import { users, accounts, sessions, verificationTokens } from '@/lib/db/schema';
+import { getDb } from '@/lib/db';
+import { users } from '@/lib/db/schema';
 
 declare module 'next-auth' {
   interface User {
@@ -12,19 +11,7 @@ declare module 'next-auth' {
   }
 }
 
-declare module '@auth/core/jwt' {
-  interface JWT {
-    id?: string;
-  }
-}
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: DrizzleAdapter(db, {
-    usersTable: users,
-    accountsTable: accounts,
-    sessionsTable: sessions,
-    verificationTokensTable: verificationTokens,
-  }),
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/login',
@@ -43,6 +30,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const email = credentials.email as string;
         const password = credentials.password as string;
 
+        const db = getDb();
         const [user] = await db
           .select()
           .from(users)
