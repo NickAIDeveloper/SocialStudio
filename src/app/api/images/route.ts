@@ -38,7 +38,8 @@ async function getDecryptedKey(userId: string, provider: string): Promise<string
 
   try {
     return decrypt(account.accessToken);
-  } catch {
+  } catch (err) {
+    console.error(`Failed to decrypt ${provider} key for user:`, err instanceof Error ? err.message : err);
     return null;
   }
 }
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     // Search across all connected stock sources
     if (source === 'all') {
-      const searches: Promise<ImageResult[]>[] = [];
+      const searches: Array<{ type: ImageSourceType; promise: Promise<ImageResult[]> }> = [];
 
       for (const { provider, type } of STOCK_SOURCES) {
         const apiKey = await getDecryptedKey(userId, provider);
@@ -75,15 +76,24 @@ export async function GET(request: NextRequest) {
         const sourceModule = SOURCE_MAP[type];
         if (!sourceModule) continue;
 
-        searches.push(sourceModule.source.search(query, apiKey));
+        searches.push({ type, promise: sourceModule.source.search(query, apiKey) });
       }
 
-      const settled = await Promise.allSettled(searches);
-      const images = settled
-        .filter((r): r is PromiseFulfilledResult<ImageResult[]> => r.status === 'fulfilled')
-        .flatMap((r) => r.value);
+      const settled = await Promise.allSettled(searches.map((s) => s.promise));
+      const images: ImageResult[] = [];
+      const failedSources: string[] = [];
 
-      return NextResponse.json({ images });
+      settled.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          images.push(...result.value);
+        } else {
+          const failedType = searches[index].type;
+          console.error(`Image search failed for ${failedType}:`, result.reason instanceof Error ? result.reason.message : result.reason);
+          failedSources.push(failedType);
+        }
+      });
+
+      return NextResponse.json({ images, failedSources });
     }
 
     // Single source search
@@ -95,10 +105,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Check account exists before attempting decrypt
+    const [account] = await db
+      .select()
+      .from(linkedAccounts)
+      .where(
+        and(
+          eq(linkedAccounts.userId, userId),
+          eq(linkedAccounts.provider, mapping.provider)
+        )
+      )
+      .limit(1);
+
+    if (!account?.accessToken) {
+      return NextResponse.json(
+        { error: `${source} not connected. Go to Settings to link your account.` },
+        { status: 403 }
+      );
+    }
+
     const apiKey = await getDecryptedKey(userId, mapping.provider);
     if (!apiKey) {
       return NextResponse.json(
-        { error: `${source} not connected. Go to Settings to link your account.` },
+        { error: `${source} API key could not be read. Try re-linking your account in Settings.` },
         { status: 403 }
       );
     }
@@ -137,10 +166,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check account exists before attempting decrypt
+    const [openaiAccount] = await db
+      .select()
+      .from(linkedAccounts)
+      .where(
+        and(
+          eq(linkedAccounts.userId, userId),
+          eq(linkedAccounts.provider, 'openai_images')
+        )
+      )
+      .limit(1);
+
+    if (!openaiAccount?.accessToken) {
+      return NextResponse.json(
+        { error: 'OpenAI Images not connected. Go to Settings to link your API key.' },
+        { status: 403 }
+      );
+    }
+
     const apiKey = await getDecryptedKey(userId, 'openai_images');
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'OpenAI Images not connected. Go to Settings to link your API key.' },
+        { error: 'OpenAI Images API key could not be read. Try re-linking your account in Settings.' },
         { status: 403 }
       );
     }

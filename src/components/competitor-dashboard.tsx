@@ -150,8 +150,10 @@ export function CompetitorDashboard() {
       });
       if (!res.ok) throw new Error('Failed to remove competitor');
       setCompetitors((prev) => prev.filter((c) => c.id !== id));
-    } catch {
-      // silently ignore — could add toast here
+    } catch (err) {
+      console.error('Failed to remove competitor:', err instanceof Error ? err.message : err);
+      // Re-add the competitor back to the list since removal failed
+      fetchCompetitors();
     }
   };
 
