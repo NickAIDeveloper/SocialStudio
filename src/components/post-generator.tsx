@@ -1117,45 +1117,6 @@ export function PostGenerator() {
             </div>
           )}
 
-          {/* Saved Posts - horizontal scroll */}
-          {savedPosts.length > 0 && (
-            <div className="glass-card p-5 space-y-3">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-                Saved ({savedPosts.length})
-              </h3>
-              <ScrollArea className="w-full">
-                <div className="flex gap-3 pb-2">
-                  {savedPosts.map((post, i) => (
-                    <button
-                      key={i}
-                      onClick={() => loadSavedPost(post)}
-                      className="shrink-0 w-28 rounded-lg border border-zinc-800/50 bg-zinc-900/60 overflow-hidden hover:border-zinc-600 transition-all duration-200 text-left cursor-pointer hover:scale-[1.02]"
-                      type="button"
-                    >
-                      {post.processedImageUrl ? (
-                        <div className="relative aspect-square">
-                          <Image src={post.processedImageUrl} alt="Saved" fill className="object-cover" unoptimized sizes="112px" />
-                        </div>
-                      ) : (
-                        <div className="aspect-square bg-zinc-800 flex items-center justify-center">
-                          <span className="text-zinc-600 text-[10px]">No image</span>
-                        </div>
-                      )}
-                      <div className="p-1.5">
-                        <Badge
-                          className={`text-[9px] ${post.brand === 'affectly' ? 'bg-teal-500/20 text-teal-400' : 'bg-blue-500/20 text-blue-400'}`}
-                        >
-                          {post.brand}
-                        </Badge>
-                        <p className="text-[10px] text-zinc-500 line-clamp-2 mt-1 leading-tight">{post.caption}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            </div>
-          )}
         </div>
       </div>
     </div>
