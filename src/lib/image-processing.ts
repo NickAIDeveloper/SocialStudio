@@ -253,10 +253,11 @@ export async function compositeLogoOnImage(
   const badgeW = badgeMeta.width || iconSize;
   const badgeH = badgeMeta.height || iconSize;
 
-  // Position: bottom-right with 5% padding from edge
-  const safePadding = Math.round(baseMetadata.width * 0.05);
-  const left = baseMetadata.width - badgeW - safePadding;
-  const top = baseMetadata.height - badgeH - safePadding;
+  // Position: bottom-center so the badge is fully visible in Instagram
+  // grid thumbnails (which crop ~8-10% from each edge)
+  const bottomPadding = Math.round(baseMetadata.height * 0.12);
+  const left = Math.round((baseMetadata.width - badgeW) / 2);
+  const top = baseMetadata.height - badgeH - bottomPadding;
 
   return baseImage
     .composite([{
