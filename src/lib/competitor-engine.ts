@@ -43,10 +43,6 @@ function detectFormat(caption: string): string {
   return 'standard';
 }
 
-function getHour(date: Date): number {
-  return date.getHours();
-}
-
 function groupByHandle(
   posts: CompetitorPostData[],
 ): Record<string, CompetitorPostData[]> {
@@ -202,8 +198,8 @@ function timingMismatchCard(
 ): InsightCard | null {
   if (userPosts.length === 0 || competitorPosts.length === 0) return null;
 
-  const userHours = userPosts.map((p) => getHour(p.postedAt));
-  const compHours = competitorPosts.map((p) => getHour(p.postedAt));
+  const userHours = userPosts.map((p) => p.postedAt.getHours());
+  const compHours = competitorPosts.map((p) => p.postedAt.getHours());
 
   const userPeakHour = median(userHours);
   const competitorPeakHour = median(compHours);
@@ -349,27 +345,22 @@ export function generateCompetitorInsights(
 
   const limitedMode = competitorPosts.length < 3;
 
-  const cards: InsightCard[] = [];
-
-  const freqCard = postingFrequencyCard(userPosts, competitorPosts);
-  if (freqCard) cards.push(freqCard);
-
-  const timingCard = timingMismatchCard(userPosts, competitorPosts);
-  if (timingCard) cards.push(timingCard);
+  const builders: Array<() => InsightCard | null> = [
+    () => postingFrequencyCard(userPosts, competitorPosts),
+    () => timingMismatchCard(userPosts, competitorPosts),
+  ];
 
   if (!limitedMode) {
-    const formatCard = winningFormatCard(competitorPosts);
-    if (formatCard) cards.push(formatCard);
-
-    const stealCard = stealFormulaCard(userPosts, competitorPosts);
-    if (stealCard) cards.push(stealCard);
-
-    const gapCard = marketGapCard(competitorPosts);
-    if (gapCard) cards.push(gapCard);
-
-    const tagCard = hashtagOpportunityCard(userPosts, competitorPosts);
-    if (tagCard) cards.push(tagCard);
+    builders.push(
+      () => winningFormatCard(competitorPosts),
+      () => stealFormulaCard(userPosts, competitorPosts),
+      () => marketGapCard(competitorPosts),
+      () => hashtagOpportunityCard(userPosts, competitorPosts),
+    );
   }
 
-  return cards.sort((a, b) => a.priority - b.priority);
+  return builders
+    .map((build) => build())
+    .filter((card): card is InsightCard => card !== null)
+    .sort((a, b) => a.priority - b.priority);
 }

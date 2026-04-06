@@ -22,7 +22,7 @@ const SOURCE_MAP: Record<string, { provider: string; source: { search(query: str
   pexels: { provider: 'pexels', source: pexelsSource },
 };
 
-async function getDecryptedKey(userId: string, provider: string): Promise<string | null> {
+async function getDecryptedKey(userId: string, provider: string): Promise<{ key: string | null; reason: 'not_connected' | 'decrypt_failed' | 'success' }> {
   const [account] = await db
     .select()
     .from(linkedAccounts)
@@ -34,13 +34,15 @@ async function getDecryptedKey(userId: string, provider: string): Promise<string
     )
     .limit(1);
 
-  if (!account?.accessToken) return null;
+  if (!account?.accessToken) {
+    return { key: null, reason: 'not_connected' };
+  }
 
   try {
-    return decrypt(account.accessToken);
+    return { key: decrypt(account.accessToken), reason: 'success' };
   } catch (err) {
-    console.error(`Failed to decrypt ${provider} key for user:`, err instanceof Error ? err.message : err);
-    return null;
+    console.error(`Failed to decrypt ${provider} key:`, err instanceof Error ? err.message : err);
+    return { key: null, reason: 'decrypt_failed' };
   }
 }
 
@@ -70,8 +72,9 @@ export async function GET(request: NextRequest) {
       const searches: Array<{ type: ImageSourceType; promise: Promise<ImageResult[]> }> = [];
 
       for (const { provider, type } of STOCK_SOURCES) {
-        const apiKey = await getDecryptedKey(userId, provider);
-        if (!apiKey) continue;
+        const result = await getDecryptedKey(userId, provider);
+        if (!result.key) continue;
+        const apiKey = result.key;
 
         const sourceModule = SOURCE_MAP[type];
         if (!sourceModule) continue;
@@ -105,34 +108,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check account exists before attempting decrypt
-    const [account] = await db
-      .select()
-      .from(linkedAccounts)
-      .where(
-        and(
-          eq(linkedAccounts.userId, userId),
-          eq(linkedAccounts.provider, mapping.provider)
-        )
-      )
-      .limit(1);
-
-    if (!account?.accessToken) {
-      return NextResponse.json(
-        { error: `${source} not connected. Go to Settings to link your account.` },
-        { status: 403 }
-      );
+    const result = await getDecryptedKey(userId, mapping.provider);
+    if (!result.key) {
+      const message = result.reason === 'not_connected'
+        ? `${source} is not connected. Go to Settings to link your account.`
+        : `${source} API key could not be read. Please disconnect and reconnect in Settings.`;
+      const status = result.reason === 'not_connected' ? 403 : 400;
+      return NextResponse.json({ error: message }, { status });
     }
 
-    const apiKey = await getDecryptedKey(userId, mapping.provider);
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: `${source} API key could not be read. Try re-linking your account in Settings.` },
-        { status: 403 }
-      );
-    }
-
-    const images = await mapping.source.search(query, apiKey);
+    const images = await mapping.source.search(query, result.key);
     return NextResponse.json({ images });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
@@ -166,34 +151,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check account exists before attempting decrypt
-    const [openaiAccount] = await db
-      .select()
-      .from(linkedAccounts)
-      .where(
-        and(
-          eq(linkedAccounts.userId, userId),
-          eq(linkedAccounts.provider, 'openai_images')
-        )
-      )
-      .limit(1);
-
-    if (!openaiAccount?.accessToken) {
-      return NextResponse.json(
-        { error: 'OpenAI Images not connected. Go to Settings to link your API key.' },
-        { status: 403 }
-      );
+    const result = await getDecryptedKey(userId, 'openai_images');
+    if (!result.key) {
+      const message = result.reason === 'not_connected'
+        ? 'OpenAI Images is not connected. Go to Settings to link your API key.'
+        : 'OpenAI Images API key could not be read. Please disconnect and reconnect in Settings.';
+      const status = result.reason === 'not_connected' ? 403 : 400;
+      return NextResponse.json({ error: message }, { status });
     }
 
-    const apiKey = await getDecryptedKey(userId, 'openai_images');
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'OpenAI Images API key could not be read. Try re-linking your account in Settings.' },
-        { status: 403 }
-      );
-    }
-
-    const images = await openaiSource.generate(prompt.trim(), apiKey);
+    const images = await openaiSource.generate(prompt.trim(), result.key);
     return NextResponse.json({ images });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {

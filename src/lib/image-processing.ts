@@ -2,6 +2,7 @@ import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs/promises';
 import { assertAllowedImageUrl } from '@/lib/url-validation';
+import type { Brand } from '@/lib/domain-types';
 
 const LOGOS_DIR = path.join(process.cwd(), 'public', 'logos');
 
@@ -141,7 +142,7 @@ export async function removeWhiteBackground(
 
 export async function compositeLogoOnImage(
   baseImageBuffer: Buffer,
-  brand: 'affectly' | 'pacebrain',
+  brand: Brand,
   logoScale: number = 0.22,
   logoUrl?: string | null
 ): Promise<Buffer> {
@@ -205,7 +206,7 @@ export async function compositeLogoOnImage(
 
 export async function createInstagramImage(
   imageUrl: string,
-  brand: 'affectly' | 'pacebrain',
+  brand: Brand,
   logoUrl?: string | null,
 ): Promise<Buffer> {
   assertAllowedImageUrl(imageUrl);
@@ -286,7 +287,7 @@ function buildOverlaySvg(
   width: number,
   height: number,
   lines: string[],
-  brand: 'affectly' | 'pacebrain',
+  brand: Brand,
   textPosition: TextPosition,
   style: OverlayStyle,
   fontSize: number,
@@ -431,7 +432,7 @@ function buildOverlaySvg(
 
 export async function createInstagramImageWithText(
   imageUrl: string,
-  brand: 'affectly' | 'pacebrain',
+  brand: Brand,
   overlayText: string,
   textPosition: TextPosition = 'center',
   _textColor: string = '#FFFFFF',
@@ -472,7 +473,7 @@ export async function createInstagramImageWithText(
 
 export interface CarouselImageConfig {
   imageUrl: string;
-  brand: 'affectly' | 'pacebrain';
+  brand: Brand;
   overlayText?: string;
   textPosition?: TextPosition;
   textColor?: string;

@@ -935,10 +935,6 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     goNext();
   }, [goNext]);
 
-  const handleSkipStep = useCallback(() => {
-    goNext();
-  }, [goNext]);
-
   const handleComplete = useCallback(async () => {
     try {
       await fetch('/api/preferences', {
@@ -969,7 +965,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             <StepTools
               onNext={handleToolsSkipOrNext}
               onBack={goBack}
-              onSkip={handleSkipStep}
+              onSkip={goNext}
             />
           )}
 
@@ -978,7 +974,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               brandDescription={brand.description}
               onNext={goNext}
               onBack={goBack}
-              onSkip={handleSkipStep}
+              onSkip={goNext}
               onCompetitorCount={setCompetitorCount}
             />
           )}

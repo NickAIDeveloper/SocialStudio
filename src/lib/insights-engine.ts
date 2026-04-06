@@ -62,6 +62,17 @@ function clampPriority(value: number): number {
   return Math.max(1, Math.min(7, Math.round(value)));
 }
 
+function getActionForTrend(trend: 'up' | 'down' | 'flat'): string {
+  switch (trend) {
+    case 'up':
+      return 'Keep doing what you\'re doing. Analyze your recent posts to understand the momentum.';
+    case 'down':
+      return 'Review your recent content strategy and compare it to your higher-performing period.';
+    case 'flat':
+      return 'Experiment with new content types or posting times to break through the plateau.';
+  }
+}
+
 /** Map a ratio (best / worst or similar) to a 1-7 priority where bigger gap = lower number (higher priority). */
 function gapToPriority(ratio: number): number {
   // ratio ~1 means no gap → priority 7
@@ -245,6 +256,10 @@ function buildCaptionLength(posts: PostData[]): InsightCard | null {
   // Priority: already in sweet spot → low priority; not → high
   const priority = inSweetSpot ? 7 : 2;
 
+  const bestBucket = CAPTION_BUCKETS.find((b) => b.label === bestRange);
+  const rangeMin = bestBucket?.min ?? 0;
+  const rangeMax = bestBucket?.max === Infinity ? '200+' : (bestBucket?.max ?? 0);
+
   return {
     id: 'caption-length',
     priority,
@@ -252,7 +267,7 @@ function buildCaptionLength(posts: PostData[]): InsightCard | null {
     icon: '📝',
     title,
     verdict: inSweetSpot ? 'positive' : 'opportunity',
-    summary: `${bestRange} captions (${CAPTION_BUCKETS.find((b) => b.label === bestRange)?.min ?? 0}-${CAPTION_BUCKETS.find((b) => b.label === bestRange)?.max === Infinity ? '200+' : CAPTION_BUCKETS.find((b) => b.label === bestRange)?.max ?? 0} words) get the most engagement. Your average is ${currentAvg} words.`,
+    summary: `${bestRange} captions (${rangeMin}-${rangeMax} words) get the most engagement. Your average is ${currentAvg} words.`,
     action: inSweetSpot
       ? `Keep writing ${bestRange} captions, they perform best for your audience.`
       : `Aim for ${bestRange} captions instead of your current ${currentBucket} average.`,
@@ -316,11 +331,7 @@ function buildMomentum(posts: PostData[]): InsightCard | null {
     title,
     verdict,
     summary: `Your engagement ${trend === 'up' ? 'increased' : trend === 'down' ? 'decreased' : 'stayed about the same'} by ${Math.abs(changePercent)}% over the last 2 weeks.`,
-    action: trend === 'up'
-      ? 'Keep doing what you\'re doing. Analyze your recent posts to understand the momentum.'
-      : trend === 'down'
-        ? 'Review your recent content strategy and compare it to your higher-performing period.'
-        : 'Experiment with new content types or posting times to break through the plateau.',
+    action: getActionForTrend(trend),
     data: {
       trend,
       changePercent,
