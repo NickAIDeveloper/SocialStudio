@@ -187,81 +187,15 @@ export async function compositeLogoOnImage(
   const logoH = logoMeta.height || iconSize;
   const logoW = logoMeta.width || iconSize;
 
-  let badge: Buffer;
-
-  if (logoUrl) {
-    // User-uploaded logo: dark pill with logo only (no brand name text)
-    const pillPadX = Math.round(iconSize * 0.18);
-    const pillPadY = Math.round(iconSize * 0.14);
-
-    const pillW = logoW + pillPadX * 2;
-    const pillH = logoH + pillPadY * 2;
-    const pillR = Math.round(Math.min(pillW, pillH) * 0.18);
-
-    const pillSvg = Buffer.from(
-      `<svg width="${pillW}" height="${pillH}" xmlns="http://www.w3.org/2000/svg">
-        <rect width="${pillW}" height="${pillH}" rx="${pillR}" ry="${pillR}" fill="rgba(0,0,0,0.6)"/>
-      </svg>`
-    );
-
-    badge = await sharp(pillSvg)
-      .composite([{
-        input: resizedLogo,
-        left: Math.round((pillW - logoW) / 2),
-        top: pillPadY,
-      }])
-      .png()
-      .toBuffer();
-  } else {
-    // Local logo: dark pill with icon + brand name text
-    const brandLabel = brand === 'affectly' ? 'affectly' : 'PaceBrain';
-    const textSize = Math.round(iconSize * 0.22);
-    const textGap = Math.round(iconSize * 0.08);
-
-    const pillPadX = Math.round(iconSize * 0.18);
-    const pillPadTop = Math.round(iconSize * 0.14);
-    const pillPadBottom = Math.round(iconSize * 0.14);
-
-    const pillW = logoW + pillPadX * 2;
-    const pillH = logoH + textSize + textGap + pillPadTop + pillPadBottom;
-    const pillR = Math.round(Math.min(pillW, pillH) * 0.18);
-
-    const textX = Math.round(pillW / 2);
-    const textY = pillPadTop + logoH + textGap + textSize;
-
-    const pillSvg = Buffer.from(
-      `<svg width="${pillW}" height="${pillH}" xmlns="http://www.w3.org/2000/svg">
-        <rect width="${pillW}" height="${pillH}" rx="${pillR}" ry="${pillR}" fill="rgba(0,0,0,0.6)"/>
-        <text x="${textX}" y="${textY}" text-anchor="middle"
-              font-family="'Segoe UI', Helvetica, Arial, sans-serif"
-              font-weight="700" font-size="${textSize}" fill="#FFFFFF"
-              letter-spacing="0.5">${escapeXml(brandLabel)}</text>
-      </svg>`
-    );
-
-    badge = await sharp(pillSvg)
-      .composite([{
-        input: resizedLogo,
-        left: Math.round((pillW - logoW) / 2),
-        top: pillPadTop,
-      }])
-      .png()
-      .toBuffer();
-  }
-
-  const badgeMeta = await sharp(badge).metadata();
-  const badgeW = badgeMeta.width || iconSize;
-  const badgeH = badgeMeta.height || iconSize;
-
-  // Position: bottom-center so the badge is fully visible in Instagram
+  // Position: bottom-center so the logo is fully visible in Instagram
   // grid thumbnails (which crop ~8-10% from each edge)
   const bottomPadding = Math.round(baseMetadata.height * 0.12);
-  const left = Math.round((baseMetadata.width - badgeW) / 2);
-  const top = baseMetadata.height - badgeH - bottomPadding;
+  const left = Math.round((baseMetadata.width - logoW) / 2);
+  const top = baseMetadata.height - logoH - bottomPadding;
 
   return baseImage
     .composite([{
-      input: badge,
+      input: resizedLogo,
       left: Math.max(0, left),
       top: Math.max(0, top),
     }])
