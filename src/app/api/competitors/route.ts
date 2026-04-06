@@ -37,8 +37,9 @@ export async function POST(request: NextRequest) {
     const userId = await getUserId();
     const body = await request.json();
     const handle: unknown = body.handle;
+    const normalizedHandle = (typeof handle === 'string' ? handle : '').trim().replace(/^@/, '');
 
-    if (typeof handle !== 'string' || !HANDLE_REGEX.test(handle)) {
+    if (!HANDLE_REGEX.test(normalizedHandle)) {
       return NextResponse.json(
         {
           error:
@@ -47,8 +48,6 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-
-    const normalizedHandle = handle.replace(/^@/, '');
 
     const existing = await db
       .select({ id: scrapedAccounts.id })

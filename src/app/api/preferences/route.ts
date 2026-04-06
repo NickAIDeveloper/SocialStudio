@@ -45,22 +45,25 @@ export async function PATCH(request: NextRequest) {
     const userId = await getUserId();
     const body = await request.json();
 
-    // Allowed fields for update
-    const allowedFields = [
-      'onboardingCompleted',
-      'onboardingStep',
-      'defaultBrandId',
-      'defaultOverlayStyle',
-      'defaultTextPosition',
-      'timezone',
-    ] as const;
-
     const updates: Record<string, unknown> = {};
 
-    for (const field of allowedFields) {
-      if (body[field] !== undefined) {
-        updates[field] = body[field];
-      }
+    if ('onboardingCompleted' in body && typeof body.onboardingCompleted === 'boolean') {
+      updates.onboardingCompleted = body.onboardingCompleted;
+    }
+    if ('onboardingStep' in body && typeof body.onboardingStep === 'number' && body.onboardingStep >= 0 && body.onboardingStep <= 5) {
+      updates.onboardingStep = body.onboardingStep;
+    }
+    if ('defaultBrandId' in body && (typeof body.defaultBrandId === 'string' || body.defaultBrandId === null)) {
+      updates.defaultBrandId = body.defaultBrandId;
+    }
+    if ('defaultOverlayStyle' in body && typeof body.defaultOverlayStyle === 'string' && ['editorial', 'bold-card', 'gradient-bar', 'full-tint'].includes(body.defaultOverlayStyle)) {
+      updates.defaultOverlayStyle = body.defaultOverlayStyle;
+    }
+    if ('defaultTextPosition' in body && typeof body.defaultTextPosition === 'string' && ['top', 'center', 'bottom'].includes(body.defaultTextPosition)) {
+      updates.defaultTextPosition = body.defaultTextPosition;
+    }
+    if ('timezone' in body && typeof body.timezone === 'string' && body.timezone.length <= 50) {
+      updates.timezone = body.timezone;
     }
 
     if (Object.keys(updates).length === 0) {

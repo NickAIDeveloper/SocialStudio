@@ -485,7 +485,7 @@ function deriveHealthScoreInput(
     thisWeeksEngagement,
     prevWeeksEngagement,
     uniqueContentTypes,
-    totalContentTypes: posts.length,
+    totalContentTypes: 5, // possible types: quote, tip, carousel, community, promo
   };
 }
 

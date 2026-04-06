@@ -65,12 +65,16 @@ function getFallbackSuggestions(
   }));
 }
 
+const SUGGESTION_HANDLE_REGEX = /^[a-zA-Z0-9._]{1,100}$/;
+
 async function callOpenAI(
   apiKey: string,
   brandDescription: string,
   niche: string,
 ): Promise<Suggestion[]> {
-  const prompt = `You are an Instagram marketing expert. Given a brand that is: ${brandDescription} in the ${niche} niche, suggest 8 Instagram accounts that would be direct competitors. Return ONLY a JSON array of objects with 'handle' (without @) and 'reason' (one sentence why they compete). No other text.`;
+  const safeBrand = brandDescription.trim().slice(0, 500).replace(/[`${}]/g, '');
+  const safeNiche = niche.trim().slice(0, 100).replace(/[`${}]/g, '');
+  const prompt = `You are an Instagram marketing expert. Given a brand that is: ${safeBrand} in the ${safeNiche} niche, suggest 8 Instagram accounts that would be direct competitors. Return ONLY a JSON array of objects with 'handle' (without @) and 'reason' (one sentence why they compete). No other text.`;
 
   const response = await fetch(
     'https://api.openai.com/v1/chat/completions',
@@ -106,10 +110,12 @@ async function callOpenAI(
     throw new Error('OpenAI response is not an array');
   }
 
-  return parsed.map((item: Record<string, unknown>) => ({
-    handle: String(item.handle ?? '').replace(/^@/, ''),
-    reason: String(item.reason ?? ''),
-  }));
+  return parsed
+    .map((item: Record<string, unknown>) => ({
+      handle: String(item.handle ?? '').replace(/^@/, ''),
+      reason: String(item.reason ?? ''),
+    }))
+    .filter((item) => SUGGESTION_HANDLE_REGEX.test(item.handle));
 }
 
 export async function POST(request: NextRequest) {

@@ -66,8 +66,7 @@ export async function GET(request: NextRequest) {
 
     // Search across all connected stock sources
     if (source === 'all') {
-      const results: ImageResult[] = [];
-      const searches: Promise<void>[] = [];
+      const searches: Promise<ImageResult[]>[] = [];
 
       for (const { provider, type } of STOCK_SOURCES) {
         const apiKey = await getDecryptedKey(userId, provider);
@@ -76,20 +75,15 @@ export async function GET(request: NextRequest) {
         const sourceModule = SOURCE_MAP[type];
         if (!sourceModule) continue;
 
-        searches.push(
-          sourceModule.source
-            .search(query, apiKey)
-            .then((imgs) => {
-              results.push(...imgs);
-            })
-            .catch((err) => {
-              console.error(`${type} search failed:`, err);
-            })
-        );
+        searches.push(sourceModule.source.search(query, apiKey));
       }
 
-      await Promise.all(searches);
-      return NextResponse.json({ images: results });
+      const settled = await Promise.allSettled(searches);
+      const images = settled
+        .filter((r): r is PromiseFulfilledResult<ImageResult[]> => r.status === 'fulfilled')
+        .flatMap((r) => r.value);
+
+      return NextResponse.json({ images });
     }
 
     // Single source search
