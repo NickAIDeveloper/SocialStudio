@@ -106,29 +106,25 @@ export async function getOrganizationsAndChannels(apiKey: string): Promise<Buffe
 }
 
 export async function createPost(apiKey: string, params: SchedulePostParams): Promise<BufferPost> {
-  // Buffer GraphQL schema:
-  // channelId: ChannelId!, mode: ShareMode!, schedulingType: SchedulingType! (required)
-  // PostActionPayload is a UNION -> use ... on PostActionSuccess { post { ... } }
+  const schedulingType = 'automatic';
+  const dueAtField = params.mode === 'customScheduled' && params.scheduledAt
+    ? `dueAt: ${JSON.stringify(params.scheduledAt)}`
+    : '';
+  const assetsField = params.imageUrls?.length
+    ? `assets: { images: [${params.imageUrls.map(url => `{ url: ${JSON.stringify(url)} }`).join(', ')}] }`
+    : '';
 
-  const input: Record<string, unknown> = {
-    channelId: params.channelId,
-    text: params.text,
-    mode: params.mode,
-    schedulingType: 'automatic',
-    source: 'social-studio',
-    metadata: { instagram: { type: 'post', shouldShareToFeed: true } },
-  };
-
-  if (params.mode === 'customScheduled' && params.scheduledAt) {
-    input.dueAt = params.scheduledAt;
-  }
-
-  if (params.imageUrls?.length) {
-    input.assets = { images: params.imageUrls.map(url => ({ url })) };
-  }
-
-  const query = `mutation CreatePost($input: PostCreateInput!) {
-    createPost(input: $input) {
+  const query = `mutation {
+    createPost(input: {
+      channelId: ${JSON.stringify(params.channelId)}
+      text: ${JSON.stringify(params.text)}
+      mode: ${params.mode}
+      schedulingType: ${schedulingType}
+      source: "social-studio"
+      metadata: { instagram: { type: post, shouldShareToFeed: true } }
+      ${dueAtField}
+      ${assetsField}
+    }) {
       ... on PostActionSuccess {
         post {
           id
@@ -150,7 +146,7 @@ export async function createPost(apiKey: string, params: SchedulePostParams): Pr
     }
   }`;
 
-  const data = await bufferGraphQL<{ createPost: Record<string, unknown> }>(apiKey, query, { input });
+  const data = await bufferGraphQL<{ createPost: Record<string, unknown> }>(apiKey, query);
   const result = data.createPost;
 
   // Check for error union types
@@ -170,8 +166,8 @@ async function fetchPostsByStatus(apiKey: string, orgId: string, statuses: strin
     const statusFilter = statuses.length > 0
       ? `filter: { status: [${statuses.join(', ')}] }`
       : '';
-    const query = `query FetchPosts($orgId: String!, $limit: Int!) {
-      posts(input: { organizationId: $orgId ${statusFilter ? `, ${statusFilter}` : ''} }, first: $limit) {
+    const query = `{
+      posts(input: { organizationId: ${JSON.stringify(orgId)} ${statusFilter ? `, ${statusFilter}` : ''} }, first: ${limit}) {
         edges {
           node {
             id
@@ -188,7 +184,7 @@ async function fetchPostsByStatus(apiKey: string, orgId: string, statuses: strin
     }`;
     const data = await bufferGraphQL<{
       posts: { edges: Array<{ node: BufferPost }> };
-    }>(apiKey, query, { orgId, limit });
+    }>(apiKey, query);
     return data.posts?.edges?.map(e => e.node) || [];
   } catch (error) {
     console.error('Failed to fetch posts:', error);
@@ -238,8 +234,14 @@ export async function createIdea(
   title: string,
   text: string
 ): Promise<{ id: string; content: { title: string; text: string } }> {
-  const query = `mutation CreateIdea($input: IdeaCreateInput!) {
-    createIdea(input: $input) {
+  const query = `mutation {
+    createIdea(input: {
+      organizationId: ${JSON.stringify(organizationId)}
+      content: {
+        title: ${JSON.stringify(title)}
+        text: ${JSON.stringify(text)}
+      }
+    }) {
       ... on Idea {
         id
         content {
@@ -250,14 +252,7 @@ export async function createIdea(
     }
   }`;
 
-  const variables = {
-    input: {
-      organizationId,
-      content: { title, text },
-    },
-  };
-
-  const data = await bufferGraphQL<{ createIdea: { id: string; content: { title: string; text: string } } }>(apiKey, query, variables);
+  const data = await bufferGraphQL<{ createIdea: { id: string; content: { title: string; text: string } } }>(apiKey, query);
   return data.createIdea;
 }
 
