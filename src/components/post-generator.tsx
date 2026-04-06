@@ -594,7 +594,7 @@ export function PostGenerator() {
         {/* Random Generator */}
         <Button
           onClick={randomGenerate}
-          className="w-full h-11 text-sm font-semibold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-500 hover:from-violet-700 hover:via-fuchsia-600 hover:to-orange-600 text-white shadow-lg shadow-fuchsia-500/20 active:scale-[0.98] transition-all duration-200"
+          className="w-full h-11 text-sm font-semibold bg-teal-600 hover:bg-teal-700 text-white active:scale-[0.98] transition-all duration-200"
         >
           Random Generator — Viral Post
         </Button>
@@ -670,7 +670,7 @@ export function PostGenerator() {
             <Button
               onClick={generateCaption}
               size="sm"
-              className={`h-8 text-xs font-medium text-white active:scale-[0.98] transition-all duration-200 ${brand === 'affectly' ? 'bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'}`}
+              className="h-8 text-xs font-medium text-white active:scale-[0.98] transition-all duration-200 bg-teal-600 hover:bg-teal-700"
             >
               Generate
             </Button>
@@ -798,7 +798,7 @@ export function PostGenerator() {
               onClick={searchImages}
               disabled={isSearching}
               size="sm"
-              className="bg-zinc-700 hover:bg-zinc-600 text-white h-9 px-4 shrink-0 text-sm"
+              className="bg-teal-600 hover:bg-teal-700 text-white h-9 px-4 shrink-0 text-sm"
             >
               {isSearching ? 'Searching...' : 'Search'}
             </Button>
@@ -1001,26 +1001,7 @@ export function PostGenerator() {
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-2">
-              <Button
-                onClick={savePost}
-                disabled={!caption.trim()}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm h-9 active:scale-[0.98] transition-all duration-200"
-              >
-                Save Post
-              </Button>
-              {selectedImage && !isCarousel && (
-                <Button
-                  onClick={() => processImage(selectedImage)}
-                  disabled={isProcessing}
-                  variant="outline"
-                  className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 text-sm h-9"
-                >
-                  Reprocess
-                </Button>
-              )}
-            </div>
+            {/* Actions removed — scheduling only */}
           </div>
 
           {/* Buffer Scheduling */}
@@ -1112,25 +1093,14 @@ export function PostGenerator() {
                     />
                   </div>
 
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => scheduleToBuffer(true)}
-                      disabled={bufferLoading}
-                      size="sm"
-                      className="flex-1 bg-teal-600 hover:bg-teal-700 text-white text-xs h-8"
-                    >
-                      {bufferLoading ? 'Scheduling...' : 'Add to Queue'}
-                    </Button>
-                    <Button
-                      onClick={() => scheduleToBuffer(false)}
-                      disabled={bufferLoading || !scheduleDateTime}
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800 text-xs h-8"
-                    >
-                      Schedule for {scheduleDateTime ? new Date(scheduleDateTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Later'}
-                    </Button>
-                  </div>
+                  <Button
+                    onClick={() => scheduleToBuffer(false)}
+                    disabled={bufferLoading || !scheduleDateTime}
+                    size="sm"
+                    className="w-full bg-teal-600 hover:bg-teal-700 text-white text-xs h-9 disabled:opacity-40"
+                  >
+                    {bufferLoading ? 'Scheduling...' : scheduleDateTime ? `Schedule for ${new Date(scheduleDateTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : 'Select a date/time to schedule'}
+                  </Button>
 
                   {bufferSuccess && (
                     <p className="text-xs text-emerald-400">Post scheduled successfully.</p>
