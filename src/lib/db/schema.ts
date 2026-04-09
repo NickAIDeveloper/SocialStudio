@@ -111,6 +111,8 @@ export const brands = pgTable(
     secondaryColor: varchar('secondary_color', { length: 7 }).default('#0d9488'),
     logoUrl: text('logo_url'),
     instagramHandle: varchar('instagram_handle', { length: 100 }),
+    websiteUrl: varchar('website_url', { length: 255 }),
+    description: text('description'),
     brandVoiceTone: varchar('brand_voice_tone', { length: 20 }).default('neutral'),
     brandVoiceStyle: varchar('brand_voice_style', { length: 20 }).default('balanced'),
     brandVoiceDos: text('brand_voice_dos'),

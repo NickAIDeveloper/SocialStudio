@@ -22,6 +22,8 @@ interface Brand {
   id: string;
   name: string;
   slug: string;
+  websiteUrl?: string | null;
+  description?: string | null;
   brandVoiceTone?: string | null;
   brandVoiceStyle?: string | null;
   brandVoiceDos?: string | null;
@@ -31,6 +33,8 @@ interface Brand {
 export function BrandVoiceSettings() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedBrandId, setSelectedBrandId] = useState<string>('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [description, setDescription] = useState('');
   const [tone, setTone] = useState('neutral');
   const [style, setStyle] = useState('balanced');
   const [dos, setDos] = useState('');
@@ -40,6 +44,8 @@ export function BrandVoiceSettings() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const loadBrandVoice = useCallback((brand: Brand) => {
+    setWebsiteUrl(brand.websiteUrl ?? '');
+    setDescription(brand.description ?? '');
     setTone(brand.brandVoiceTone ?? 'neutral');
     setStyle(brand.brandVoiceStyle ?? 'balanced');
     setDos(brand.brandVoiceDos ?? '');
@@ -88,6 +94,8 @@ export function BrandVoiceSettings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: selectedBrandId,
+          websiteUrl: websiteUrl || null,
+          description: description || null,
           brandVoiceTone: tone,
           brandVoiceStyle: style,
           brandVoiceDos: dos,
@@ -104,7 +112,7 @@ export function BrandVoiceSettings() {
       setBrands((prev) =>
         prev.map((b) =>
           b.id === selectedBrandId
-            ? { ...b, brandVoiceTone: tone, brandVoiceStyle: style, brandVoiceDos: dos, brandVoiceDonts: donts }
+            ? { ...b, websiteUrl, description, brandVoiceTone: tone, brandVoiceStyle: style, brandVoiceDos: dos, brandVoiceDonts: donts }
             : b
         )
       );
@@ -170,6 +178,31 @@ export function BrandVoiceSettings() {
             {b.name}
           </button>
         ))}
+      </div>
+
+      {/* Website & Description */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-white">Website URL</label>
+        <input
+          type="url"
+          value={websiteUrl}
+          onChange={(e) => setWebsiteUrl(e.target.value)}
+          placeholder="https://www.yourapp.com"
+          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+        />
+        <p className="text-xs text-white">Your app or brand website. Used to give AI context about your product.</p>
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-white">What does your brand/app do?</label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="e.g., Affectly is an AI-powered learning app that adapts lessons to your emotional state. It offers mood check-ins, personalized study sessions, flashcards with spaced repetition, and emotional analytics."
+          rows={3}
+          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 resize-none"
+        />
+        <p className="text-xs text-white">A short summary of your brand. AI uses this to write accurate, relevant captions.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

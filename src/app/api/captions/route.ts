@@ -142,6 +142,23 @@ export async function POST(request: NextRequest) {
       console.error('[Captions] Non-critical error:', err instanceof Error ? err.message : err);
     }
 
+    // Build brand context from website and description
+    let brandContext = '';
+    if (brand) {
+      const parts: string[] = [];
+      if (brand.description) {
+        parts.push(`ABOUT ${brandName.toUpperCase()}: ${brand.description}`);
+      }
+      if (brand.websiteUrl) {
+        parts.push(`Website: ${brand.websiteUrl}`);
+      }
+      if (parts.length > 0) {
+        brandContext = `\n\n${parts.join('\n')}`;
+      } else {
+        brandContext = `\n\nNote: No description provided for ${brandName}. Write general content appropriate for this brand name.`;
+      }
+    }
+
     const contentTypeExamples: Record<string, string> = {
       promo: `CONTENT TYPE: Promotional
 Write a promo post. Create urgency, highlight the key benefit, tell them how to get it.
@@ -188,6 +205,7 @@ Save this guide for your next study session."`,
     };
 
     const prompt = `Write an Instagram caption for "${brandName}" (@${handle || brandName}).
+${brandContext}
 
 ${contentTypeExamples[contentType] || contentTypeExamples.promo}
 

@@ -119,6 +119,8 @@ export async function PUT(request: NextRequest) {
     if (fields.secondaryColor !== undefined) updates.secondaryColor = fields.secondaryColor;
     if (fields.logoUrl !== undefined) updates.logoUrl = fields.logoUrl;
     if (fields.instagramHandle !== undefined) updates.instagramHandle = fields.instagramHandle;
+    if (fields.websiteUrl !== undefined) updates.websiteUrl = fields.websiteUrl ? String(fields.websiteUrl).slice(0, 255) : null;
+    if (fields.description !== undefined) updates.description = fields.description || null;
     if (fields.brandVoiceTone !== undefined) updates.brandVoiceTone = String(fields.brandVoiceTone).slice(0, 20);
     if (fields.brandVoiceStyle !== undefined) updates.brandVoiceStyle = String(fields.brandVoiceStyle).slice(0, 20);
     if (fields.brandVoiceDos !== undefined) updates.brandVoiceDos = fields.brandVoiceDos;
