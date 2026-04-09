@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
     if (message.includes('401') || message.includes('403')) {
       hint = 'Buffer API key is invalid or expired. Generate a new token at https://buffer.com/developers/apps';
       status = 401;
-    } else if (message.toLowerCase().includes('rate_limit') || message.toLowerCase().includes('too many requests')) {
+    } else if (message.toLowerCase().includes('rate') || message.toLowerCase().includes('too many') || message.includes('429')) {
       hint = 'Buffer rate limit exceeded. Please wait 15 minutes and try again.';
       status = 429;
     } else if (message.includes('GraphQL')) {
