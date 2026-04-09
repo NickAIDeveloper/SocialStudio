@@ -157,7 +157,11 @@ export function BatchGallery() {
   }, [bufferOrgs]);
 
   // Generate all posts
+  const [batchCount, setBatchCount] = useState(10);
+  const batchCountRef = useRef(10);
+
   const generateBatch = useCallback(async () => {
+    const currentBatchCount = batchCountRef.current;
     if (generatingRef.current) return;
     generatingRef.current = true;
     setIsGenerating(true);
@@ -170,13 +174,18 @@ export function BatchGallery() {
       : [];
     const newPosts: BatchPost[] = [];
 
-    // Generate 10 posts per brand using AI (falls back to pools)
+    // Distribute posts across brands
+    const postsPerBrand = Math.ceil(currentBatchCount / Math.max(brandSlugs.length, 1));
+    const roundsNeeded = Math.ceil(postsPerBrand / contentTypes.length);
+
     resetCaptionHistory();
     let postIdx = 0;
     for (const brand of brandSlugs) {
-      const slots = generateTimeSlots(brand, 10);
-      for (let round = 0; round < 2; round++) {
+      const slots = generateTimeSlots(brand, postsPerBrand);
+      let brandPostCount = 0;
+      for (let round = 0; round < roundsNeeded && brandPostCount < postsPerBrand; round++) {
         for (const type of contentTypes) {
+          if (brandPostCount >= postsPerBrand || postIdx >= currentBatchCount) break;
           let caption = '';
           let hashtags = '';
           let hookText = '';
@@ -211,6 +220,7 @@ export function BatchGallery() {
 
           const slot = slots[postIdx % slots.length] || undefined;
           postIdx++;
+          brandPostCount++;
           newPosts.push({
             id: `${brand}-${type}-${round}-${postIdx}`,
             brand,
@@ -475,18 +485,30 @@ export function BatchGallery() {
     <div className="space-y-6">
       {/* Header bar */}
       <div className="flex flex-wrap items-center gap-3">
-        <Button
-          onClick={generateBatch}
-          disabled={isGenerating}
-          className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-medium"
-        >
-          {isGenerating ? (
+        {isGenerating ? (
+          <Button disabled className="bg-gradient-to-r from-teal-500 to-blue-500 text-white font-medium">
             <span className="flex items-center gap-2">
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               Generating {posts.filter(p => p.imageUrl).length}/{posts.length} posts...
             </span>
-          ) : posts.length > 0 ? 'Regenerate All' : 'Generate 20 Posts'}
-        </Button>
+          </Button>
+        ) : (
+          <div className="flex items-center gap-2">
+            {[5, 10, 15, 20].map(n => (
+              <button
+                key={n}
+                onClick={() => { setBatchCount(n); batchCountRef.current = n; void generateBatch(); }}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  batchCount === n
+                    ? 'bg-gradient-to-r from-teal-500 to-blue-500 text-white shadow-lg'
+                    : 'bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white'
+                }`}
+              >
+                {n} Posts
+              </button>
+            ))}
+          </div>
+        )}
 
         {posts.length > 0 && (
           <>

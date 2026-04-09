@@ -72,16 +72,16 @@ export async function GET() {
       });
     }
 
-    // Organize posts by day for the next 7 days
+    // Organize posts by day: 3 days back + today + 6 days forward = 10 days
     const now = new Date();
     const days: CalendarDay[] = [];
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    for (let i = 0; i < 7; i++) {
+    for (let i = -3; i < 7; i++) {
       const date = new Date(now);
       date.setDate(date.getDate() + i);
       const dateStr = date.toISOString().split('T')[0];
-      const dayName = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : dayNames[date.getDay()];
+      const dayName = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : i === -1 ? 'Yesterday' : dayNames[date.getDay()];
 
       const dayPosts = posts
         .filter((p) => {

@@ -441,7 +441,7 @@ export default function AnalyticsDashboard() {
       const ig = json.results?.instagram;
       const buf = json.results?.buffer;
       const parts: string[] = [];
-      if (ig?.accountsSynced) parts.push(`${ig.accountsSynced} accounts scraped`);
+      if (ig?.accountsSynced) parts.push(`${ig.accountsSynced} Instagram profiles synced (your accounts + competitors)`);
       if (ig?.postsSynced) parts.push(`${ig.postsSynced} posts found`);
       if (buf?.postsSynced) parts.push(`${buf.postsSynced} Buffer posts synced`);
       // Store profile stats from sync

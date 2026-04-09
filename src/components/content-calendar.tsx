@@ -105,17 +105,20 @@ export function ContentCalendar() {
         </div>
       )}
 
-      {/* Weekly grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+      {/* Weekly grid - scrollable if more than 7 days */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2">
         {days.map((day) => {
           const isToday = day.dayName === 'Today';
+          const isPast = day.dayName === 'Yesterday' || new Date(day.date + 'T23:59:59') < new Date();
           return (
             <div
               key={day.date}
               className={`rounded-lg border p-3 min-h-[120px] flex flex-col ${
                 isToday
                   ? 'border-teal-500/30 bg-teal-500/5'
-                  : 'border-zinc-700/50 bg-zinc-800/20'
+                  : isPast
+                    ? 'border-zinc-800/50 bg-zinc-800/10 opacity-70'
+                    : 'border-zinc-700/50 bg-zinc-800/20'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
