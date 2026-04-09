@@ -190,6 +190,19 @@ export function BatchGallery() {
           let hashtags = '';
           let hookText = '';
 
+          // Clean AI response text
+          const cleanAiText = (s: string) => s
+            .replace(/^(caption|hook|hookText)\s*:\s*/i, '')
+            .replace(/\s*[—–]{1,3}\s*/g, ' ')
+            .replace(/,\s*$/, '')
+            .trim();
+          const cleanHashtags = (s: string) => s
+            .replace(/\\n/g, '\n')  // Fix escaped newlines
+            .split(/[\n,]+/)
+            .map((t: string) => t.trim())
+            .filter((t: string) => t.startsWith('#'))
+            .join('\n');
+
           // Try AI generation
           try {
             const aiRes = await fetch('/api/captions', {
@@ -199,9 +212,9 @@ export function BatchGallery() {
             });
             const aiData = await aiRes.json();
             if (aiData.success && aiData.caption) {
-              caption = aiData.caption;
-              hashtags = aiData.hashtags || '';
-              hookText = aiData.hookText || '';
+              caption = cleanAiText(aiData.caption);
+              hashtags = cleanHashtags(aiData.hashtags || '');
+              hookText = cleanAiText(aiData.hookText || '');
             }
           } catch {
             // Fall through to pool
@@ -215,6 +228,10 @@ export function BatchGallery() {
               caption = `Check out our latest ${type} content!`;
             }
             hashtags = getHashtagsForPost(brand);
+          }
+
+          // Always ensure hookText exists
+          if (!hookText) {
             hookText = extractHookText(caption);
           }
 
@@ -268,15 +285,17 @@ export function BatchGallery() {
             if (pickData.searchTerm) query = pickData.searchTerm;
           } catch { /* fallback below */ }
 
-          // Fallback to cycling queries
+          // Fallback: extract 2-3 key words from the caption for image search
           if (!query) {
-            const queries = suggestedQueries[post.brand as keyof typeof suggestedQueries];
-            if (queries && queries.length > 0) {
-              const qIdx = (usedQueries[post.brand] ?? 0) % queries.length;
+            const brandQueries = suggestedQueries[post.brand as keyof typeof suggestedQueries];
+            if (brandQueries && brandQueries.length > 0) {
+              const qIdx = (usedQueries[post.brand] ?? 0) % brandQueries.length;
               usedQueries[post.brand] = (usedQueries[post.brand] ?? 0) + 1;
-              query = queries[qIdx];
+              query = brandQueries[qIdx];
             } else {
-              query = 'social media content';
+              // Extract keywords from caption for relevant image search
+              const words = post.caption.split(/\s+/).filter((w: string) => w.length > 4 && !w.startsWith('#') && !w.startsWith('@'));
+              query = words.slice(0, 3).join(' ') || post.brand;
             }
           }
 
@@ -638,13 +657,15 @@ export function BatchGallery() {
 
             <CardContent className="p-3 space-y-2">
               {/* Hook preview */}
-              <p className="text-xs text-white font-medium leading-snug line-clamp-2">
-                {post.hookText || post.caption.split('\n')[0]}
-              </p>
+              {post.hookText && (
+                <p className="text-xs text-teal-300 font-semibold leading-snug line-clamp-1">
+                  &ldquo;{post.hookText}&rdquo;
+                </p>
+              )}
 
-              {/* Caption preview (truncated) */}
-              <p className="text-[11px] text-white leading-snug line-clamp-3">
-                {post.caption}
+              {/* Caption preview (truncated, cleaned) */}
+              <p className="text-[11px] text-white leading-snug line-clamp-4">
+                {post.caption.replace(/^(caption\s*:\s*)/i, '').replace(/,\s*hashtags:[\s\S]*/i, '').trim()}
               </p>
 
               {/* Scheduled time */}

@@ -204,24 +204,34 @@ Return ONLY valid JSON. Hashtags separated by newlines:
     }
 
     // Normalize hashtags to one per line
-    let hashtagStr = String(parsed.hashtags ?? '');
+    let hashtagStr = String(parsed.hashtags ?? '')
+      .replace(/\\n/g, '\n')  // Fix escaped \n from AI
+      .replace(/,\s*/g, '\n');  // Fix comma-separated
+    // If still no newlines, split by spaces
     if (!hashtagStr.includes('\n') && hashtagStr.includes(' #')) {
       hashtagStr = hashtagStr.split(/\s+/).filter((t: string) => t.startsWith('#')).join('\n');
     }
+    // Final cleanup: only keep lines starting with #
+    hashtagStr = hashtagStr.split('\n').map((t: string) => t.trim()).filter((t: string) => t.startsWith('#')).join('\n');
 
     // Clean up AI output
-    const cleanText = (s: string) => {
+    const cleanText = (s: string, isCaption = false) => {
       let cleaned = s
-        .replace(/\s*[—–-]{1,3}\s*/g, ' ')  // strip dashes
-        .replace(/\s{2,}/g, ' ')              // collapse whitespace
+        .replace(/\s*[—–]{1,3}\s*/g, ' ')    // strip em/en dashes (not hyphens in words)
+        .replace(/\s{2,}/g, ' ')               // collapse whitespace
         .replace(/^(caption|hook|hookText)\s*:\s*/i, '')  // strip "caption:" prefix
         .trim();
+      // For captions, strip trailing hashtag content that leaked in
+      if (isCaption) {
+        cleaned = cleaned.replace(/,?\s*hashtags?\s*:[\s\S]*$/i, '').trim();
+        cleaned = cleaned.replace(/,\s*$/, '');
+      }
       return cleaned;
     };
 
     return NextResponse.json({
       success: true,
-      caption: cleanText(String(parsed.caption ?? '')),
+      caption: cleanText(String(parsed.caption ?? ''), true),
       hashtags: hashtagStr,
       hookText: cleanText(String(parsed.hookText ?? '')),
       source: 'cerebras',
