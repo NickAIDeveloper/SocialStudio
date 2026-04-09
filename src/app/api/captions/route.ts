@@ -217,39 +217,19 @@ ${ownPostContext}
 ${insightContext}
 ${brandVoiceContext}
 
-UNIQUENESS REQUIREMENT (variation #${variationSeed}):
-This post MUST be completely different from any previous posts. Use a fresh angle, different opening, different structure.${avoidTopics.length > 0 ? `\nDO NOT use any of these hooks or topics that were already used: ${avoidTopics.join(', ')}` : ''}
+Write a UNIQUE post (variation ${variationSeed}). ${avoidTopics.length > 0 ? `Avoid these already-used themes: ${avoidTopics.slice(0, 5).join(', ')}.` : ''} Use a completely fresh angle.
 
-STRICT RULES:
-1. Caption must be under 100 words total
-2. First line is the hook (under 10 words, attention grabbing)
-3. Separate paragraphs with blank lines
-4. End with a call to action
-5. Maximum 1 emoji in the entire caption
-6. Do NOT include any hashtags in the caption
-7. Do NOT use dashes, hyphens, or bullet points
-8. Write in natural conversational English only
-9. No markdown, no bold, no asterisks, no special formatting
-10. Everything must be factually true about ${brandName}
+Rules: Under 80 words. No hashtags in caption. No dashes or hyphens. No markdown. Natural English. End with a call to action.
 
-Respond with ONLY this JSON object, nothing else before or after it:
-{"caption": "hook line\\n\\nbody paragraph one\\n\\nbody paragraph two\\n\\ncall to action line", "hashtags": "#${brandName} #tag2 #tag3 #tag4 #tag5", "hookText": "three to five words"}
-
-IMPORTANT FORMAT NOTES:
-- Use \\n\\n between paragraphs in the caption (escaped newlines for JSON)
-- For tips posts, put each numbered step on its own line: "1. First step\\n2. Second step\\n3. Third step"
-- The hookText must be 3 to 5 words that make complete sense on their own
-- The hashtags must be exactly 5 hashtags separated by spaces
-- For quote posts, the hookText IS the quote (make it inspiring and shareable)`;
-
-    const systemMessage = 'You are an Instagram copywriter. You respond with ONLY valid JSON. No explanations, no markdown, no code blocks. Just the JSON object.';
+Return valid JSON only:
+{"caption":"the full caption text","hashtags":"#${brandName} #tag2 #tag3 #tag4 #tag5","hookText":"3 to 5 word hook"}`;
 
     const content = await cerebrasChatCompletion(
       [
-        { role: 'system', content: systemMessage },
+        { role: 'system', content: 'You write Instagram captions. Reply with only a JSON object. No other text.' },
         { role: 'user', content: prompt },
       ],
-      { temperature: 0.9, maxTokens: 800 },
+      { temperature: 0.85, maxTokens: 600 },
     );
 
     // Strip markdown fences and clean AI response
