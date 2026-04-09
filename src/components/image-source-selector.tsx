@@ -17,10 +17,10 @@ const IMAGE_PROVIDERS = [
   { provider: 'pixabay', label: 'Pixabay' },
   { provider: 'unsplash', label: 'Unsplash' },
   { provider: 'pexels', label: 'Pexels' },
-  { provider: 'openai_images', label: 'AI Generate' },
+  { provider: 'gemini_images', label: 'AI Generate' },
 ] as const;
 
-type SourceValue = 'pixabay' | 'unsplash' | 'pexels' | 'openai' | 'all';
+type SourceValue = 'pixabay' | 'unsplash' | 'pexels' | 'gemini' | 'all';
 
 export interface ImageSourceSelectorHandle {
   triggerSearch: (query: string) => void;
@@ -53,16 +53,16 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
           (a: { provider: string }) => a.provider
         );
         const imageProviders = providers.filter((p) =>
-          ['pixabay', 'unsplash', 'pexels', 'openai_images'].includes(p)
+          ['pixabay', 'unsplash', 'pexels', 'gemini_images'].includes(p)
         );
         setConnectedProviders(imageProviders);
 
         // Auto-select first connected stock source
-        const firstStock = imageProviders.find((p) => p !== 'openai_images');
+        const firstStock = imageProviders.find((p) => p !== 'gemini_images');
         if (firstStock) {
           setSelectedSource(firstStock as SourceValue);
-        } else if (imageProviders.includes('openai_images')) {
-          setSelectedSource('openai');
+        } else if (imageProviders.includes('gemini_images')) {
+          setSelectedSource('gemini');
         }
       } catch {
         // Failed to load accounts
@@ -75,9 +75,9 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
   }, []);
 
   const connectedStockCount = connectedProviders.filter(
-    (p) => p !== 'openai_images'
+    (p) => p !== 'gemini_images'
   ).length;
-  const isAISource = selectedSource === 'openai';
+  const isAISource = selectedSource === 'gemini';
 
   const handleSearch = useCallback(async (query?: string) => {
     const q = query ?? searchQuery;
@@ -107,7 +107,7 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
       const response = await fetch('/api/images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: 'openai', prompt: aiPrompt.trim() }),
+        body: JSON.stringify({ source: 'gemini', prompt: aiPrompt.trim() }),
       });
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
@@ -166,7 +166,7 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
   const sourceOptions: Array<{ value: SourceValue; label: string }> = [];
   for (const { provider, label } of IMAGE_PROVIDERS) {
     if (!connectedProviders.includes(provider)) continue;
-    const value: SourceValue = provider === 'openai_images' ? 'openai' : provider as SourceValue;
+    const value: SourceValue = provider === 'gemini_images' ? 'gemini' : provider as SourceValue;
     sourceOptions.push({ value, label });
   }
   if (connectedStockCount >= 2) {

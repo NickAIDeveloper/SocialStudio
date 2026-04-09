@@ -8,7 +8,7 @@ import type { ImageResult, ImageSourceType } from '@/lib/image-sources';
 import { pixabaySource } from '@/lib/image-sources/pixabay';
 import { unsplashSource } from '@/lib/image-sources/unsplash';
 import { pexelsSource } from '@/lib/image-sources/pexels';
-import { openaiSource } from '@/lib/image-sources/openai-images';
+import { geminiSource } from '@/lib/image-sources/gemini-images';
 
 const STOCK_SOURCES: Array<{ type: ImageSourceType; provider: string }> = [
   { type: 'pixabay', provider: 'pixabay' },
@@ -137,9 +137,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { source, prompt } = body;
 
-    if (source !== 'openai') {
+    if (source !== 'gemini') {
       return NextResponse.json(
-        { error: 'POST only supports source "openai". Use GET for stock photo search.' },
+        { error: 'POST only supports source "gemini". Use GET for stock photo search.' },
         { status: 400 }
       );
     }
@@ -151,16 +151,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await getDecryptedKey(userId, 'openai_images');
+    const result = await getDecryptedKey(userId, 'gemini_images');
     if (!result.key) {
       const message = result.reason === 'not_connected'
-        ? 'OpenAI Images is not connected. Go to Settings to link your API key.'
-        : 'OpenAI Images API key could not be read. Please disconnect and reconnect in Settings.';
+        ? 'Gemini AI Images is not connected. Go to Settings to link your API key.'
+        : 'Gemini API key could not be read. Please disconnect and reconnect in Settings.';
       const status = result.reason === 'not_connected' ? 403 : 400;
       return NextResponse.json({ error: message }, { status });
     }
 
-    const images = await openaiSource.generate(prompt.trim(), result.key);
+    const images = await geminiSource.generate(prompt.trim(), result.key);
     return NextResponse.json({ images });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {

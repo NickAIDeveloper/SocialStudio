@@ -348,7 +348,7 @@ function StepTools({
     { provider: 'pixabay', label: 'Pixabay', placeholder: 'Paste your Pixabay API key', helpLink: 'https://pixabay.com/api/docs/', badge: 'Recommended', connected: false },
     { provider: 'unsplash', label: 'Unsplash', placeholder: 'Paste your Unsplash access key', helpLink: 'https://unsplash.com/developers', badge: 'Optional', connected: false },
     { provider: 'pexels', label: 'Pexels', placeholder: 'Paste your Pexels API key', helpLink: 'https://www.pexels.com/api/', badge: 'Optional', connected: false },
-    { provider: 'openai_images', label: 'OpenAI (AI Images)', placeholder: 'Paste your OpenAI API key', helpLink: 'https://platform.openai.com/api-keys', badge: 'Optional', connected: false },
+    { provider: 'gemini_images', label: 'Gemini (AI Images)', placeholder: 'Paste your Gemini API key', helpLink: 'https://aistudio.google.com/apikey', badge: 'Optional', connected: false },
   ]);
   const [tokens, setTokens] = useState<Record<string, string>>({});
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
@@ -426,7 +426,7 @@ function StepTools({
   const hasBuffer = tools.some((t) => t.provider === 'buffer' && t.connected);
   const hasImageSource = tools.some(
     (t) =>
-      ['pixabay', 'unsplash', 'pexels', 'openai_images'].includes(t.provider) &&
+      ['pixabay', 'unsplash', 'pexels', 'gemini_images'].includes(t.provider) &&
       t.connected,
   );
   const canProceed = hasBuffer && hasImageSource;

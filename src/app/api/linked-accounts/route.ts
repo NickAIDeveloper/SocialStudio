@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const VALID_PROVIDERS = ['buffer', 'pixabay', 'unsplash', 'pexels', 'openai_images'];
+    const VALID_PROVIDERS = ['buffer', 'pixabay', 'unsplash', 'pexels', 'gemini_images'];
 
     if (!VALID_PROVIDERS.includes(provider)) {
       return NextResponse.json(
@@ -124,14 +124,12 @@ export async function POST(request: NextRequest) {
       metadata = { validated: true };
     }
 
-    if (provider === 'openai_images') {
-      const res = await fetch('https://api.openai.com/v1/models', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+    if (provider === 'gemini_images') {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(accessToken)}`);
 
       if (!res.ok) {
         return NextResponse.json(
-          { error: 'Invalid OpenAI API key. Please check and try again.' },
+          { error: 'Invalid Gemini API key. Please check and try again.' },
           { status: 400 }
         );
       }
@@ -188,7 +186,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const VALID_PROVIDERS = ['buffer', 'pixabay', 'unsplash', 'pexels', 'openai_images'];
+    const VALID_PROVIDERS = ['buffer', 'pixabay', 'unsplash', 'pexels', 'gemini_images'];
     if (!VALID_PROVIDERS.includes(provider)) {
       return NextResponse.json(
         { error: 'Invalid provider' },

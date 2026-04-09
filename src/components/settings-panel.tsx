@@ -10,7 +10,7 @@ interface LinkedAccount {
 }
 
 interface ProviderSectionProps {
-  provider: 'buffer' | 'pixabay' | 'unsplash' | 'pexels' | 'openai_images';
+  provider: 'buffer' | 'pixabay' | 'unsplash' | 'pexels' | 'gemini_images';
   label: string;
   description: string;
   placeholder: string;
@@ -271,11 +271,11 @@ export function SettingsPanel() {
         onDisconnect={handleDisconnect}
       />
       <ProviderSection
-        provider="openai_images"
-        label="OpenAI Images"
-        description="Generate AI-powered images using OpenAI DALL-E"
-        placeholder="Paste your OpenAI API key"
-        account={getAccount('openai_images')}
+        provider="gemini_images"
+        label="Gemini AI Images"
+        description="Generate AI-powered images using Google Gemini"
+        placeholder="Paste your Gemini API key"
+        account={getAccount('gemini_images')}
         onConnect={handleConnect}
         onDisconnect={handleDisconnect}
       />
