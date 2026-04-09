@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { brands, scrapedAccounts, scrapedPosts, insightsCache } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
 import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
+import { sanitizeCaption, sanitizeHook, sanitizeHashtags } from '@/lib/caption-engine';
 
 export async function POST(request: NextRequest) {
   try {
@@ -269,9 +270,9 @@ Return valid JSON only:
 
       return NextResponse.json({
         success: true,
-        caption: captionText,
-        hashtags: (hashtagsMatch || []).slice(0, 5).join('\n'),
-        hookText: hookMatch ? hookMatch[1].trim() : captionText.split(/[.\n]/)[0]?.slice(0, 40) || '',
+        caption: sanitizeCaption(captionText),
+        hashtags: sanitizeHashtags((hashtagsMatch || []).join(' ')),
+        hookText: sanitizeHook(hookMatch ? hookMatch[1] : captionText.split(/[.\n]/)[0] || ''),
         source: 'cerebras-extracted',
       });
     }
@@ -319,11 +320,12 @@ Return valid JSON only:
       return cleaned;
     };
 
+    // Final sanitization pass using universal sanitizers
     return NextResponse.json({
       success: true,
-      caption: cleanText(String(parsed.caption ?? ''), true),
-      hashtags: hashtagStr,
-      hookText: cleanText(String(parsed.hookText ?? '')),
+      caption: sanitizeCaption(String(parsed.caption ?? '')),
+      hashtags: sanitizeHashtags(String(parsed.hashtags ?? '')),
+      hookText: sanitizeHook(String(parsed.hookText ?? '')),
       source: 'cerebras',
     });
   } catch (error) {

@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { hashtagSets, optimalPostingTimes } from '@/data/competitor-insights';
 import { suggestedQueries, brandCategories } from '@/lib/pixabay';
 import type { PixabayImage } from '@/lib/pixabay';
-import { generateCaption, extractHookText, resetCaptionHistory } from '@/lib/caption-engine';
+import { generateCaption, extractHookText, resetCaptionHistory, sanitizeCaption, sanitizeHook, sanitizeHashtags } from '@/lib/caption-engine';
 
 type Brand = string;
 type ContentType = 'quote' | 'tip' | 'carousel' | 'community' | 'promo';
@@ -195,31 +195,7 @@ export function BatchGallery() {
           let hashtags = '';
           let hookText = '';
 
-          // Clean AI response - strip all formatting artifacts
-          const cleanCaption = (s: string) => s
-            .replace(/\\n/g, '\n')                              // unescape \\n to real newlines
-            .replace(/^(caption|hook|hookText)\s*:\s*/i, '')    // strip key prefixes
-            .replace(/,?\s*hashtags?\s*:[\s\S]*/i, '')          // strip trailing hashtags/hookText JSON
-            .replace(/,?\s*hookText\s*:[\s\S]*/i, '')           // strip trailing hookText
-            .replace(/\s*[—–]{1,3}\s*/g, ' ')                  // strip dashes
-            .replace(/\n{3,}/g, '\n\n')                         // max double newline
-            .replace(/,\s*$/, '')                                // strip trailing comma
-            .trim();
-          const cleanHookText = (s: string) => s
-            .replace(/\\n/g, ' ')                                // no newlines in hooks
-            .replace(/\n/g, ' ')
-            .replace(/^(caption|hook|hookText)\s*:\s*/i, '')
-            .replace(/,?\s*hashtags?\s*:[\s\S]*/i, '')
-            .replace(/\s{2,}/g, ' ')
-            .trim();
-          const cleanHashtags = (s: string) => s
-            .replace(/\\n/g, '\n')
-            .replace(/,?\s*hookText\s*:[\s\S]*/i, '')           // strip hookText that leaked in
-            .split(/[\n,]+/)
-            .map((t: string) => t.trim())
-            .filter((t: string) => t.startsWith('#') && t.length > 1)
-            .slice(0, 10)                                        // max 10 hashtags
-            .join('\n');
+          // Use universal sanitizers from caption-engine
 
           // Try AI generation with uniqueness tracking
           try {
@@ -238,9 +214,9 @@ export function BatchGallery() {
             });
             const aiData = await aiRes.json();
             if (aiData.success && aiData.caption) {
-              caption = cleanCaption(aiData.caption);
-              hashtags = cleanHashtags(aiData.hashtags || '');
-              hookText = cleanHookText(aiData.hookText || '');
+              caption = sanitizeCaption(aiData.caption);
+              hashtags = sanitizeHashtags(aiData.hashtags || '');
+              hookText = sanitizeHook(aiData.hookText || '');
             }
           } catch {
             // Fall through to pool
@@ -256,14 +232,14 @@ export function BatchGallery() {
             hashtags = getHashtagsForPost(brand);
           }
 
-          // Final cleanup pass on all text
-          caption = cleanCaption(caption);
-          hashtags = cleanHashtags(hashtags);
-          hookText = hookText ? cleanHookText(hookText) : '';
+          // Final sanitization pass
+          caption = sanitizeCaption(caption);
+          hashtags = sanitizeHashtags(hashtags);
+          hookText = hookText ? sanitizeHook(hookText) : '';
 
           // Always ensure hookText exists
           if (!hookText) {
-            hookText = cleanHookText(extractHookText(caption));
+            hookText = sanitizeHook(extractHookText(caption));
           }
 
           const slot = slots[postIdx % slots.length] || undefined;
@@ -356,12 +332,7 @@ export function BatchGallery() {
             usedImageIds.add(img.id);
 
             // Process image with overlay via /api/logo (returns raw image bytes)
-            const cleanHook = (post.hookText || '')
-              .replace(/^(caption|hook)\s*:\s*/i, '')
-              .replace(/\\n/g, ' ')
-              .replace(/\n/g, ' ')
-              .replace(/\s{2,}/g, ' ')
-              .trim();
+            const cleanHook = sanitizeHook(post.hookText || '');
             const body: Record<string, unknown> = {
               imageUrl: img.largeImageURL,
               brand: post.brand,

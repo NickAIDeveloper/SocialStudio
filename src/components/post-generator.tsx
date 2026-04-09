@@ -26,7 +26,7 @@ import { suggestedQueries } from '@/lib/pixabay';
 import type { ImageResult } from '@/lib/image-sources';
 import { ImageSourceSelector } from '@/components/image-source-selector';
 import type { ImageSourceSelectorHandle } from '@/components/image-source-selector';
-import { generateCaption as getCaption, extractHookText } from '@/lib/caption-engine';
+import { generateCaption as getCaption, extractHookText, sanitizeCaption, sanitizeHook, sanitizeHashtags } from '@/lib/caption-engine';
 
 type Brand = string;
 type ContentType = 'quote' | 'tip' | 'carousel' | 'community' | 'promo';
@@ -290,9 +290,9 @@ export function PostGenerator() {
       const aiData = await aiRes.json();
 
       if (aiData.success && aiData.caption) {
-        newCaption = aiData.caption;
-        newHashtags = aiData.hashtags || '';
-        hook = aiData.hookText || '';
+        newCaption = sanitizeCaption(aiData.caption);
+        newHashtags = sanitizeHashtags(aiData.hashtags || '');
+        hook = sanitizeHook(aiData.hookText || '');
       }
     } catch {
       // AI failed, fall through to pool
@@ -301,12 +301,12 @@ export function PostGenerator() {
     // Fallback to pre-written caption pool (only works for known brands)
     if (!newCaption) {
       try {
-        newCaption = getCaption(brand as 'affectly' | 'pacebrain', contentType);
+        newCaption = sanitizeCaption(getCaption(brand as 'affectly' | 'pacebrain', contentType));
       } catch {
         newCaption = `Check out our latest ${contentType} content!`;
       }
       newHashtags = getHashtagsForPost(brand);
-      hook = extractHookText(newCaption);
+      hook = sanitizeHook(extractHookText(newCaption));
     }
 
     newCaption = stripDashes(newCaption);
@@ -634,15 +634,14 @@ export function PostGenerator() {
     // Generate caption
     let newCaption = '';
     try {
-      newCaption = getCaption(randomBrand as 'affectly' | 'pacebrain', randomType);
+      newCaption = sanitizeCaption(getCaption(randomBrand as 'affectly' | 'pacebrain', randomType));
     } catch {
       newCaption = `Check out our latest ${randomType} content!`;
     }
-    newCaption = stripDashes(newCaption);
     setCaption(newCaption);
     setHashtags(getHashtagsForPost(randomBrand));
 
-    const hook = stripDashes(extractHookText(newCaption));
+    const hook = sanitizeHook(extractHookText(newCaption));
     if (hook) setOverlayText(hook);
 
     // Auto-search for a topic-aligned image via the ImageSourceSelector

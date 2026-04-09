@@ -9,6 +9,56 @@
  * - Questions to audience are genuine engagement prompts
  */
 
+/**
+ * Universal text sanitizer — strips ALL JSON, code, HTML, and LLM artifacts.
+ * Apply to any AI-generated text before display or storage.
+ */
+export function sanitizeCaption(text: string): string {
+  return text
+    .replace(/\\n/g, '\n')                              // unescape \\n
+    .replace(/```[\s\S]*?```/g, '')                      // strip code blocks
+    .replace(/<[^>]+>/g, '')                             // strip HTML tags
+    .replace(/\*\*/g, '')                                // strip markdown bold
+    .replace(/^["']+|["']+$/g, '')                       // strip wrapping quotes
+    .replace(/^(caption|hook|hookText)\s*:\s*/i, '')     // strip key prefixes
+    .replace(/,?\s*["']?hashtags?["']?\s*:[\s\S]*$/i, '')// strip trailing hashtags JSON
+    .replace(/,?\s*["']?hookText["']?\s*:[\s\S]*$/i, '') // strip trailing hookText JSON
+    .replace(/[{}]/g, '')                                // strip JSON braces
+    .replace(/\s*[—–]{1,3}\s*/g, ' ')                   // strip em/en dashes
+    .replace(/([.!?])\s*(\d+)\.\s/g, '$1\n$2. ')        // line breaks before numbered steps
+    .replace(/([a-z])\s+(\d+)\.\s/g, '$1\n\n$2. ')      // line breaks before numbered steps
+    .replace(/#\w+/g, '')                                // strip any inline hashtags
+    .replace(/\n{3,}/g, '\n\n')                          // max double newline
+    .replace(/  +/g, ' ')                                // collapse double spaces
+    .replace(/,\s*$/, '')                                // strip trailing comma
+    .trim();
+}
+
+export function sanitizeHook(text: string): string {
+  return text
+    .replace(/\\n/g, ' ')                                // no newlines in hooks
+    .replace(/\n/g, ' ')
+    .replace(/```[\s\S]*?```/g, '')                      // strip code blocks
+    .replace(/<[^>]+>/g, '')                             // strip HTML
+    .replace(/\*\*/g, '')                                // strip markdown
+    .replace(/^["']+|["']+$/g, '')                       // strip wrapping quotes
+    .replace(/^(caption|hook|hookText)\s*:\s*/i, '')     // strip key prefixes
+    .replace(/,?\s*["']?hashtags?[\s\S]*$/i, '')         // strip hashtags leak
+    .replace(/[{}]/g, '')                                // strip JSON braces
+    .replace(/\s+\d+\.?\s*$/, '')                        // strip trailing "1." or "1"
+    .replace(/\s{2,}/g, ' ')                             // collapse whitespace
+    .trim()
+    .slice(0, 45);                                       // max 45 chars
+}
+
+export function sanitizeHashtags(text: string): string {
+  const raw = text.replace(/\\n/g, ' ').replace(/[{}]/g, '');
+  return (raw.match(/#\w+/g) || [])
+    .filter(t => t.length > 1 && t.length < 30)
+    .slice(0, 10)
+    .join('\n');
+}
+
 type Brand = 'affectly' | 'pacebrain';
 type ContentType = 'quote' | 'tip' | 'carousel' | 'community' | 'promo';
 
