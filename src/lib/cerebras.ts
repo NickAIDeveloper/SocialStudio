@@ -4,7 +4,7 @@
  */
 
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
-const CEREBRAS_MODEL = 'llama3.1-8b';
+const CEREBRAS_MODEL = 'qwen-3-235b-a22b-instruct-2507';
 
 interface CerebrasMessage {
   role: 'system' | 'user' | 'assistant';

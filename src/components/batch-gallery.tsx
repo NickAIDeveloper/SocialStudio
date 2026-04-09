@@ -533,41 +533,55 @@ export function BatchGallery() {
     <div className="space-y-6">
       {/* Header bar */}
       <div className="flex flex-wrap items-center gap-3">
-        {isGenerating ? (
-          <Button disabled className="bg-gradient-to-r from-teal-500 to-blue-500 text-white font-medium">
-            <span className="flex items-center gap-2">
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Generating {posts.filter(p => p.imageUrl).length}/{posts.length} posts...
-            </span>
-          </Button>
-        ) : (
-          <div className="flex items-center gap-2 flex-wrap">
-            <select
-              value={batchContentType}
-              onChange={(e) => { setBatchContentType(e.target.value as ContentType | 'mixed'); batchContentTypeRef.current = e.target.value as ContentType | 'mixed'; }}
-              className="h-9 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm px-3 focus:outline-none focus:ring-1 focus:ring-teal-500"
-            >
-              <option value="mixed">Mixed Content</option>
-              <option value="promo">Promo</option>
-              <option value="quote">Quote</option>
-              <option value="tip">Tips / How-to</option>
-              <option value="community">Community</option>
-            </select>
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Content type */}
+          <select
+            value={batchContentType}
+            onChange={(e) => { setBatchContentType(e.target.value as ContentType | 'mixed'); batchContentTypeRef.current = e.target.value as ContentType | 'mixed'; }}
+            disabled={isGenerating}
+            className="h-9 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm px-3 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
+          >
+            <option value="mixed">Mixed Content</option>
+            <option value="promo">Promo</option>
+            <option value="quote">Quote</option>
+            <option value="tip">Tips / How-to</option>
+            <option value="community">Community</option>
+          </select>
+
+          {/* Post count radio buttons */}
+          <div className="flex items-center gap-1 bg-zinc-800/60 rounded-lg p-1 border border-zinc-700/50">
             {[5, 10, 15, 20].map(n => (
               <button
                 key={n}
-                onClick={() => { setBatchCount(n); batchCountRef.current = n; void generateBatch(); }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                onClick={() => { setBatchCount(n); batchCountRef.current = n; }}
+                disabled={isGenerating}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                   batchCount === n
-                    ? 'bg-gradient-to-r from-teal-500 to-blue-500 text-white shadow-lg'
-                    : 'bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white'
-                }`}
+                    ? 'bg-teal-600 text-white'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-700'
+                } disabled:opacity-50`}
               >
-                {n} Posts
+                {n}
               </button>
             ))}
           </div>
-        )}
+
+          {/* Generate button */}
+          <button
+            onClick={() => void generateBatch()}
+            disabled={isGenerating}
+            className="px-5 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white shadow-lg transition-all disabled:opacity-60 flex items-center gap-2"
+          >
+            {isGenerating ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Generating {posts.filter(p => p.imageUrl).length}/{posts.length}...
+              </>
+            ) : (
+              `Generate ${batchCount} Posts`
+            )}
+          </button>
+        </div>
 
         {posts.length > 0 && (
           <>

@@ -142,50 +142,86 @@ export async function POST(request: NextRequest) {
       console.error('[Captions] Non-critical error:', err instanceof Error ? err.message : err);
     }
 
-    const contentTypeGuide: Record<string, string> = {
-      promo: 'PROMO POST: Create urgency. Highlight the product benefit, explain why now, and tell them how to get it. Use a direct CTA like "Download now" or "Link in bio".',
-      quote: 'QUOTE POST: Share a powerful, original thought or insight related to the brand. Make it quotable and shareable. The hook itself should BE the quote.',
-      tip: 'TIP/HOW-TO POST: Share actionable advice. Use numbered steps (1. 2. 3.). Each step should be one clear sentence. End with "Save this for later" or "Share with someone who needs this".',
-      community: 'COMMUNITY POST: Ask a genuine question to spark conversation. Share a relatable experience. The goal is comments and shares, not clicks.',
-      carousel: 'CAROUSEL POST: Tease what the carousel contains. Use "Swipe for..." or "Save this guide". Keep caption short since the value is in the slides.',
+    const contentTypeExamples: Record<string, string> = {
+      promo: `CONTENT TYPE: Promotional
+Write a promo post. Create urgency, highlight the key benefit, tell them how to get it.
+Example caption style:
+"Your focus is about to change.
+
+Affectly adapts every lesson to how you're feeling right now. Stressed? Slower pace. Energized? Deeper content.
+
+No more one size fits all learning.
+
+Download free today. Link in bio."`,
+      quote: `CONTENT TYPE: Quote
+Write a quote post. Share a powerful, original insight. The first line IS the quote. Make it shareable.
+Example caption style:
+"The best learning happens when you feel safe to fail.
+
+Most apps push you harder when you struggle. Affectly does the opposite. It meets you where you are.
+
+Double tap if you agree."`,
+      tip: `CONTENT TYPE: Tips / How-to
+Write a tips post. Use numbered steps. Each step is one clear sentence.
+Example caption style:
+"3 ways to study smarter, not harder.
+
+1. Check your mood before you start. Your emotional state affects retention.
+2. Match your material to your energy. Complex topics when you're sharp, reviews when you're tired.
+3. Take a 2 minute reflection break between topics.
+
+Save this for later."`,
+      community: `CONTENT TYPE: Community
+Write a community post. Ask a genuine question. Share a relatable experience. Goal is comments.
+Example caption style:
+"What subject do you always avoid studying?
+
+For me it was statistics. Until I realized my brain just needed a different approach on low energy days.
+
+Tell me yours in the comments."`,
+      carousel: `CONTENT TYPE: Carousel
+Write a carousel teaser. Keep it short since the value is in the slides.
+Example caption style:
+"5 signs your study routine needs an upgrade. Swipe to find out.
+
+Save this guide for your next study session."`,
     };
 
-    const prompt = `You are an expert Instagram content creator for "${brandName}" ${handle}.
+    const prompt = `Write an Instagram caption for "${brandName}" (@${handle || brandName}).
 
-CONTENT TYPE: ${contentType}
-${contentTypeGuide[contentType] || ''}
+${contentTypeExamples[contentType] || contentTypeExamples.promo}
 
 ${competitorContext}
 ${ownPostContext}
 ${insightContext}
 ${brandVoiceContext}
 
-INSTAGRAM CAPTION FORMAT (research-backed for maximum engagement):
+STRICT RULES:
+1. Caption must be under 100 words total
+2. First line is the hook (under 10 words, attention grabbing)
+3. Separate paragraphs with blank lines
+4. End with a call to action
+5. Maximum 1 emoji in the entire caption
+6. Do NOT include any hashtags in the caption
+7. Do NOT use dashes, hyphens, or bullet points
+8. Write in natural conversational English only
+9. No markdown, no bold, no asterisks, no special formatting
+10. Everything must be factually true about ${brandName}
 
-1. HOOK (first line): A scroll-stopping statement or question. This is what people see BEFORE tapping "more". Make it irresistible. Under 10 words.
+Respond with ONLY this JSON object, nothing else before or after it:
+{"caption": "first line hook here\n\nbody paragraph\n\ncall to action", "hashtags": "#${brandName} #tag2 #tag3 #tag4 #tag5", "hookText": "short hook"}
 
-2. BODY (2-4 short paragraphs): Deliver value. Use line breaks between paragraphs. Keep total caption under 150 words (shorter captions = higher engagement). NEVER use dashes or hyphens as separators.
+The hookText must be 3 to 5 words that make sense on their own as image text.
+The hashtags must be exactly 5 hashtags separated by spaces.`;
 
-3. CTA (last line): End with ONE clear call-to-action. Either a question ("What's yours?"), action ("Save this"), or engagement prompt ("Tag someone who needs this").
-
-RULES:
-- NO hashtags in the caption text
-- NO dashes, em-dashes, en-dashes, or hyphens
-- 1-2 emojis maximum, placed naturally
-- Every sentence must be TRUE and relevant to ${brandName}
-- Do not fabricate features or make claims that aren't real
-- If competitor data is provided, write content that outperforms their style
-
-ALSO GENERATE:
-- hookText: A punchy 3-6 word hook for image overlay. Must make complete sense alone. NEVER include newlines, the word "caption", or meta-commentary. Examples: "Your mood shapes learning", "Race day secrets", "Stop guessing your pace"
-- hashtags: 5 highly relevant hashtags (mix of branded + niche). Quality over quantity.
-
-Return ONLY valid JSON:
-{"caption":"hook line\\n\\nbody paragraphs\\n\\nCTA line","hashtags":"#tag1\\n#tag2\\n#tag3\\n#tag4\\n#tag5","hookText":"3-6 word hook"}`;
+    const systemMessage = 'You are an Instagram copywriter. You respond with ONLY valid JSON. No explanations, no markdown, no code blocks. Just the JSON object.';
 
     const content = await cerebrasChatCompletion(
-      [{ role: 'user', content: prompt }],
-      { temperature: 0.85, maxTokens: 1200 },
+      [
+        { role: 'system', content: systemMessage },
+        { role: 'user', content: prompt },
+      ],
+      { temperature: 0.7, maxTokens: 800 },
     );
 
     // Strip markdown fences and clean AI response
@@ -218,16 +254,11 @@ Return ONLY valid JSON:
       });
     }
 
-    // Normalize hashtags to one per line
-    let hashtagStr = String(parsed.hashtags ?? '')
-      .replace(/\\n/g, '\n')  // Fix escaped \n from AI
-      .replace(/,\s*/g, '\n');  // Fix comma-separated
-    // If still no newlines, split by spaces
-    if (!hashtagStr.includes('\n') && hashtagStr.includes(' #')) {
-      hashtagStr = hashtagStr.split(/\s+/).filter((t: string) => t.startsWith('#')).join('\n');
-    }
-    // Final cleanup: only keep lines starting with #
-    hashtagStr = hashtagStr.split('\n').map((t: string) => t.trim()).filter((t: string) => t.startsWith('#')).join('\n');
+    // Normalize hashtags: extract all #tags regardless of separator format
+    const rawHashtags = String(parsed.hashtags ?? '').replace(/\\n/g, ' ');
+    const hashtagStr = (rawHashtags.match(/#\w+/g) || [])
+      .slice(0, 5)
+      .join('\n');
 
     // Clean up AI output
     const cleanText = (s: string, isCaption = false) => {
