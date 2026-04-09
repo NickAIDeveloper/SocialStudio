@@ -508,7 +508,7 @@ export function CompetitorDashboard() {
                 <XAxis type="number" tickFormatter={formatNum} tick={{ fill: '#a1a1aa', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="name" tick={{ fill: '#fff', fontSize: 12 }} width={160} axisLine={false} tickLine={false} />
                 <Tooltip
-                  formatter={(value: number) => [formatNum(value), 'Followers']}
+                  formatter={(value) => [formatNum(Number(value ?? 0)), 'Followers']}
                   contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, color: '#fff' }}
                 />
                 <Bar dataKey="followers" radius={[0, 6, 6, 0]} barSize={24}>
