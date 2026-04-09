@@ -678,29 +678,35 @@ export function PostGenerator() {
           setSelectedCarouselImages(carouselPicks);
           setSelectedImage(null);
 
-          // Process first carousel image for preview
-          const body: Record<string, unknown> = {
-            imageUrl: carouselPicks[0].largeImageURL,
-            brand: randomBrand,
-          };
-          if (hook) {
-            body.overlayText = hook;
-            body.textPosition = randomTextPos;
-            body.fontSize = randomFontSize;
-            body.overlayStyle = randomOverlayStyle;
-          }
+          // Process ALL carousel images with the same overlay style
           try {
-            const resp = await fetch('/api/logo', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
-            });
-            if (resp.ok) {
-              const blob = await resp.blob();
-              setProcessedImageUrl(URL.createObjectURL(blob));
-              setProcessedCarouselUrls([URL.createObjectURL(blob)]);
-              lastRenderedOverlayRef.current = `true|${hook}|${randomTextPos}|${randomOverlayStyle}|${randomFontSize}|${randomBrand}`;
+            const carouselUrls: (string | null)[] = [];
+            for (const slide of carouselPicks) {
+              const body: Record<string, unknown> = {
+                imageUrl: slide.largeImageURL,
+                brand: randomBrand,
+              };
+              if (hook) {
+                body.overlayText = hook;
+                body.textPosition = randomTextPos;
+                body.fontSize = randomFontSize;
+                body.overlayStyle = randomOverlayStyle;
+              }
+              const resp = await fetch('/api/logo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+              });
+              if (resp.ok) {
+                const blob = await resp.blob();
+                carouselUrls.push(URL.createObjectURL(blob));
+              } else {
+                carouselUrls.push(null);
+              }
             }
+            setProcessedCarouselUrls(carouselUrls);
+            setProcessedImageUrl(carouselUrls[0]);
+            lastRenderedOverlayRef.current = `true|${hook}|${randomTextPos}|${randomOverlayStyle}|${randomFontSize}|${randomBrand}`;
           } catch { /* preview still shows unprocessed */ }
         } else {
           const randomImg = available[Math.floor(Math.random() * Math.min(available.length, 8))];
@@ -1312,9 +1318,27 @@ export function PostGenerator() {
                   )}
                 </div>
               ) : (
-                <p className="text-xs text-zinc-600">
-                  Buffer not connected. Set your Buffer API key to enable scheduling.
-                </p>
+                <div className="space-y-2">
+                  <p className="text-xs text-zinc-400">
+                    Buffer channels not loaded. This may take a moment.
+                  </p>
+                  <button
+                    onClick={async () => {
+                      const { cachedBufferFetch, invalidateBufferCache } = await import('@/lib/buffer-cache');
+                      invalidateBufferCache();
+                      const data = await cachedBufferFetch<{ organizations: BufferOrganization[] }>('/api/buffer?action=channels');
+                      if (data) {
+                        const orgs = data.organizations || [];
+                        setBufferOrgs(orgs);
+                        const channels = orgs.flatMap(o => o.channels);
+                        if (channels.length > 0) setSelectedChannelId(channels[0].id);
+                      }
+                    }}
+                    className="text-xs text-teal-400 hover:text-teal-300 underline"
+                  >
+                    Retry loading channels
+                  </button>
+                </div>
               )}
             </div>
           )}

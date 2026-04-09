@@ -196,11 +196,11 @@ export function extractHookText(caption: string): string {
 
   // First line is the hook candidate
   let hook = lines[0];
-  // Strip "caption:" prefix if present in the line
+  // Strip prefixes and trailing artifacts
   hook = hook.replace(/^(caption|hook)\s*:\s*/i, '');
-
-  // Remove trailing punctuation
-  hook = hook.replace(/[.:,]\s*$/, '');
+  hook = hook.replace(/\s*\d+\.\s*$/, '');      // strip trailing "1." or "2."
+  hook = hook.replace(/\s+\d+$/, '');             // strip trailing lone number "1"
+  hook = hook.replace(/[.:,]\s*$/, '');           // strip trailing punctuation
 
   // If hook contains a question mark, use it as natural endpoint
   const questionMark = hook.indexOf('?');

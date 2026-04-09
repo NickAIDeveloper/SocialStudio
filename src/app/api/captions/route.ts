@@ -233,10 +233,14 @@ STRICT RULES:
 10. Everything must be factually true about ${brandName}
 
 Respond with ONLY this JSON object, nothing else before or after it:
-{"caption": "first line hook here\n\nbody paragraph\n\ncall to action", "hashtags": "#${brandName} #tag2 #tag3 #tag4 #tag5", "hookText": "short hook"}
+{"caption": "hook line\\n\\nbody paragraph one\\n\\nbody paragraph two\\n\\ncall to action line", "hashtags": "#${brandName} #tag2 #tag3 #tag4 #tag5", "hookText": "three to five words"}
 
-The hookText must be 3 to 5 words that make sense on their own as image text.
-The hashtags must be exactly 5 hashtags separated by spaces.`;
+IMPORTANT FORMAT NOTES:
+- Use \\n\\n between paragraphs in the caption (escaped newlines for JSON)
+- For tips posts, put each numbered step on its own line: "1. First step\\n2. Second step\\n3. Third step"
+- The hookText must be 3 to 5 words that make complete sense on their own
+- The hashtags must be exactly 5 hashtags separated by spaces
+- For quote posts, the hookText IS the quote (make it inspiring and shareable)`;
 
     const systemMessage = 'You are an Instagram copywriter. You respond with ONLY valid JSON. No explanations, no markdown, no code blocks. Just the JSON object.';
 
@@ -293,16 +297,22 @@ The hashtags must be exactly 5 hashtags separated by spaces.`;
         .replace(/\\n/g, '\n')                  // fix escaped newlines
         .replace(/\s*[—–]{1,3}\s*/g, ' ')      // strip em/en dashes
         .replace(/^(caption|hook|hookText)\s*:\s*/i, '')  // strip prefixes
+        .replace(/\*\*/g, '')                   // strip markdown bold
         .trim();
-      // For captions, strip trailing hashtag content that leaked in
       if (isCaption) {
+        // Strip trailing hashtag/hookText content that leaked in
         cleaned = cleaned.replace(/,?\s*hashtags?\s*:[\s\S]*$/i, '').trim();
+        cleaned = cleaned.replace(/,?\s*hookText\s*:[\s\S]*$/i, '').trim();
         cleaned = cleaned.replace(/,\s*$/, '');
+        // Insert line breaks before numbered steps if missing (e.g. "text 1. step" → "text\n1. step")
+        cleaned = cleaned.replace(/([.!?])\s*(\d+)\.\s/g, '$1\n$2. ');
+        // Also handle "text 1." at start without preceding sentence
+        cleaned = cleaned.replace(/([a-z])\s+(\d+)\.\s/g, '$1\n\n$2. ');
         // Normalize multiple newlines to max double
         cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
       } else {
-        // For hooks: single line only, no newlines
-        cleaned = cleaned.replace(/\n/g, ' ').replace(/\s{2,}/g, ' ').trim();
+        // For hooks: single line only, no newlines, strip trailing numbers
+        cleaned = cleaned.replace(/\n/g, ' ').replace(/\s+\d+$/, '').replace(/\s{2,}/g, ' ').trim();
       }
       return cleaned;
     };
