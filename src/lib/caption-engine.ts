@@ -186,27 +186,39 @@ export function resetCaptionHistory(): void {
 
 export function extractHookText(caption: string): string {
   if (!caption.trim()) return '';
-  const lines = caption.split('\n').map(l => l.trim()).filter(Boolean);
+  // Remove emojis for cleaner hook text
+  const cleanCaption = caption.replace(/[\u{1F600}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}]/gu, '').trim();
+  const lines = cleanCaption.split('\n').map(l => l.trim()).filter(Boolean);
   if (lines.length === 0) return '';
+
+  // First line is the hook candidate
   let hook = lines[0];
-  if (hook.length < 20 && lines.length > 1) {
-    hook = `${hook} ${lines[1]}`;
+
+  // Remove trailing punctuation
+  hook = hook.replace(/[.:,]\s*$/, '');
+
+  // If hook contains a question mark, use it as natural endpoint
+  const questionMark = hook.indexOf('?');
+  if (questionMark > 5 && questionMark <= 55) {
+    return hook.substring(0, questionMark + 1);
   }
-  hook = hook.replace(/[.:]\s*$/, '');
-  if (hook.length > 50) {
-    const questionMark = hook.indexOf('?');
-    if (questionMark > 10 && questionMark < 55) {
-      hook = hook.substring(0, questionMark + 1);
-    } else {
-      const period = hook.indexOf('.');
-      if (period > 10 && period < 55) {
-        hook = hook.substring(0, period);
-      } else {
-        const truncated = hook.substring(0, 50);
-        const lastSpace = truncated.lastIndexOf(' ');
-        hook = lastSpace > 15 ? truncated.substring(0, lastSpace) : truncated;
-      }
+
+  // Truncate to max 45 chars at a word boundary for clean display
+  if (hook.length > 45) {
+    // Try to find a natural break (comma, period) first
+    const comma = hook.indexOf(',');
+    if (comma > 10 && comma <= 45) {
+      return hook.substring(0, comma);
     }
+    const period = hook.indexOf('.');
+    if (period > 10 && period <= 45) {
+      return hook.substring(0, period);
+    }
+    // Otherwise truncate at word boundary
+    const truncated = hook.substring(0, 45);
+    const lastSpace = truncated.lastIndexOf(' ');
+    return lastSpace > 10 ? truncated.substring(0, lastSpace) : truncated;
   }
+
   return hook;
 }

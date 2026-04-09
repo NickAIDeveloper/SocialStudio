@@ -163,10 +163,10 @@ REQUIREMENTS:
 
 Also generate:
 - 15-20 relevant hashtags (mix of branded, niche, and reach hashtags)
-- A short punchy hook text (5-8 words) for image overlay
+- A short punchy hook text (3-6 words MAX) for image overlay. This appears on the image so it MUST be short, impactful, and make sense on its own. Examples: "Your mood shapes learning", "Race day secrets revealed", "Stop guessing your pace"
 
 Return ONLY valid JSON. Hashtags separated by newlines:
-{"caption":"full caption","hashtags":"#tag1\\n#tag2\\n#tag3","hookText":"short hook"}`;
+{"caption":"full caption","hashtags":"#tag1\\n#tag2\\n#tag3","hookText":"3-6 word hook"}`;
 
     const content = await cerebrasChatCompletion(
       [{ role: 'user', content: prompt }],
@@ -209,14 +209,21 @@ Return ONLY valid JSON. Hashtags separated by newlines:
       hashtagStr = hashtagStr.split(/\s+/).filter((t: string) => t.startsWith('#')).join('\n');
     }
 
-    // Strip dashes/em-dashes/hyphens from captions and hooks
-    const cleanDashes = (s: string) => s.replace(/\s*[—–-]{1,3}\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+    // Clean up AI output
+    const cleanText = (s: string) => {
+      let cleaned = s
+        .replace(/\s*[—–-]{1,3}\s*/g, ' ')  // strip dashes
+        .replace(/\s{2,}/g, ' ')              // collapse whitespace
+        .replace(/^(caption|hook|hookText)\s*:\s*/i, '')  // strip "caption:" prefix
+        .trim();
+      return cleaned;
+    };
 
     return NextResponse.json({
       success: true,
-      caption: cleanDashes(String(parsed.caption ?? '')),
+      caption: cleanText(String(parsed.caption ?? '')),
       hashtags: hashtagStr,
-      hookText: cleanDashes(String(parsed.hookText ?? '')),
+      hookText: cleanText(String(parsed.hookText ?? '')),
       source: 'cerebras',
     });
   } catch (error) {

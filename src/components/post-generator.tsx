@@ -153,7 +153,7 @@ export function PostGenerator() {
   const [carouselIndex, setCarouselIndex] = useState(0);
 
   // Text overlay state
-  const [overlayEnabled, setOverlayEnabled] = useState(false);
+  const [overlayEnabled, setOverlayEnabled] = useState(true);
   const [overlayText, setOverlayText] = useState('');
   const [textPosition, setTextPosition] = useState<TextPosition>('center');
   const fontSize = 80;
