@@ -77,6 +77,19 @@ const OVERLAY_STYLE_META: Record<OverlayStyle, { label: string; desc: string }> 
 };
 
 
+// Persist used image IDs to sessionStorage
+function saveUsedImageIds(ids: Set<string>) {
+  try { sessionStorage.setItem('gv_usedImageIds', JSON.stringify([...ids])); } catch { /* ignore */ }
+}
+
+// Strip dashes, em-dashes, en-dashes, and hyphens used as separators
+function stripDashes(text: string): string {
+  return text
+    .replace(/\s*[—–-]{1,3}\s*/g, ' ')  // em-dash, en-dash, hyphen used as separator
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function getHashtagsForPost(brand: Brand): string {
   const tags = hashtagSets[brand as keyof typeof hashtagSets];
   if (!tags) return '';
@@ -157,8 +170,14 @@ export function PostGenerator() {
   // Competitor insight tip (client-only to avoid hydration mismatch)
   const [competitorTip, setCompetitorTip] = useState('');
 
-  // Track used image IDs to avoid repeating images across generations
+  // Track used image IDs to avoid repeating images across generations (persisted in sessionStorage)
   const usedImageIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('gv_usedImageIds');
+      if (stored) usedImageIdsRef.current = new Set<string>(JSON.parse(stored));
+    } catch { /* ignore */ }
+  }, []);
 
   // Saved posts
   const [savedPosts, setSavedPosts] = useState<GeneratedPost[]>([]);
@@ -256,6 +275,7 @@ export function PostGenerator() {
   }, [brand, bufferOrgs]);
 
   const generateCaption = useCallback(async () => {
+    randomGeneratingRef.current = true; // Suppress reprocess timer during generation
     // Try AI generation first
     let newCaption = '';
     let newHashtags = '';
@@ -288,6 +308,9 @@ export function PostGenerator() {
       newHashtags = getHashtagsForPost(brand);
       hook = extractHookText(newCaption);
     }
+
+    newCaption = stripDashes(newCaption);
+    hook = stripDashes(hook);
 
     setCaption(newCaption);
     setHashtags(newHashtags);
@@ -358,6 +381,7 @@ export function PostGenerator() {
           setSelectedImage(bestImg);
           setSelectedCarouselImages([]);
         }
+        saveUsedImageIds(usedImageIdsRef.current);
 
         // Process the lead image for preview
         const leadImage = isCarousel ? available[0] : bestImg;
@@ -390,6 +414,8 @@ export function PostGenerator() {
       }
     } catch {
       // Image search failed, user can manually search
+    } finally {
+      randomGeneratingRef.current = false;
     }
   }, [brand, contentType, textPosition, fontSize, overlayStyle]);
 
@@ -610,10 +636,11 @@ export function PostGenerator() {
     } catch {
       newCaption = `Check out our latest ${randomType} content!`;
     }
+    newCaption = stripDashes(newCaption);
     setCaption(newCaption);
     setHashtags(getHashtagsForPost(randomBrand));
 
-    const hook = extractHookText(newCaption);
+    const hook = stripDashes(extractHookText(newCaption));
     if (hook) setOverlayText(hook);
 
     // Auto-search for a topic-aligned image via the ImageSourceSelector
@@ -645,6 +672,7 @@ export function PostGenerator() {
             usedImageIdsRef.current.add(String(picked.id));
             carouselPicks.push(picked);
           }
+          saveUsedImageIds(usedImageIdsRef.current);
           setSelectedCarouselImages(carouselPicks);
           setSelectedImage(null);
 
@@ -674,6 +702,7 @@ export function PostGenerator() {
         } else {
           const randomImg = available[Math.floor(Math.random() * Math.min(available.length, 8))];
           usedImageIdsRef.current.add(String(randomImg.id));
+          saveUsedImageIds(usedImageIdsRef.current);
           setSelectedImage(randomImg);
           setSelectedCarouselImages([]);
 

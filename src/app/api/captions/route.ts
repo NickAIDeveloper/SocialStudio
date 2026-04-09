@@ -157,6 +157,7 @@ REQUIREMENTS:
 - End with a call-to-action or engaging question
 - Use 2-3 emojis naturally
 - Do NOT include hashtags in the caption
+- NEVER use dashes, em-dashes, en-dashes, or hyphens as separators. Use commas or periods instead
 - If competitor data is provided, write content that outperforms their style
 - If own top posts data is provided, replicate the patterns that worked
 
@@ -208,11 +209,14 @@ Return ONLY valid JSON. Hashtags separated by newlines:
       hashtagStr = hashtagStr.split(/\s+/).filter((t: string) => t.startsWith('#')).join('\n');
     }
 
+    // Strip dashes/em-dashes/hyphens from captions and hooks
+    const cleanDashes = (s: string) => s.replace(/\s*[—–-]{1,3}\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+
     return NextResponse.json({
       success: true,
-      caption: String(parsed.caption ?? ''),
+      caption: cleanDashes(String(parsed.caption ?? '')),
       hashtags: hashtagStr,
-      hookText: String(parsed.hookText ?? ''),
+      hookText: cleanDashes(String(parsed.hookText ?? '')),
       source: 'cerebras',
     });
   } catch (error) {

@@ -14,6 +14,7 @@ interface BufferPost {
   createdAt: string;
   channelId: string;
   channelService: string;
+  shareMode: string;
 }
 
 function relativeTime(dateStr: string): string {
@@ -112,6 +113,20 @@ export function CommandCenter() {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 8);
 
+  // Calculate top content type from sent posts
+  const topContentType = (() => {
+    const sentPosts = posts.filter(p => p.status === 'sent');
+    if (sentPosts.length === 0) return 'N/A';
+    const counts: Record<string, number> = {};
+    for (const p of sentPosts) {
+      const type = p.shareMode || 'post';
+      counts[type] = (counts[type] || 0) + 1;
+    }
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const label = sorted[0][0];
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  })();
+
   return (
     <div className="space-y-8">
       {/* Metric Cards */}
@@ -189,8 +204,8 @@ export function CommandCenter() {
           <p className="text-xs font-medium uppercase tracking-wider text-white mb-1">
             Top Content Type
           </p>
-          <p className="text-2xl font-semibold text-white font-mono">Carousel</p>
-          <p className="text-xs text-white mt-1">Best performing format</p>
+          <p className="text-2xl font-semibold text-white font-mono">{topContentType}</p>
+          <p className="text-xs text-white mt-1">{postsThisWeek.length > 0 ? 'Most used format this week' : 'No posts this week'}</p>
         </div>
       </div>
 
