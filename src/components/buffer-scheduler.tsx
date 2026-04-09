@@ -172,7 +172,7 @@ export function BufferScheduler() {
         <p className="text-white">No channels found in Buffer.</p>
         <p className="text-white text-sm">Connect your Instagram accounts in Buffer, then refresh.</p>
         <button
-          onClick={loadChannels}
+          onClick={() => void loadChannels()}
           className="inline-flex items-center px-5 py-2.5 rounded-lg bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 hover:text-white transition-colors active:scale-[0.98]"
         >
           Refresh
@@ -186,7 +186,7 @@ export function BufferScheduler() {
       <div className="flex items-center justify-between">
         <p className="text-sm text-white">{allChannels.length} connected channel{allChannels.length !== 1 ? 's' : ''}</p>
         <button
-          onClick={loadChannels}
+          onClick={() => void loadChannels()}
           className="inline-flex items-center px-4 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm text-white hover:bg-zinc-700 hover:text-white transition-all duration-200 active:scale-[0.98] cursor-pointer"
         >
           Refresh
