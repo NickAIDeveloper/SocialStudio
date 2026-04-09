@@ -23,7 +23,7 @@ export function assertAllowedImageUrl(url: string): void {
     return;
   }
   // Allow DALL-E generated image URLs (Azure blob storage)
-  if (parsed.hostname.endsWith('.blob.core.windows.net')) {
+  if (parsed.hostname === 'oaidalleapiprodscus.blob.core.windows.net') {
     return;
   }
   if (!ALLOWED_IMAGE_HOSTS.has(parsed.hostname)) {

@@ -219,7 +219,7 @@ export function BrandManager() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-white">Brands</h2>
-          <p className="text-sm text-zinc-500 mt-0.5">
+          <p className="text-sm text-white mt-0.5">
             Manage your brand identities and logos
           </p>
         </div>
@@ -240,7 +240,7 @@ export function BrandManager() {
       {/* Brand Cards */}
       {brands.length === 0 && !formOpen && (
         <div className="glass-card rounded-xl border border-white/5 p-8 text-center">
-          <p className="text-zinc-400">No brands yet. Add your first brand to get started.</p>
+          <p className="text-white">No brands yet. Add your first brand to get started.</p>
         </div>
       )}
 
@@ -259,16 +259,16 @@ export function BrandManager() {
                   className="h-12 w-12 rounded-lg object-contain bg-zinc-800/60 border border-white/5 p-1"
                 />
               ) : (
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-800/60 border border-white/5 text-lg font-bold text-zinc-500">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-800/60 border border-white/5 text-lg font-bold text-white">
                   {brand.name.charAt(0).toUpperCase()}
                 </div>
               )}
 
               <div>
                 <h3 className="text-base font-semibold text-white">{brand.name}</h3>
-                <p className="text-sm text-zinc-500">/{brand.slug}</p>
+                <p className="text-sm text-white">/{brand.slug}</p>
                 {brand.instagramHandle && (
-                  <p className="text-sm text-zinc-400 mt-0.5">
+                  <p className="text-sm text-white mt-0.5">
                     @{brand.instagramHandle}
                   </p>
                 )}
@@ -293,7 +293,7 @@ export function BrandManager() {
               {/* Actions */}
               <button
                 onClick={() => openEditForm(brand)}
-                className="rounded-lg border border-white/5 bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700/60 hover:text-white"
+                className="rounded-lg border border-white/5 bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-zinc-700/60 hover:text-white"
               >
                 Edit
               </button>
@@ -308,7 +308,7 @@ export function BrandManager() {
                   </button>
                   <button
                     onClick={() => setDeleteConfirmId(null)}
-                    className="rounded-lg border border-white/5 bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-400 transition hover:bg-zinc-700/60"
+                    className="rounded-lg border border-white/5 bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-zinc-700/60"
                   >
                     Cancel
                   </button>
@@ -336,7 +336,7 @@ export function BrandManager() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Name */}
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-1.5">
+              <label className="block text-sm font-medium text-white mb-1.5">
                 Name
               </label>
               <input
@@ -344,13 +344,13 @@ export function BrandManager() {
                 value={form.name}
                 onChange={(e) => handleNameChange(e.target.value)}
                 placeholder="My Brand"
-                className="w-full rounded-lg border border-white/5 bg-zinc-800/60 px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-teal-500/50"
+                className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
               />
             </div>
 
             {/* Slug */}
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-1.5">
+              <label className="block text-sm font-medium text-white mb-1.5">
                 Slug
               </label>
               <input
@@ -358,13 +358,13 @@ export function BrandManager() {
                 value={form.slug}
                 onChange={(e) => updateField('slug', e.target.value.toLowerCase())}
                 placeholder="my-brand"
-                className="w-full rounded-lg border border-white/5 bg-zinc-800/60 px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-teal-500/50"
+                className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
               />
             </div>
 
             {/* Primary Color */}
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-1.5">
+              <label className="block text-sm font-medium text-white mb-1.5">
                 Primary Color
               </label>
               <div className="flex items-center gap-3">
@@ -378,14 +378,14 @@ export function BrandManager() {
                   type="text"
                   value={form.primaryColor}
                   onChange={(e) => updateField('primaryColor', e.target.value)}
-                  className="flex-1 rounded-lg border border-white/5 bg-zinc-800/60 px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-teal-500/50"
+                  className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
                 />
               </div>
             </div>
 
             {/* Secondary Color */}
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-1.5">
+              <label className="block text-sm font-medium text-white mb-1.5">
                 Secondary Color
               </label>
               <div className="flex items-center gap-3">
@@ -399,18 +399,18 @@ export function BrandManager() {
                   type="text"
                   value={form.secondaryColor}
                   onChange={(e) => updateField('secondaryColor', e.target.value)}
-                  className="flex-1 rounded-lg border border-white/5 bg-zinc-800/60 px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-teal-500/50"
+                  className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
                 />
               </div>
             </div>
 
             {/* Instagram Handle */}
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-1.5">
+              <label className="block text-sm font-medium text-white mb-1.5">
                 Instagram Handle
               </label>
               <div className="flex items-center gap-0">
-                <span className="flex h-[42px] items-center rounded-l-lg border border-r-0 border-white/5 bg-zinc-800/80 px-3 text-sm text-zinc-500">
+                <span className="flex h-[42px] items-center rounded-l-lg border border-r-0 border-white/5 bg-zinc-800/80 px-3 text-sm text-white">
                   @
                 </span>
                 <input
@@ -418,14 +418,14 @@ export function BrandManager() {
                   value={form.instagramHandle}
                   onChange={(e) => updateField('instagramHandle', e.target.value)}
                   placeholder="yourbrand"
-                  className="flex-1 rounded-r-lg border border-white/5 bg-zinc-800/60 px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-teal-500/50"
+                  className="flex-1 rounded-r-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
                 />
               </div>
             </div>
 
             {/* Logo Upload */}
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-1.5">
+              <label className="block text-sm font-medium text-white mb-1.5">
                 Logo
               </label>
               <div className="flex items-center gap-3">
@@ -437,7 +437,7 @@ export function BrandManager() {
                   />
                 )}
                 <label className="flex-1 cursor-pointer">
-                  <div className="flex items-center justify-center rounded-lg border border-dashed border-white/10 bg-zinc-800/40 px-4 py-2.5 text-sm text-zinc-400 transition hover:border-teal-500/30 hover:text-zinc-300">
+                  <div className="flex items-center justify-center rounded-lg border border-dashed border-white/10 bg-zinc-800/40 px-4 py-2.5 text-sm text-white transition hover:border-teal-500/30 hover:text-white">
                     {uploading ? 'Uploading...' : form.logoUrl ? 'Change logo' : 'Upload logo'}
                   </div>
                   <input
@@ -479,7 +479,7 @@ export function BrandManager() {
                 setForm(EMPTY_FORM);
                 setMessage(null);
               }}
-              className="rounded-lg border border-white/5 bg-zinc-800/60 px-5 py-2.5 text-sm font-medium text-zinc-400 transition hover:bg-zinc-700/60 hover:text-white"
+              className="rounded-lg border border-white/5 bg-zinc-800/60 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700/60 hover:text-white"
             >
               Cancel
             </button>

@@ -82,7 +82,7 @@ function mapScrapedToCompetitor(
 // ---------------------------------------------------------------------------
 
 async function computeAnalytics(userId: string): Promise<CachedPayload> {
-  // Fetch user posts with analytics
+  // 1. Fetch Buffer-scheduled posts with analytics
   const userPosts = await db
     .select()
     .from(posts)
@@ -92,7 +92,6 @@ async function computeAnalytics(userId: string): Promise<CachedPayload> {
 
   const postIds = userPosts.map((p) => p.id);
 
-  // Fetch analytics for those posts
   const analyticsRows =
     postIds.length > 0
       ? await db
@@ -103,11 +102,52 @@ async function computeAnalytics(userId: string): Promise<CachedPayload> {
 
   const analyticsMap = new Map(analyticsRows.map((a) => [a.postId, a]));
 
-  const postData: PostData[] = userPosts.map((row) =>
+  const bufferPostData: PostData[] = userPosts.map((row) =>
     mapRowToPostData(row, analyticsMap.get(row.id)),
   );
 
-  const { insights, healthScore } = generateAnalyticsInsights(postData, NICHE_AVG_ENGAGEMENT);
+  // 2. Fetch scraped Instagram posts (own accounts only — not competitors)
+  const ownScrapedRows = await db
+    .select({
+      post: scrapedPosts,
+      handle: scrapedAccounts.handle,
+    })
+    .from(scrapedPosts)
+    .innerJoin(scrapedAccounts, eq(scrapedPosts.accountId, scrapedAccounts.id))
+    .where(
+      and(
+        eq(scrapedPosts.userId, userId),
+        eq(scrapedAccounts.isCompetitor, false),
+      ),
+    )
+    .orderBy(desc(scrapedPosts.scrapedAt))
+    .limit(200);
+
+  const scrapedPostData: PostData[] = ownScrapedRows.map((r) => ({
+    id: r.post.id,
+    caption: r.post.caption ?? '',
+    likes: r.post.likes,
+    comments: r.post.comments,
+    saves: 0,
+    shares: 0,
+    reach: 0,
+    impressions: 0,
+    hashtags: r.post.hashtags ? r.post.hashtags.split(',').map(t => t.trim()).filter(Boolean) : [],
+    contentType: r.post.isVideo ? 'reel' : 'image',
+    postedAt: r.post.postedAt ?? r.post.scrapedAt,
+    brand: r.handle,
+  }));
+
+  // 3. Merge — scraped posts have real engagement, Buffer posts might not
+  // Prefer scraped data since it has actual likes/comments from Instagram
+  const postData = scrapedPostData.length > 0 ? scrapedPostData : bufferPostData;
+
+  // If we have both, combine them (deduplicate by caption similarity)
+  const allPostData = scrapedPostData.length > 0 && bufferPostData.length > 0
+    ? [...scrapedPostData, ...bufferPostData.filter(bp => bp.likes > 0 || bp.comments > 0)]
+    : postData;
+
+  const { insights, healthScore } = generateAnalyticsInsights(allPostData, NICHE_AVG_ENGAGEMENT);
   const summary = getHealthSummary(healthScore, insights);
   const computedAt = new Date().toISOString();
 

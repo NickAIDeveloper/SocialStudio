@@ -215,9 +215,9 @@ function buildHashtagHealth(posts: PostData[]): InsightCard | null {
     verdict: isWorking ? 'positive' : 'negative',
     summary: `Your top hashtags average ${Math.round(topAvg)} engagement while the worst average ${Math.round(bottomAvg)}.`,
     action: isWorking
-      ? `Double down on ${good.slice(0, 3).join(', ')} and drop ${bad.slice(0, 3).join(', ')}.`
-      : `Replace underperforming hashtags: ${bad.slice(0, 3).join(', ')} with more targeted ones.`,
-    data: { good, bad },
+      ? `Double down on ${good.slice(0, 3).map(t => '#' + t).join(' ')} and drop ${bad.slice(0, 3).map(t => '#' + t).join(' ')}`
+      : `Replace ${bad.slice(0, 3).map(t => '#' + t).join(' ')} with more targeted hashtags`,
+    data: { try: good, drop: bad },
   };
 }
 

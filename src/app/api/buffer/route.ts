@@ -88,13 +88,21 @@ export async function GET(request: NextRequest) {
     }
     console.error('Buffer API error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const hint = message.includes('401') || message.includes('403')
-      ? 'Buffer API key is invalid or expired. Generate a new token at https://buffer.com/developers/apps'
-      : message.includes('GraphQL')
-        ? message
-        : "Buffer's API is temporarily unavailable. Try again later.";
+    let hint: string;
+    let status = 502;
+    if (message.includes('401') || message.includes('403')) {
+      hint = 'Buffer API key is invalid or expired. Generate a new token at https://buffer.com/developers/apps';
+      status = 401;
+    } else if (message.toLowerCase().includes('rate_limit') || message.toLowerCase().includes('too many requests')) {
+      hint = 'Buffer rate limit exceeded. Please wait 15 minutes and try again.';
+      status = 429;
+    } else if (message.includes('GraphQL')) {
+      hint = message;
+    } else {
+      hint = "Buffer's API is temporarily unavailable. Try again later.";
+    }
     console.error('Buffer API error detail:', message);
-    return NextResponse.json({ error: hint }, { status: 502 });
+    return NextResponse.json({ error: hint, detail: message }, { status });
   }
 }
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PenSquare, Grid3x3, BarChart3, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { cachedBufferFetch } from '@/lib/buffer-cache';
 
 interface BufferPost {
   id: string;
@@ -28,10 +29,13 @@ function relativeTime(dateStr: string): string {
   return `${days}d ago`;
 }
 
-function getBrand(post: BufferPost): 'affectly' | 'pacebrain' {
+function getBrand(post: BufferPost): string {
+  // Extract brand name from channel name or post text
   const text = `${post.channelId} ${post.channelService} ${post.text}`.toLowerCase();
-  if (text.includes('pacebrain')) return 'pacebrain';
-  return 'affectly';
+  // Try to match any word before common suffixes
+  const match = text.match(/(\w+)\.app/);
+  if (match) return match[1];
+  return 'post';
 }
 
 function Skeleton({ className }: { className?: string }) {
@@ -40,17 +44,10 @@ function Skeleton({ className }: { className?: string }) {
   );
 }
 
-function BrandBadge({ brand }: { brand: 'affectly' | 'pacebrain' }) {
+function BrandBadge({ brand }: { brand: string }) {
   return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider',
-        brand === 'affectly'
-          ? 'bg-teal-500/10 text-teal-400'
-          : 'bg-blue-500/10 text-blue-400'
-      )}
-    >
-      {brand === 'affectly' ? 'Affectly' : 'PaceBrain'}
+    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider bg-teal-500/10 text-teal-400">
+      {brand}
     </span>
   );
 }
@@ -59,7 +56,7 @@ function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     sent: 'bg-emerald-500/10 text-emerald-400',
     pending: 'bg-amber-500/10 text-amber-400',
-    draft: 'bg-zinc-500/10 text-zinc-400',
+    draft: 'bg-zinc-500/10 text-white',
     scheduled: 'bg-blue-500/10 text-blue-400',
   };
 
@@ -67,7 +64,7 @@ function StatusBadge({ status }: { status: string }) {
     <span
       className={cn(
         'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider',
-        styles[status] ?? 'bg-zinc-500/10 text-zinc-400'
+        styles[status] ?? 'bg-zinc-500/10 text-white'
       )}
     >
       {status}
@@ -82,11 +79,8 @@ export function CommandCenter() {
   useEffect(() => {
     async function fetchPosts() {
       try {
-        const res = await fetch('/api/buffer?action=posts');
-        if (res.ok) {
-          const data = await res.json();
-          setPosts(data.posts || []);
-        }
+        const data = await cachedBufferFetch<{ posts: BufferPost[] }>('/api/buffer?action=posts');
+        if (data) setPosts(data.posts || []);
       } catch {
         // Silently fail — show empty state
       } finally {
@@ -124,7 +118,7 @@ export function CommandCenter() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Posts This Week */}
         <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 mb-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-white mb-1">
             Posts This Week
           </p>
           {loading ? (
@@ -134,12 +128,12 @@ export function CommandCenter() {
               {posts.length > 0 ? postsThisWeek.length : '\u2014'}
             </p>
           )}
-          <p className="text-xs text-zinc-500 mt-1">Sent in last 7 days</p>
+          <p className="text-xs text-white mt-1">Sent in last 7 days</p>
         </div>
 
         {/* Next Scheduled */}
         <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 mb-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-white mb-1">
             Next Scheduled
           </p>
           {loading ? (
@@ -154,7 +148,7 @@ export function CommandCenter() {
               </p>
               <div className="flex items-center gap-2 mt-1">
                 <BrandBadge brand={getBrand(nextScheduled)} />
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-white">
                   {new Date(nextScheduled.dueAt!).toLocaleDateString([], {
                     month: 'short',
                     day: 'numeric',
@@ -164,7 +158,7 @@ export function CommandCenter() {
             </>
           ) : (
             <>
-              <p className="text-lg font-medium text-zinc-400">None scheduled</p>
+              <p className="text-lg font-medium text-white">None scheduled</p>
               <Link
                 href="/generate"
                 className="text-xs text-teal-400 hover:text-teal-300 mt-1 inline-block"
@@ -177,7 +171,7 @@ export function CommandCenter() {
 
         {/* Queue Depth */}
         <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 mb-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-white mb-1">
             Queue Depth
           </p>
           {loading ? (
@@ -187,22 +181,22 @@ export function CommandCenter() {
               {posts.length > 0 ? pendingPosts.length : '\u2014'}
             </p>
           )}
-          <p className="text-xs text-zinc-500 mt-1">Pending across all channels</p>
+          <p className="text-xs text-white mt-1">Pending across all channels</p>
         </div>
 
         {/* Top Content Type */}
         <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 mb-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-white mb-1">
             Top Content Type
           </p>
           <p className="text-2xl font-semibold text-white font-mono">Carousel</p>
-          <p className="text-xs text-zinc-500 mt-1">Best performing format</p>
+          <p className="text-xs text-white mt-1">Best performing format</p>
         </div>
       </div>
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-sm font-medium uppercase tracking-wider text-zinc-500 mb-3">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-white mb-3">
           Quick Actions
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -212,7 +206,7 @@ export function CommandCenter() {
           >
             <PenSquare className="h-6 w-6 text-teal-400 mb-3" />
             <p className="text-base font-semibold text-white">Create Post</p>
-            <p className="text-sm text-zinc-400 mt-1">
+            <p className="text-sm text-white mt-1">
               Generate captions, find images, schedule
             </p>
           </Link>
@@ -223,7 +217,7 @@ export function CommandCenter() {
           >
             <Grid3x3 className="h-6 w-6 text-blue-400 mb-3" />
             <p className="text-base font-semibold text-white">Generate Batch</p>
-            <p className="text-sm text-zinc-400 mt-1">Create 20 posts at once</p>
+            <p className="text-sm text-white mt-1">Create 20 posts at once</p>
           </Link>
 
           <Link
@@ -232,14 +226,14 @@ export function CommandCenter() {
           >
             <BarChart3 className="h-6 w-6 text-amber-400 mb-3" />
             <p className="text-base font-semibold text-white">View Analytics</p>
-            <p className="text-sm text-zinc-400 mt-1">See what&apos;s performing</p>
+            <p className="text-sm text-white mt-1">See what&apos;s performing</p>
           </Link>
         </div>
       </div>
 
       {/* Recent Activity */}
       <div>
-        <h2 className="text-sm font-medium uppercase tracking-wider text-zinc-500 mb-3">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-white mb-3">
           Recent Activity
         </h2>
         <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50">
@@ -274,7 +268,7 @@ export function CommandCenter() {
                       <div className="flex items-center gap-2 mt-1.5">
                         <BrandBadge brand={brand} />
                         <StatusBadge status={post.status} />
-                        <span className="text-xs text-zinc-500">
+                        <span className="text-xs text-white">
                           {relativeTime(post.createdAt)}
                         </span>
                       </div>
@@ -286,7 +280,7 @@ export function CommandCenter() {
           ) : (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <Zap className="h-8 w-8 text-zinc-600 mb-3" />
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-white">
                 No posts yet. Create your first post to get started!
               </p>
               <Link

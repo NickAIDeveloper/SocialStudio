@@ -64,7 +64,7 @@ export function RegisterForm() {
           <span className="text-lg font-bold text-white">S</span>
         </div>
         <h1 className="text-2xl font-bold text-zinc-100">Create an account</h1>
-        <p className="mt-1 text-sm text-zinc-400">
+        <p className="mt-1 text-sm text-white">
           Get started with Social Studio
         </p>
       </div>
@@ -82,7 +82,7 @@ export function RegisterForm() {
         <div className="mb-4">
           <label
             htmlFor="name"
-            className="mb-1.5 block text-sm font-medium text-zinc-300"
+            className="mb-1.5 block text-sm font-medium text-white"
           >
             Name
           </label>
@@ -93,14 +93,14 @@ export function RegisterForm() {
             onChange={(e) => setName(e.target.value)}
             required
             placeholder="Your name"
-            className="w-full rounded-lg border border-zinc-700/50 bg-zinc-800/60 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition-colors focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/30"
+            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition-colors focus:border-teal-500/50 focus:ring-2 focus:ring-teal-500/30"
           />
         </div>
 
         <div className="mb-4">
           <label
             htmlFor="email"
-            className="mb-1.5 block text-sm font-medium text-zinc-300"
+            className="mb-1.5 block text-sm font-medium text-white"
           >
             Email
           </label>
@@ -111,14 +111,14 @@ export function RegisterForm() {
             onChange={(e) => setEmail(e.target.value)}
             required
             placeholder="you@example.com"
-            className="w-full rounded-lg border border-zinc-700/50 bg-zinc-800/60 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition-colors focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/30"
+            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition-colors focus:border-teal-500/50 focus:ring-2 focus:ring-teal-500/30"
           />
         </div>
 
         <div className="mb-6">
           <label
             htmlFor="password"
-            className="mb-1.5 block text-sm font-medium text-zinc-300"
+            className="mb-1.5 block text-sm font-medium text-white"
           >
             Password
           </label>
@@ -129,7 +129,7 @@ export function RegisterForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             placeholder="At least 8 characters"
-            className="w-full rounded-lg border border-zinc-700/50 bg-zinc-800/60 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition-colors focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/30"
+            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition-colors focus:border-teal-500/50 focus:ring-2 focus:ring-teal-500/30"
           />
         </div>
 
@@ -141,7 +141,7 @@ export function RegisterForm() {
           {loading ? 'Creating account...' : 'Create account'}
         </button>
 
-        <p className="mt-4 text-center text-sm text-zinc-400">
+        <p className="mt-4 text-center text-sm text-white">
           Already have an account?{' '}
           <Link
             href="/login"

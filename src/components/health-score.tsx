@@ -69,7 +69,7 @@ export default function HealthScore({ score, summary }: HealthScoreProps) {
         <p className="text-sm font-semibold" style={{ color }}>
           {verdict.label}
         </p>
-        <p className="text-sm text-zinc-400 leading-relaxed">{summary}</p>
+        <p className="text-sm text-white leading-relaxed">{summary}</p>
       </div>
     </div>
   );

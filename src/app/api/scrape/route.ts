@@ -83,6 +83,54 @@ export async function GET(request: NextRequest) {
   }
 
   if (action === 'competitors') {
+    // Try DB first (new approach)
+    try {
+      const userId = await getUserId();
+      const { db } = await import('@/lib/db');
+      const { scrapedPosts, scrapedAccounts } = await import('@/lib/db/schema');
+      const { eq, and, desc } = await import('drizzle-orm');
+
+      const rows = await db
+        .select({
+          shortcode: scrapedPosts.shortcode,
+          caption: scrapedPosts.caption,
+          likes: scrapedPosts.likes,
+          comments: scrapedPosts.comments,
+          isVideo: scrapedPosts.isVideo,
+          imageUrl: scrapedPosts.imageUrl,
+          postedAt: scrapedPosts.postedAt,
+          handle: scrapedAccounts.handle,
+          isCompetitor: scrapedAccounts.isCompetitor,
+        })
+        .from(scrapedPosts)
+        .innerJoin(scrapedAccounts, eq(scrapedPosts.accountId, scrapedAccounts.id))
+        .where(and(
+          eq(scrapedPosts.userId, userId),
+          eq(scrapedAccounts.isCompetitor, true),
+        ))
+        .orderBy(desc(scrapedPosts.scrapedAt))
+        .limit(500);
+
+      if (rows.length > 0) {
+        return NextResponse.json({
+          posts: rows.map(r => ({
+            shortcode: r.shortcode,
+            caption: r.caption ?? '',
+            likes: r.likes,
+            comments: r.comments,
+            isVideo: r.isVideo,
+            imageUrl: r.imageUrl ?? '',
+            postedAt: r.postedAt?.toISOString() ?? '',
+            accountHandle: r.handle,
+            isCompetitor: r.isCompetitor,
+          })),
+          scrapedAt: new Date().toISOString(),
+        });
+      }
+    } catch {
+      // Fall through to file-based
+    }
+
     const data = loadCompetitorData();
     if (!data) {
       return NextResponse.json({ posts: [], scrapedAt: null });

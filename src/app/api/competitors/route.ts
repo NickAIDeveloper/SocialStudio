@@ -6,19 +6,25 @@ import { getUserId } from '@/lib/auth-helpers';
 
 const HANDLE_REGEX = /^[a-zA-Z0-9._]{1,100}$/;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const userId = await getUserId();
+    const { searchParams } = new URL(request.url);
+    const brandId = searchParams.get('brandId');
+
+    const conditions = [
+      eq(scrapedAccounts.userId, userId),
+      eq(scrapedAccounts.isCompetitor, true),
+    ];
+
+    if (brandId) {
+      conditions.push(eq(scrapedAccounts.brandId, brandId));
+    }
 
     const competitors = await db
       .select()
       .from(scrapedAccounts)
-      .where(
-        and(
-          eq(scrapedAccounts.userId, userId),
-          eq(scrapedAccounts.isCompetitor, true),
-        ),
-      );
+      .where(and(...conditions));
 
     return NextResponse.json({ competitors });
   } catch (error) {
@@ -37,6 +43,7 @@ export async function POST(request: NextRequest) {
     const userId = await getUserId();
     const body = await request.json();
     const handle: unknown = body.handle;
+    const brandId: unknown = body.brandId;
     const normalizedHandle = (typeof handle === 'string' ? handle : '').trim().replace(/^@/, '');
 
     if (!HANDLE_REGEX.test(normalizedHandle)) {
@@ -72,6 +79,7 @@ export async function POST(request: NextRequest) {
         userId,
         handle: normalizedHandle,
         isCompetitor: true,
+        brandId: typeof brandId === 'string' ? brandId : null,
       })
       .returning();
 

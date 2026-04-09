@@ -80,6 +80,7 @@ function StepBrand({
 }) {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [rewriting, setRewriting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleNameChange = (name: string) => {
@@ -159,12 +160,12 @@ function StepBrand({
     <div className="space-y-5">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-white">What&apos;s your brand?</h2>
-        <p className="text-sm text-zinc-400 mt-1">Tell us about your brand identity</p>
+        <p className="text-sm text-white mt-1">Tell us about your brand identity</p>
       </div>
 
       {/* Brand Name */}
       <div>
-        <label className="block text-sm font-medium text-zinc-400 mb-1.5">
+        <label className="block text-sm font-medium text-white mb-1.5">
           Brand Name <span className="text-red-400">*</span>
         </label>
         <input
@@ -172,13 +173,13 @@ function StepBrand({
           value={brand.name}
           onChange={(e) => handleNameChange(e.target.value)}
           placeholder="My Brand"
-          className="w-full rounded-lg border border-white/5 bg-zinc-800/60 px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-teal-500/50"
+          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
         />
       </div>
 
       {/* Logo Upload */}
       <div>
-        <label className="block text-sm font-medium text-zinc-400 mb-1.5">Logo</label>
+        <label className="block text-sm font-medium text-white mb-1.5">Logo</label>
         <div className="flex items-center gap-3">
           {brand.logoUrl && (
             <img
@@ -188,7 +189,7 @@ function StepBrand({
             />
           )}
           <label className="flex-1 cursor-pointer">
-            <div className="flex items-center justify-center rounded-lg border border-dashed border-white/10 bg-zinc-800/40 px-4 py-2.5 text-sm text-zinc-400 transition hover:border-teal-500/30 hover:text-zinc-300">
+            <div className="flex items-center justify-center rounded-lg border border-dashed border-white/10 bg-zinc-800/40 px-4 py-2.5 text-sm text-white transition hover:border-teal-500/30 hover:text-white">
               {uploading ? 'Uploading...' : brand.logoUrl ? 'Change logo' : 'Upload logo'}
             </div>
             <input
@@ -205,36 +206,46 @@ function StepBrand({
       {/* Colors */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-zinc-400 mb-1.5">Primary Color</label>
-          <div className="flex items-center gap-3">
-            <input
-              type="color"
-              value={brand.primaryColor}
-              onChange={(e) => onChange({ primaryColor: e.target.value })}
-              className="h-10 w-10 cursor-pointer rounded-lg border border-white/5 bg-transparent"
-            />
+          <label className="block text-sm font-medium text-white mb-1.5">Primary Color</label>
+          <div className="flex items-center gap-2">
+            <label
+              className="relative h-8 w-8 shrink-0 cursor-pointer rounded-lg border-2 border-white/10 overflow-hidden transition hover:border-white/20"
+              style={{ backgroundColor: brand.primaryColor }}
+            >
+              <input
+                type="color"
+                value={brand.primaryColor}
+                onChange={(e) => onChange({ primaryColor: e.target.value })}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+            </label>
             <input
               type="text"
               value={brand.primaryColor}
               onChange={(e) => onChange({ primaryColor: e.target.value })}
-              className="flex-1 rounded-lg border border-white/5 bg-zinc-800/60 px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-teal-500/50"
+              className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
             />
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-zinc-400 mb-1.5">Secondary Color</label>
-          <div className="flex items-center gap-3">
-            <input
-              type="color"
-              value={brand.secondaryColor}
-              onChange={(e) => onChange({ secondaryColor: e.target.value })}
-              className="h-10 w-10 cursor-pointer rounded-lg border border-white/5 bg-transparent"
-            />
+          <label className="block text-sm font-medium text-white mb-1.5">Secondary Color</label>
+          <div className="flex items-center gap-2">
+            <label
+              className="relative h-8 w-8 shrink-0 cursor-pointer rounded-lg border-2 border-white/10 overflow-hidden transition hover:border-white/20"
+              style={{ backgroundColor: brand.secondaryColor }}
+            >
+              <input
+                type="color"
+                value={brand.secondaryColor}
+                onChange={(e) => onChange({ secondaryColor: e.target.value })}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+            </label>
             <input
               type="text"
               value={brand.secondaryColor}
               onChange={(e) => onChange({ secondaryColor: e.target.value })}
-              className="flex-1 rounded-lg border border-white/5 bg-zinc-800/60 px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-teal-500/50"
+              className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
             />
           </div>
         </div>
@@ -242,24 +253,25 @@ function StepBrand({
 
       {/* Instagram Handle */}
       <div>
-        <label className="block text-sm font-medium text-zinc-400 mb-1.5">Instagram Handle</label>
+        <label className="block text-sm font-medium text-white mb-1.5">Instagram Handle</label>
         <div className="flex items-center">
-          <span className="flex h-[42px] items-center rounded-l-lg border border-r-0 border-white/5 bg-zinc-800/80 px-3 text-sm text-zinc-500">
+          <span className="flex h-[42px] items-center rounded-l-lg border border-r-0 border-zinc-300 bg-zinc-100 px-3 text-sm text-white">
             @
           </span>
           <input
             type="text"
             value={brand.instagramHandle}
             onChange={(e) => onChange({ instagramHandle: e.target.value })}
-            placeholder="yourbrand"
-            className="flex-1 rounded-r-lg border border-white/5 bg-zinc-800/60 px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-teal-500/50"
+            placeholder="your_username"
+            className="flex-1 rounded-r-lg border border-l-0 border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
           />
         </div>
+        <p className="text-xs text-zinc-400 mt-1">Just your username, no URL needed</p>
       </div>
 
       {/* Description */}
       <div>
-        <label className="block text-sm font-medium text-zinc-400 mb-1.5">
+        <label className="block text-sm font-medium text-white mb-1.5">
           Brand Description
         </label>
         <textarea
@@ -267,8 +279,35 @@ function StepBrand({
           onChange={(e) => onChange({ description: e.target.value })}
           placeholder="A brief description of what your brand does (used for competitor suggestions)"
           rows={2}
-          className="w-full rounded-lg border border-white/5 bg-zinc-800/60 px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-teal-500/50 resize-none"
+          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 resize-none"
         />
+        {brand.description.trim().length >= 5 && (
+          <button
+            type="button"
+            disabled={rewriting}
+            onClick={async () => {
+              setRewriting(true);
+              try {
+                const res = await fetch('/api/rewrite', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ text: brand.description }),
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data.text) onChange({ description: data.text });
+                }
+              } catch {
+                // silent
+              } finally {
+                setRewriting(false);
+              }
+            }}
+            className="mt-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            {rewriting ? 'Rewriting...' : 'Rewrite with AI'}
+          </button>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
@@ -290,6 +329,8 @@ interface ToolConnection {
   provider: string;
   label: string;
   placeholder: string;
+  helpLink: string;
+  badge: string;
   connected: boolean;
 }
 
@@ -303,11 +344,11 @@ function StepTools({
   onSkip: () => void;
 }) {
   const [tools, setTools] = useState<ToolConnection[]>([
-    { provider: 'buffer', label: 'Buffer', placeholder: 'Paste your Buffer personal access token', connected: false },
-    { provider: 'pixabay', label: 'Pixabay', placeholder: 'Paste your Pixabay API key', connected: false },
-    { provider: 'unsplash', label: 'Unsplash', placeholder: 'Paste your Unsplash access key', connected: false },
-    { provider: 'pexels', label: 'Pexels', placeholder: 'Paste your Pexels API key', connected: false },
-    { provider: 'openai_images', label: 'OpenAI Images', placeholder: 'Paste your OpenAI API key', connected: false },
+    { provider: 'buffer', label: 'Buffer', placeholder: 'Paste your Buffer personal access token', helpLink: 'https://buffer.com/developers/apps', badge: 'Required', connected: false },
+    { provider: 'pixabay', label: 'Pixabay', placeholder: 'Paste your Pixabay API key', helpLink: 'https://pixabay.com/api/docs/', badge: 'Recommended', connected: false },
+    { provider: 'unsplash', label: 'Unsplash', placeholder: 'Paste your Unsplash access key', helpLink: 'https://unsplash.com/developers', badge: 'Optional', connected: false },
+    { provider: 'pexels', label: 'Pexels', placeholder: 'Paste your Pexels API key', helpLink: 'https://www.pexels.com/api/', badge: 'Optional', connected: false },
+    { provider: 'openai_images', label: 'OpenAI (AI Images)', placeholder: 'Paste your OpenAI API key', helpLink: 'https://platform.openai.com/api-keys', badge: 'Optional', connected: false },
   ]);
   const [tokens, setTokens] = useState<Record<string, string>>({});
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
@@ -394,9 +435,13 @@ function StepTools({
     <div className="space-y-5">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-white">Connect your tools</h2>
-        <p className="text-sm text-zinc-400 mt-1">
+        <p className="text-sm text-white mt-1">
           Link Buffer + at least one image source to get started
         </p>
+      </div>
+
+      <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-2.5 text-xs text-blue-300">
+        At minimum, connect Buffer and one image source (we recommend Pixabay)
       </div>
 
       <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
@@ -406,38 +451,53 @@ function StepTools({
             className="rounded-xl border border-white/5 bg-zinc-900/60 p-4 space-y-3"
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-white">{tool.label}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-white">{tool.label}</span>
+                {tool.connected && (
+                  <span className="text-teal-400 text-sm">&#10003;</span>
+                )}
+              </div>
               {tool.connected ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-500/10 px-3 py-1 text-xs font-medium text-teal-400">
                   <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
                   Connected
                 </span>
               ) : (
-                <span className="text-xs text-zinc-500">
-                  {tool.provider === 'buffer' ? 'Required' : 'Optional'}
+                <span className={`text-xs ${tool.badge === 'Required' ? 'text-red-400' : tool.badge === 'Recommended' ? 'text-amber-400' : 'text-white'}`}>
+                  {tool.badge}
                 </span>
               )}
             </div>
 
             {!tool.connected && (
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  value={tokens[tool.provider] || ''}
-                  onChange={(e) =>
-                    setTokens((prev) => ({ ...prev, [tool.provider]: e.target.value }))
-                  }
-                  placeholder={tool.placeholder}
-                  disabled={loadingProvider !== null}
-                  className="flex-1 rounded-lg border border-white/5 bg-zinc-800/60 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-teal-500/50 disabled:opacity-50"
-                />
-                <button
-                  onClick={() => handleConnect(tool.provider)}
-                  disabled={loadingProvider !== null}
-                  className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={tokens[tool.provider] || ''}
+                    onChange={(e) =>
+                      setTokens((prev) => ({ ...prev, [tool.provider]: e.target.value }))
+                    }
+                    placeholder={tool.placeholder}
+                    disabled={loadingProvider !== null}
+                    className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 disabled:opacity-50"
+                  />
+                  <button
+                    onClick={() => handleConnect(tool.provider)}
+                    disabled={loadingProvider !== null}
+                    className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loadingProvider === tool.provider ? 'Validating...' : 'Connect'}
+                  </button>
+                </div>
+                <a
+                  href={tool.helpLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block text-xs text-teal-400 hover:text-teal-300 underline underline-offset-2 transition"
                 >
-                  {loadingProvider === tool.provider ? 'Validating...' : 'Connect'}
-                </button>
+                  How to get this &rarr;
+                </a>
               </div>
             )}
           </div>
@@ -450,7 +510,7 @@ function StepTools({
       <div className="flex items-center gap-3 pt-2">
         <button
           onClick={onBack}
-          className="rounded-lg border border-white/5 bg-zinc-800/60 px-5 py-2.5 text-sm font-medium text-zinc-400 transition hover:bg-zinc-700/60 hover:text-white"
+          className="rounded-lg border border-white/5 bg-zinc-800/60 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700/60 hover:text-white"
         >
           Back
         </button>
@@ -464,7 +524,7 @@ function StepTools({
       </div>
       <button
         onClick={onSkip}
-        className="w-full text-center text-sm text-zinc-500 hover:text-zinc-400 transition"
+        className="w-full text-center text-sm text-white hover:text-white transition"
       >
         Skip for now
       </button>
@@ -476,12 +536,16 @@ function StepTools({
 
 function StepCompetitors({
   brandDescription,
+  brandName,
+  instagramHandle,
   onNext,
   onBack,
   onSkip,
   onCompetitorCount,
 }: {
   brandDescription: string;
+  brandName: string;
+  instagramHandle: string;
   onNext: () => void;
   onBack: () => void;
   onSkip: () => void;
@@ -503,8 +567,8 @@ function StepCompetitors({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            brandDescription: brandDescription || 'general social media brand',
-            niche: 'social media',
+            brandDescription: [brandName, brandDescription, instagramHandle].filter(Boolean).join(' — ') || 'general social media brand',
+            niche: brandDescription || 'social media',
           }),
         });
 
@@ -604,13 +668,13 @@ function StepCompetitors({
     <div className="space-y-5">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-white">Who are your competitors?</h2>
-        <p className="text-sm text-zinc-400 mt-1">Track competitors to benchmark your performance</p>
+        <p className="text-sm text-white mt-1">Track competitors to benchmark your performance</p>
       </div>
 
       {loadingSuggestions ? (
         <div className="flex items-center justify-center py-8">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-teal-500 border-t-transparent" />
-          <span className="ml-3 text-sm text-zinc-400">Finding competitors...</span>
+          <span className="ml-3 text-sm text-white">Finding competitors...</span>
         </div>
       ) : (
         <>
@@ -634,7 +698,7 @@ function StepCompetitors({
                   />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-white">@{s.handle}</p>
-                    <p className="text-xs text-zinc-500 mt-0.5">{s.reason}</p>
+                    <p className="text-xs text-white mt-0.5">{s.reason}</p>
                   </div>
                 </label>
               ))}
@@ -661,12 +725,12 @@ function StepCompetitors({
 
           {/* Manual Add */}
           <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-1.5">
+            <label className="block text-sm font-medium text-white mb-1.5">
               Add more
             </label>
             <div className="flex gap-2">
               <div className="flex flex-1 items-center">
-                <span className="flex h-[38px] items-center rounded-l-lg border border-r-0 border-white/5 bg-zinc-800/80 px-2 text-sm text-zinc-500">
+                <span className="flex h-[38px] items-center rounded-l-lg border border-r-0 border-zinc-300 bg-zinc-100 px-2 text-sm text-white">
                   @
                 </span>
                 <input
@@ -674,13 +738,13 @@ function StepCompetitors({
                   value={manualHandle}
                   onChange={(e) => setManualHandle(e.target.value)}
                   placeholder="competitor_handle"
-                  className="flex-1 rounded-r-lg border border-white/5 bg-zinc-800/60 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-teal-500/50"
+                  className="flex-1 rounded-r-lg border border-l-0 border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
                 />
               </div>
               <button
                 onClick={handleAddManual}
                 disabled={addingManual || !manualHandle.trim()}
-                className="rounded-lg bg-zinc-800 border border-white/5 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-zinc-700 disabled:opacity-50"
+                className="rounded-lg bg-zinc-800 border border-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:opacity-50"
               >
                 {addingManual ? 'Adding...' : 'Add'}
               </button>
@@ -694,7 +758,7 @@ function StepCompetitors({
       <div className="flex items-center gap-3 pt-2">
         <button
           onClick={onBack}
-          className="rounded-lg border border-white/5 bg-zinc-800/60 px-5 py-2.5 text-sm font-medium text-zinc-400 transition hover:bg-zinc-700/60 hover:text-white"
+          className="rounded-lg border border-white/5 bg-zinc-800/60 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700/60 hover:text-white"
         >
           Back
         </button>
@@ -707,7 +771,7 @@ function StepCompetitors({
       </div>
       <button
         onClick={onSkip}
-        className="w-full text-center text-sm text-zinc-500 hover:text-zinc-400 transition"
+        className="w-full text-center text-sm text-white hover:text-white transition"
       >
         Skip for now
       </button>
@@ -782,7 +846,7 @@ function StepAnalyzing({
         <h2 className="text-2xl font-bold text-white">
           {analyzing ? 'Analyzing your account...' : 'Analysis complete'}
         </h2>
-        <p className="text-sm text-zinc-400 mt-1">
+        <p className="text-sm text-white mt-1">
           {analyzing
             ? 'Crunching your Instagram data'
             : 'Here is your starting Health Score'}
@@ -792,7 +856,7 @@ function StepAnalyzing({
       {analyzing ? (
         <div className="flex flex-col items-center justify-center py-12 gap-4">
           <div className="h-12 w-12 animate-spin rounded-full border-3 border-teal-500 border-t-transparent" />
-          <p className="text-sm text-zinc-400 animate-pulse">
+          <p className="text-sm text-white animate-pulse">
             Analyzing your Instagram...
           </p>
         </div>
@@ -809,7 +873,7 @@ function StepAnalyzing({
         <button
           onClick={onBack}
           disabled={analyzing}
-          className="rounded-lg border border-white/5 bg-zinc-800/60 px-5 py-2.5 text-sm font-medium text-zinc-400 transition hover:bg-zinc-700/60 hover:text-white disabled:opacity-50"
+          className="rounded-lg border border-white/5 bg-zinc-800/60 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700/60 hover:text-white disabled:opacity-50"
         >
           Back
         </button>
@@ -853,25 +917,25 @@ function StepReady({
           </svg>
         </div>
         <h2 className="text-2xl font-bold text-white">You&apos;re ready!</h2>
-        <p className="text-sm text-zinc-400 mt-1">
+        <p className="text-sm text-white mt-1">
           Your workspace is set up and ready to go
         </p>
       </div>
 
       <div className="space-y-3">
         <div className="rounded-lg border border-white/5 bg-zinc-900/40 p-4 text-left">
-          <p className="text-xs text-zinc-500 uppercase tracking-wider">Brand</p>
+          <p className="text-xs text-white uppercase tracking-wider">Brand</p>
           <p className="text-sm font-medium text-white mt-1">{brandName || 'Not set'}</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-lg border border-white/5 bg-zinc-900/40 p-4 text-left">
-            <p className="text-xs text-zinc-500 uppercase tracking-wider">Tools</p>
+            <p className="text-xs text-white uppercase tracking-wider">Tools</p>
             <p className="text-sm font-medium text-white mt-1">
               {toolsConnected} connected
             </p>
           </div>
           <div className="rounded-lg border border-white/5 bg-zinc-900/40 p-4 text-left">
-            <p className="text-xs text-zinc-500 uppercase tracking-wider">Competitors</p>
+            <p className="text-xs text-white uppercase tracking-wider">Competitors</p>
             <p className="text-sm font-medium text-white mt-1">
               {competitorsTracked} tracked
             </p>
@@ -956,7 +1020,15 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
       <div className="w-full max-w-lg">
         <ProgressDots current={step} total={TOTAL_STEPS} />
 
-        <div className="glass-card rounded-2xl border border-white/5 p-8">
+        <div className="glass-card rounded-2xl border border-white/5 p-8 relative overflow-hidden">
+          {/* Skip for now link */}
+          <button
+            onClick={handleComplete}
+            className="absolute top-3 right-3 text-xs text-white hover:text-white transition-colors"
+          >
+            Skip for now
+          </button>
+
           {step === 1 && (
             <StepBrand brand={brand} onChange={updateBrand} onNext={goNext} />
           )}
@@ -972,6 +1044,8 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           {step === 3 && (
             <StepCompetitors
               brandDescription={brand.description}
+              brandName={brand.name}
+              instagramHandle={brand.instagramHandle}
               onNext={goNext}
               onBack={goBack}
               onSkip={goNext}

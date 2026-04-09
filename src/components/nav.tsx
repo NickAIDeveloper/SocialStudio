@@ -39,7 +39,7 @@ export function Nav() {
                     'relative px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200',
                     isActive
                       ? 'bg-zinc-800 text-white shadow-sm'
-                      : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/40'
+                      : 'text-white hover:text-zinc-200 hover:bg-zinc-800/40'
                   )}
                 >
                   {item.label}

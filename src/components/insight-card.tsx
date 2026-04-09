@@ -42,8 +42,8 @@ function BestContentType({ data }: { data: Record<string, unknown> }) {
       {bars.slice(0, 3).map((bar) => (
         <div key={bar.label} className="space-y-1">
           <div className="flex justify-between text-xs">
-            <span className="text-zinc-400">{bar.label}</span>
-            <span className="text-zinc-500">{bar.pct}%</span>
+            <span className="text-white">{bar.label}</span>
+            <span className="text-white">{bar.pct}%</span>
           </div>
           <div className="h-2 rounded-full bg-zinc-800">
             <div
@@ -151,7 +151,7 @@ function CaptionLength({ data }: { data: Record<string, unknown> }) {
           style={{ left: `${Math.min(97, pctCurrent)}%` }}
         />
       </div>
-      <div className="flex justify-between text-[10px] text-zinc-500">
+      <div className="flex justify-between text-[10px] text-white">
         <span>{sweetSpot[0]} chars</span>
         <span className="text-teal-400">sweet spot</span>
         <span>{sweetSpot[1]} chars</span>
@@ -186,14 +186,14 @@ function PostSnippet({ data }: { data: Record<string, unknown> }) {
   return (
     <div className="space-y-2">
       {caption && (
-        <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2 italic">
+        <p className="text-xs text-white leading-relaxed line-clamp-2 italic">
           &ldquo;{caption}&rdquo;
         </p>
       )}
       {reasons && reasons.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {reasons.map((r) => (
-            <span key={r} className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700/50">
+            <span key={r} className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-white border border-zinc-700/50">
               {r}
             </span>
           ))}
@@ -231,12 +231,12 @@ export default function InsightCard({ type, icon, title, verdict, summary, actio
       {/* Header */}
       <div className="flex items-center gap-2.5">
         <div className={`w-2 h-2 rounded-full shrink-0 ${VERDICT_COLORS[verdict]}`} />
-        {IconComponent && <IconComponent className="w-4 h-4 text-zinc-500 shrink-0" />}
+        {IconComponent && <IconComponent className="w-4 h-4 text-white shrink-0" />}
         <h3 className="text-sm font-semibold text-white">{title}</h3>
       </div>
 
       {/* Summary */}
-      <p className="text-sm text-zinc-400 leading-relaxed">{summary}</p>
+      <p className="text-sm text-white leading-relaxed">{summary}</p>
 
       {/* Action */}
       <div className="rounded-md bg-teal-500/10 border border-teal-500/20 px-3 py-2">

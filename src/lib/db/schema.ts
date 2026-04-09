@@ -111,6 +111,10 @@ export const brands = pgTable(
     secondaryColor: varchar('secondary_color', { length: 7 }).default('#0d9488'),
     logoUrl: text('logo_url'),
     instagramHandle: varchar('instagram_handle', { length: 100 }),
+    brandVoiceTone: varchar('brand_voice_tone', { length: 20 }).default('neutral'),
+    brandVoiceStyle: varchar('brand_voice_style', { length: 20 }).default('balanced'),
+    brandVoiceDos: text('brand_voice_dos'),
+    brandVoiceDonts: text('brand_voice_donts'),
     createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
   },
   (table) => [
@@ -182,6 +186,10 @@ export const userPreferences = pgTable('user_preferences', {
   timezone: varchar('timezone', { length: 50 }).default('UTC'),
   onboardingCompleted: pgBoolean('onboarding_completed').notNull().default(false),
   onboardingStep: integer('onboarding_step').notNull().default(0),
+  brandVoiceTone: varchar('brand_voice_tone', { length: 20 }).default('neutral'),
+  brandVoiceStyle: varchar('brand_voice_style', { length: 20 }).default('balanced'),
+  brandVoiceDos: text('brand_voice_dos'),
+  brandVoiceDonts: text('brand_voice_donts'),
 });
 
 // ── Scraped Accounts ──────────────────────────────────────────────────────────
@@ -193,7 +201,10 @@ export const scrapedAccounts = pgTable(
     userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     handle: varchar('handle', { length: 100 }).notNull(),
     isCompetitor: pgBoolean('is_competitor').notNull().default(true),
+    brandId: uuid('brand_id').references(() => brands.id, { onDelete: 'cascade' }),
     followerCount: integer('follower_count'),
+    followingCount: integer('following_count'),
+    postCount: integer('post_count'),
     lastScrapedAt: timestamp('last_scraped_at', { mode: 'date' }),
     createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   },

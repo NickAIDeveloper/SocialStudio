@@ -119,7 +119,7 @@ async function seed() {
 
   console.log(`Created linked account: ${pixabayAccount.provider} (${pixabayAccount.id})`);
 
-  // 6. Create user preferences
+  // 6. Create user preferences (onboarding already done for seed user)
   const [prefs] = await db
     .insert(schema.userPreferences)
     .values({
@@ -128,6 +128,8 @@ async function seed() {
       defaultOverlayStyle: 'editorial',
       defaultTextPosition: 'center',
       timezone: 'UTC',
+      onboardingCompleted: true,
+      onboardingStep: 5,
     })
     .returning();
 

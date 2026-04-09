@@ -42,3 +42,13 @@ scraped-posts.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# screenshots & test artifacts
+*.png
+*.jpg
+*.jpeg
+!public/**/*.png
+!public/**/*.jpg
+!public/**/*.jpeg
+.playwright-mcp/
+public/tmp/

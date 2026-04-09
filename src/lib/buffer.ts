@@ -213,7 +213,7 @@ export async function getQueuedPosts(apiKey: string): Promise<BufferPost[]> {
     const orgs = await getOrganizationsAndChannels(apiKey);
     const allPosts: BufferPost[] = [];
     for (const org of orgs) {
-      const posts = await fetchPostsByStatus(apiKey, org.id, ['scheduled', 'pending'], 50);
+      const posts = await fetchPostsByStatus(apiKey, org.id, ['scheduled', 'sending'], 50);
       allPosts.push(...posts);
     }
     allPosts.sort((a, b) => {

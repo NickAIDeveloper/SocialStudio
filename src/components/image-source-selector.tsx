@@ -145,7 +145,7 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
 
   if (loadingAccounts) {
     return (
-      <div className="flex items-center gap-2 text-sm text-zinc-500">
+      <div className="flex items-center gap-2 text-sm text-white">
         <div className="h-4 w-4 border-2 border-zinc-600 border-t-teal-400 rounded-full animate-spin" />
         Loading image sources...
       </div>
@@ -154,7 +154,7 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
 
   if (connectedProviders.length === 0) {
     return (
-      <div className="text-sm text-zinc-500">
+      <div className="text-sm text-white">
         No image sources connected.{' '}
         <a href="/settings" className="text-teal-400 hover:underline">
           Connect an image source in Settings
@@ -231,7 +231,7 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
       )}
 
       {connectedProviders.length < 2 && (
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-white">
           <a href="/settings" className="text-teal-400 hover:underline">
             Connect more sources in Settings
           </a>

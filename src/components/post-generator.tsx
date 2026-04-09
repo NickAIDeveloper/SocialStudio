@@ -28,7 +28,7 @@ import { ImageSourceSelector } from '@/components/image-source-selector';
 import type { ImageSourceSelectorHandle } from '@/components/image-source-selector';
 import { generateCaption as getCaption, extractHookText } from '@/lib/caption-engine';
 
-type Brand = 'affectly' | 'pacebrain';
+type Brand = string;
 type ContentType = 'quote' | 'tip' | 'carousel' | 'community' | 'promo';
 type TextPosition = 'top' | 'center' | 'bottom';
 type OverlayStyle = 'editorial' | 'bold-card' | 'gradient-bar' | 'full-tint';
@@ -78,16 +78,20 @@ const OVERLAY_STYLE_META: Record<OverlayStyle, { label: string; desc: string }> 
 
 
 function getHashtagsForPost(brand: Brand): string {
-  const tags = hashtagSets[brand];
+  const tags = hashtagSets[brand as keyof typeof hashtagSets];
+  if (!tags) return '';
   const branded = tags.branded.slice(0, 1);
   const reach = [...tags.tier1_reach].sort(() => Math.random() - 0.5).slice(0, 2);
   const niche = [...tags.tier3_niche].sort(() => Math.random() - 0.5).slice(0, 2);
-  return [...branded, ...reach, ...niche].join(' ');
+  return [...branded, ...reach, ...niche].join('\n');
 }
 
 // Get viral content patterns from competitor data for a given brand
 function getViralPatterns(brand: Brand) {
   const brandCompetitors = competitors.filter((c) => c.brand === brand);
+  if (brandCompetitors.length === 0) {
+    return { viralTypes: [] as string[], winningFormulas: ['Create engaging content for your audience'], imageKeywords: ['social media'] };
+  }
   const viralTypes = brandCompetitors.flatMap((c) =>
     c.topContentTypes
       .filter((t) => t.engagementLevel === 'viral' || t.engagementLevel === 'high')
@@ -107,6 +111,7 @@ function pickRandom<T>(arr: T[]): T {
 const usedQueryIdx: Record<string, number> = {};
 function pickFreshQuery(brand: string): string {
   const queries = suggestedQueries[brand as keyof typeof suggestedQueries];
+  if (!queries || queries.length === 0) return 'social media content';
   if (!usedQueryIdx[brand]) usedQueryIdx[brand] = 0;
   const idx = usedQueryIdx[brand] % queries.length;
   usedQueryIdx[brand]++;
@@ -115,10 +120,12 @@ function pickFreshQuery(brand: string): string {
 
 export function PostGenerator() {
   // Core state
-  const [brand, setBrand] = useState<Brand>('affectly');
+  const [brand, setBrand] = useState<Brand>('');
   const [contentType, setContentType] = useState<ContentType>('promo');
   const [caption, setCaption] = useState('');
   const [hashtags, setHashtags] = useState('');
+
+  // Pre-fill from URL params is done below after overlay state is declared
 
   // Image search state
   const [images, setImages] = useState<ImageResult[]>([]);
@@ -150,11 +157,29 @@ export function PostGenerator() {
   // Competitor insight tip (client-only to avoid hydration mismatch)
   const [competitorTip, setCompetitorTip] = useState('');
 
+  // Track used image IDs to avoid repeating images across generations
+  const usedImageIdsRef = useRef<Set<string>>(new Set());
+
   // Saved posts
   const [savedPosts, setSavedPosts] = useState<GeneratedPost[]>([]);
 
   // Brands from DB (for persistence)
   const [apiBrands, setApiBrands] = useState<ApiBrand[]>([]);
+
+  // Listen for "Use This" from content repurposer (sibling component)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.caption) setCaption(detail.caption);
+      if (detail?.hashtags) setHashtags(detail.hashtags);
+      if (detail?.hookText) {
+        setOverlayText(detail.hookText);
+        setOverlayEnabled(true);
+      }
+    };
+    window.addEventListener('repurpose-use-post', handler);
+    return () => window.removeEventListener('repurpose-use-post', handler);
+  }, []);
 
   // Fetch brands + saved drafts on mount
   const brandsLoadedRef = useRef(false);
@@ -168,6 +193,9 @@ export function PostGenerator() {
       .then(data => {
         const fetchedBrands: ApiBrand[] = data.brands || [];
         setApiBrands(fetchedBrands);
+        if (fetchedBrands.length > 0 && !brand) {
+          setBrand(fetchedBrands[0].slug);
+        }
 
         // Now fetch saved draft posts
         return fetch('/api/posts?status=draft&limit=20')
@@ -197,15 +225,16 @@ export function PostGenerator() {
   const hasCompletePost = caption.trim().length > 0 && activeImages.length > 0;
   const allChannels = bufferOrgs.flatMap(org => org.channels);
 
-  // Load Buffer channels on mount
+  // Load Buffer channels on mount (cached)
   const profilesLoadedRef = useRef(false);
   useEffect(() => {
     if (profilesLoadedRef.current) return;
     profilesLoadedRef.current = true;
-    fetch('/api/buffer?action=channels')
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Failed'))))
-      .then((data) => {
-        const orgs: BufferOrganization[] = data.organizations || [];
+    (async () => {
+      const { cachedBufferFetch } = await import('@/lib/buffer-cache');
+      const data = await cachedBufferFetch<{ organizations: BufferOrganization[] }>('/api/buffer?action=channels');
+      if (data) {
+        const orgs = data.organizations || [];
         setBufferOrgs(orgs);
         const channels = orgs.flatMap(o => o.channels);
         const match = channels.find(c => c.name.toLowerCase().includes(brand));
@@ -214,10 +243,8 @@ export function PostGenerator() {
         } else if (channels.length > 0) {
           setSelectedChannelId(channels[0].id);
         }
-      })
-      .catch(() => {
-        // Buffer not configured - that's fine
-      });
+      }
+    })();
   }, []);
 
   // Auto-switch Buffer channel when brand changes
@@ -229,33 +256,115 @@ export function PostGenerator() {
   }, [brand, bufferOrgs]);
 
   const generateCaption = useCallback(async () => {
-    const newCaption = getCaption(brand, contentType);
-    setCaption(newCaption);
-    setHashtags(getHashtagsForPost(brand));
+    // Try AI generation first
+    let newCaption = '';
+    let newHashtags = '';
+    let hook = '';
 
-    // Auto-populate hook text from the generated caption
-    const hook = extractHookText(newCaption);
+    try {
+      const aiRes = await fetch('/api/captions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brandSlug: brand, contentType }),
+      });
+      const aiData = await aiRes.json();
+
+      if (aiData.success && aiData.caption) {
+        newCaption = aiData.caption;
+        newHashtags = aiData.hashtags || '';
+        hook = aiData.hookText || '';
+      }
+    } catch {
+      // AI failed, fall through to pool
+    }
+
+    // Fallback to pre-written caption pool (only works for known brands)
+    if (!newCaption) {
+      try {
+        newCaption = getCaption(brand as 'affectly' | 'pacebrain', contentType);
+      } catch {
+        newCaption = `Check out our latest ${contentType} content!`;
+      }
+      newHashtags = getHashtagsForPost(brand);
+      hook = extractHookText(newCaption);
+    }
+
+    setCaption(newCaption);
+    setHashtags(newHashtags);
+
     if (hook) {
       setOverlayText(hook);
       setOverlayEnabled(true);
     }
 
-    // Search for a fresh image aligned to the brand
-    const searchTerm = pickFreshQuery(brand);
+    // Use AI to pick the perfect search term based on caption
+    let searchTerm = pickFreshQuery(brand);
+    try {
+      const pickRes = await fetch('/api/images/pick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caption: newCaption, brand, contentType }),
+      });
+      const pickData = await pickRes.json();
+      if (pickData.searchTerm) searchTerm = pickData.searchTerm;
+    } catch { /* fall back to default search term */ }
+
+    // Trigger the ImageSourceSelector search so the UI stays in sync
+    if (imageSelectorRef.current) {
+      imageSelectorRef.current.triggerSearch(searchTerm);
+    }
+
     try {
       const response = await fetch(`/api/images?source=all&q=${encodeURIComponent(searchTerm)}`);
       const data = await response.json();
       const hits: ImageResult[] = data.images || [];
       setImages(hits);
       if (hits.length > 0) {
-        const randomImg = hits[Math.floor(Math.random() * Math.min(hits.length, 8))];
-        setSelectedImage(randomImg);
-        setSelectedCarouselImages([]);
-        // Process inline to avoid dependency on processImage (declared later)
+        // Filter out previously used images, reset if all are used
+        let available = hits.filter(img => !usedImageIdsRef.current.has(String(img.id)));
+        if (available.length === 0) {
+          usedImageIdsRef.current.clear();
+          available = hits;
+        }
+
+        // Use AI to pick the best image from available results
+        let bestImg = available[0];
+        try {
+          const pickRes = await fetch('/api/images/pick', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ caption: newCaption, brand, images: available.slice(0, 10) }),
+          });
+          const pickData = await pickRes.json();
+          if (typeof pickData.pickedIndex === 'number' && available[pickData.pickedIndex]) {
+            bestImg = available[pickData.pickedIndex];
+          }
+        } catch { /* fall back to first available image */ }
+
+        if (isCarousel) {
+          // Auto-pick 3 unique images for carousel
+          const carouselPicks: ImageResult[] = [];
+          const pool = [...available];
+          const pickCount = Math.min(3, pool.length);
+          for (let i = 0; i < pickCount; i++) {
+            const picked = pool.shift()!;
+            usedImageIdsRef.current.add(String(picked.id));
+            carouselPicks.push(picked);
+          }
+          setSelectedCarouselImages(carouselPicks);
+          setSelectedImage(null);
+        } else {
+          usedImageIdsRef.current.add(String(bestImg.id));
+          setSelectedImage(bestImg);
+          setSelectedCarouselImages([]);
+        }
+
+        // Process the lead image for preview
+        const leadImage = isCarousel ? available[0] : bestImg;
         setIsProcessing(true);
         try {
           const body: Record<string, unknown> = {
-            imageUrl: randomImg.largeImageURL,
+            imageUrl: leadImage.largeImageURL,
             brand,
           };
           if (hook) {
@@ -271,7 +380,9 @@ export function PostGenerator() {
           });
           if (resp.ok) {
             const blob = await resp.blob();
-            setProcessedImageUrl(URL.createObjectURL(blob));
+            const url = URL.createObjectURL(blob);
+            setProcessedImageUrl(url);
+            if (isCarousel) setProcessedCarouselUrls([url]);
           }
         } finally {
           setIsProcessing(false);
@@ -473,7 +584,8 @@ export function PostGenerator() {
     setImages([]);
     setCarouselIndex(0);
 
-    const randomBrand = pickRandom<Brand>(['affectly', 'pacebrain']);
+    const brandSlugs = apiBrands.length > 0 ? apiBrands.map(b => b.slug) : ['default'];
+    const randomBrand = pickRandom(brandSlugs);
     const { viralTypes } = getViralPatterns(randomBrand);
 
     // Weight toward viral content types, fall back to all types
@@ -492,48 +604,103 @@ export function PostGenerator() {
     setOverlayEnabled(true);
 
     // Generate caption
-    const newCaption = getCaption(randomBrand, randomType);
+    let newCaption = '';
+    try {
+      newCaption = getCaption(randomBrand as 'affectly' | 'pacebrain', randomType);
+    } catch {
+      newCaption = `Check out our latest ${randomType} content!`;
+    }
     setCaption(newCaption);
     setHashtags(getHashtagsForPost(randomBrand));
 
     const hook = extractHookText(newCaption);
     if (hook) setOverlayText(hook);
 
-    // Auto-search for a topic-aligned image
+    // Auto-search for a topic-aligned image via the ImageSourceSelector
     const searchTerm = pickFreshQuery(randomBrand);
+    if (imageSelectorRef.current) {
+      imageSelectorRef.current.triggerSearch(searchTerm);
+    }
     try {
       const response = await fetch(`/api/images?source=all&q=${encodeURIComponent(searchTerm)}`);
       const data = await response.json();
       const hits: ImageResult[] = data.images || [];
       setImages(hits);
       if (hits.length > 0) {
-        const randomImg = hits[Math.floor(Math.random() * Math.min(hits.length, 8))];
-        setSelectedImage(randomImg);
-        setSelectedCarouselImages([]);
-
-        // Process image directly with local values (no setTimeout, no stale state)
-        const body: Record<string, unknown> = {
-          imageUrl: randomImg.largeImageURL,
-          brand: randomBrand,
-        };
-        if (hook) {
-          body.overlayText = hook;
-          body.textPosition = randomTextPos;
-          body.fontSize = randomFontSize;
-          body.overlayStyle = randomOverlayStyle;
+        // Filter out previously used images, reset if all are used
+        let available = hits.filter(img => !usedImageIdsRef.current.has(String(img.id)));
+        if (available.length === 0) {
+          usedImageIdsRef.current.clear();
+          available = hits;
         }
-        try {
-          const resp = await fetch('/api/logo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-          });
-          if (resp.ok) {
-            const blob = await resp.blob();
-            setProcessedImageUrl(URL.createObjectURL(blob));
+        const isRandomCarousel = randomType === 'carousel';
+        if (isRandomCarousel) {
+          // Auto-pick 3 unique images for carousel
+          const carouselPicks: ImageResult[] = [];
+          const pool = [...available];
+          const pickCount = Math.min(3, pool.length);
+          for (let i = 0; i < pickCount; i++) {
+            const idx = Math.floor(Math.random() * Math.min(pool.length, 8));
+            const picked = pool.splice(idx, 1)[0];
+            usedImageIdsRef.current.add(String(picked.id));
+            carouselPicks.push(picked);
           }
-        } catch {
-          // Processing failed, preview still shows unprocessed image
+          setSelectedCarouselImages(carouselPicks);
+          setSelectedImage(null);
+
+          // Process first carousel image for preview
+          const body: Record<string, unknown> = {
+            imageUrl: carouselPicks[0].largeImageURL,
+            brand: randomBrand,
+          };
+          if (hook) {
+            body.overlayText = hook;
+            body.textPosition = randomTextPos;
+            body.fontSize = randomFontSize;
+            body.overlayStyle = randomOverlayStyle;
+          }
+          try {
+            const resp = await fetch('/api/logo', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+            if (resp.ok) {
+              const blob = await resp.blob();
+              setProcessedImageUrl(URL.createObjectURL(blob));
+              setProcessedCarouselUrls([URL.createObjectURL(blob)]);
+            }
+          } catch { /* preview still shows unprocessed */ }
+        } else {
+          const randomImg = available[Math.floor(Math.random() * Math.min(available.length, 8))];
+          usedImageIdsRef.current.add(String(randomImg.id));
+          setSelectedImage(randomImg);
+          setSelectedCarouselImages([]);
+
+          // Process image directly with local values (no setTimeout, no stale state)
+          const body: Record<string, unknown> = {
+            imageUrl: randomImg.largeImageURL,
+            brand: randomBrand,
+          };
+          if (hook) {
+            body.overlayText = hook;
+            body.textPosition = randomTextPos;
+            body.fontSize = randomFontSize;
+            body.overlayStyle = randomOverlayStyle;
+          }
+          try {
+            const resp = await fetch('/api/logo', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+            if (resp.ok) {
+              const blob = await resp.blob();
+              setProcessedImageUrl(URL.createObjectURL(blob));
+            }
+          } catch {
+            // Processing failed, preview still shows unprocessed image
+          }
         }
       }
     } catch {
@@ -541,7 +708,7 @@ export function PostGenerator() {
     } finally {
       randomGeneratingRef.current = false;
     }
-  }, []);
+  }, [apiBrands]);
 
   // Auto-reprocess image when settings change (skipped during random generation)
   const reprocessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -561,14 +728,28 @@ export function PostGenerator() {
     };
   }, [brand, overlayEnabled, overlayText, textPosition, overlayStyle, fontSize]);
 
-  const templates = contentTemplates[brand];
-  const suggestions = suggestedQueries[brand];
-  const times = optimalPostingTimes[brand];
+  const templates = contentTemplates[brand as keyof typeof contentTemplates] || contentTemplates[Object.keys(contentTemplates)[0] as keyof typeof contentTemplates];
+  const suggestions = suggestedQueries[brand as keyof typeof suggestedQueries] || [];
+  const times = optimalPostingTimes[brand as keyof typeof optimalPostingTimes] || optimalPostingTimes[Object.keys(optimalPostingTimes)[0] as keyof typeof optimalPostingTimes];
 
   // Preview image for display
   const previewImageSrc = isCarousel
     ? processedCarouselUrls[carouselIndex] || selectedCarouselImages[carouselIndex]?.previewURL || null
     : processedImageUrl || selectedImage?.previewURL || null;
+
+  if (apiBrands.length === 0 && brandsLoadedRef.current) {
+    return (
+      <div className="text-center py-20">
+        <div className="w-16 h-16 rounded-2xl bg-zinc-800/60 flex items-center justify-center mx-auto mb-4">
+          <span className="text-2xl">&#9997;</span>
+        </div>
+        <h3 className="text-lg font-medium text-white mb-1">No brands yet</h3>
+        <p className="text-sm text-white max-w-md mx-auto mb-4">
+          Create a brand in Settings before generating posts.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col lg:flex-row gap-6">
@@ -585,10 +766,10 @@ export function PostGenerator() {
 
         {/* Brand, Content Type, Logo Position */}
         <div className="glass-card p-5 space-y-4">
-          <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500">Configuration</h3>
+          <h3 className="text-xs font-medium uppercase tracking-wider text-white">Configuration</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs text-zinc-500">Brand</label>
+              <label className="text-xs text-white">Brand</label>
               <Select value={brand} onValueChange={(v) => {
                   const newBrand = v as Brand;
                   setBrand(newBrand);
@@ -603,19 +784,23 @@ export function PostGenerator() {
                   setImages([]);
                                 setCarouselIndex(0);
                 }}>
-                <SelectTrigger className="bg-zinc-800/60 border-zinc-700/50 text-white h-9 text-sm">
+                <SelectTrigger className="bg-white border-zinc-300 text-zinc-900 h-9 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="affectly" className="text-white">Affectly</SelectItem>
-                  <SelectItem value="pacebrain" className="text-white">PaceBrain</SelectItem>
+                  {apiBrands.map((b) => (
+                    <SelectItem key={b.id} value={b.slug} className="text-white">{b.name}</SelectItem>
+                  ))}
+                  {apiBrands.length === 0 && (
+                    <SelectItem value="" disabled className="text-zinc-400">No brands yet</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs text-zinc-500">Content Type</label>
+              <label className="text-xs text-white">Content Type</label>
               <Select value={contentType} onValueChange={(v) => setContentType(v as ContentType)}>
-                <SelectTrigger className="bg-zinc-800/60 border-zinc-700/50 text-white h-9 text-sm">
+                <SelectTrigger className="bg-white border-zinc-300 text-zinc-900 h-9 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-800 border-zinc-700">
@@ -630,8 +815,8 @@ export function PostGenerator() {
           </div>
           {/* Template hint */}
           <div className="bg-zinc-800/40 rounded-lg px-3 py-2">
-            <p className="text-xs text-zinc-500">
-              <span className="text-zinc-400 font-medium">{templates.find((t) => t.type === contentType)?.title}:</span>{' '}
+            <p className="text-xs text-white">
+              <span className="text-white font-medium">{templates.find((t) => t.type === contentType)?.title}:</span>{' '}
               {templates.find((t) => t.type === contentType)?.captionStructure}
             </p>
           </div>
@@ -649,7 +834,7 @@ export function PostGenerator() {
         {/* Caption */}
         <div className="glass-card p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500">Caption</h3>
+            <h3 className="text-xs font-medium uppercase tracking-wider text-white">Caption</h3>
             <Button
               onClick={generateCaption}
               size="sm"
@@ -662,20 +847,20 @@ export function PostGenerator() {
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             placeholder="Click Generate or write your own caption..."
-            className="bg-zinc-800/60 border-zinc-700/50 text-white min-h-[160px] resize-y text-sm leading-relaxed"
+            className="bg-white border-zinc-300 text-zinc-900 min-h-[160px] resize-y text-sm leading-relaxed"
           />
           <div className="space-y-1.5">
-            <label className="text-xs text-zinc-500">Hashtags</label>
+            <label className="text-xs text-white">Hashtags</label>
             <Textarea
               value={hashtags}
               onChange={(e) => setHashtags(e.target.value)}
               placeholder="Generated with caption..."
-              className="bg-zinc-800/60 border-zinc-700/50 text-white min-h-[60px] resize-y text-xs"
+              className="bg-white border-zinc-300 text-zinc-900 min-h-[60px] resize-y text-xs"
             />
           </div>
           {caption && (
             <p className="text-xs text-zinc-600 font-mono">
-              {caption.length} chars &middot; {hashtags.split('#').filter(Boolean).length} tags
+              {caption.length} chars &middot; {hashtags.split('\n').filter(t => t.trim().startsWith('#')).length} tags
             </p>
           )}
         </div>
@@ -684,7 +869,7 @@ export function PostGenerator() {
         <div className="glass-card p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500">Image Hook Text</h3>
+              <h3 className="text-xs font-medium uppercase tracking-wider text-white">Image Hook Text</h3>
               <p className="text-[10px] text-zinc-600">Attention-grabbing text overlaid on your image</p>
             </div>
             <button
@@ -704,7 +889,7 @@ export function PostGenerator() {
                   value={overlayText}
                   onChange={(e) => setOverlayText(e.target.value)}
                   placeholder="Hook text extracted from your caption..."
-                  className="bg-zinc-800/60 border-zinc-700/50 text-white min-h-[70px] resize-y text-sm pr-24"
+                  className="bg-white border-zinc-300 text-zinc-900 min-h-[70px] resize-y text-sm pr-24"
                 />
                 <button
                   type="button"
@@ -724,7 +909,7 @@ export function PostGenerator() {
 
               {/* Style selector — visual cards */}
               <div className="space-y-2">
-                <label className="text-xs text-zinc-500">Overlay Style</label>
+                <label className="text-xs text-white">Overlay Style</label>
                 <div className="grid grid-cols-2 gap-2">
                   {(Object.entries(OVERLAY_STYLE_META) as [OverlayStyle, { label: string; desc: string }][]).map(([key, meta]) => (
                     <button
@@ -737,8 +922,8 @@ export function PostGenerator() {
                           : 'border-zinc-800/50 bg-zinc-800/30 hover:border-zinc-600'
                       }`}
                     >
-                      <p className={`text-xs font-medium ${overlayStyle === key ? 'text-teal-300' : 'text-zinc-300'}`}>{meta.label}</p>
-                      <p className="text-[10px] text-zinc-500 mt-0.5 leading-snug">{meta.desc}</p>
+                      <p className={`text-xs font-medium ${overlayStyle === key ? 'text-teal-300' : 'text-white'}`}>{meta.label}</p>
+                      <p className="text-[10px] text-white mt-0.5 leading-snug">{meta.desc}</p>
                     </button>
                   ))}
                 </div>
@@ -747,9 +932,9 @@ export function PostGenerator() {
               {/* Position & Size */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs text-zinc-500">Position</label>
+                  <label className="text-xs text-white">Position</label>
                   <Select value={textPosition} onValueChange={(v) => setTextPosition(v as TextPosition)}>
-                    <SelectTrigger className="bg-zinc-800/60 border-zinc-700/50 text-white h-9 text-sm">
+                    <SelectTrigger className="bg-white border-zinc-300 text-zinc-900 h-9 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-800 border-zinc-700">
@@ -766,7 +951,7 @@ export function PostGenerator() {
 
         {/* Image Search */}
         <div className="glass-card p-5 space-y-4">
-          <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          <h3 className="text-xs font-medium uppercase tracking-wider text-white">
             Find Images {isCarousel && <span className="text-teal-400 normal-case">(select up to 10 for carousel)</span>}
           </h3>
           <ImageSourceSelector
@@ -780,7 +965,7 @@ export function PostGenerator() {
               <button
                 key={query}
                 onClick={() => imageSelectorRef.current?.triggerSearch(query)}
-                className="text-xs px-2 py-1 rounded-md bg-zinc-800/60 text-zinc-500 hover:text-teal-300 hover:bg-teal-500/10 hover:scale-105 transition-all duration-200"
+                className="text-xs px-2 py-1 rounded-md bg-zinc-800/60 text-white hover:text-teal-300 hover:bg-teal-500/10 hover:scale-105 transition-all duration-200"
                 type="button"
               >
                 {query}
@@ -815,7 +1000,7 @@ export function PostGenerator() {
                       </div>
                     )}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
-                      <p className="text-[10px] text-zinc-300 truncate">{img.tags}</p>
+                      <p className="text-[10px] text-white truncate">{img.tags}</p>
                     </div>
                   </button>
                 );
@@ -827,7 +1012,7 @@ export function PostGenerator() {
           {isCarousel && selectedCarouselImages.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs text-zinc-500">{selectedCarouselImages.length} slides selected</p>
+                <p className="text-xs text-white">{selectedCarouselImages.length} slides selected</p>
                 <Button
                   onClick={handleProcessCarousel}
                   disabled={isProcessing}
@@ -858,14 +1043,14 @@ export function PostGenerator() {
 
           {/* Post Preview */}
           <div className="glass-card p-5 space-y-4">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500">Preview</h3>
+            <h3 className="text-xs font-medium uppercase tracking-wider text-white">Preview</h3>
 
             <div className="rounded-xl overflow-hidden border border-zinc-800/50 bg-black">
               {/* IG Header */}
               <div className="flex items-center gap-2.5 px-3 py-2.5">
-                <div className={`w-7 h-7 rounded-full ${brand === 'affectly' ? 'bg-teal-600' : 'bg-blue-600'}`} />
+                <div className="w-7 h-7 rounded-full bg-teal-600" />
                 <span className="text-xs font-medium text-white">
-                  {brand === 'affectly' ? 'affectly.app' : 'pacebrain.app'}
+                  {apiBrands.find(b => b.slug === brand)?.name || brand || 'Your Brand'}
                 </span>
               </div>
 
@@ -886,9 +1071,9 @@ export function PostGenerator() {
                       <div className={`absolute inset-x-0 ${TEXT_POSITION_CLASSES[textPosition]} p-4`}>
                         <div className={`rounded-lg p-3 ${
                           overlayStyle === 'bold-card'
-                            ? brand === 'affectly' ? 'bg-teal-700/85' : 'bg-blue-700/85'
+                            ? 'bg-teal-700/85'
                             : overlayStyle === 'full-tint'
-                              ? brand === 'affectly' ? 'bg-teal-800/75' : 'bg-blue-800/75'
+                              ? 'bg-teal-800/75'
                               : 'bg-black/50 backdrop-blur-sm'
                         }`}>
                           <p
@@ -978,14 +1163,14 @@ export function PostGenerator() {
           {/* Buffer Scheduling */}
           {hasCompletePost && (
             <div className="glass-card p-5 space-y-4">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500">Schedule to Buffer</h3>
+              <h3 className="text-xs font-medium uppercase tracking-wider text-white">Schedule to Buffer</h3>
 
               {allChannels.length > 0 ? (
                 <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs text-zinc-500">Channel (auto selected for {brand})</label>
+                    <label className="text-xs text-white">Channel (auto selected for {brand})</label>
                     <Select value={selectedChannelId} onValueChange={(v) => { if (v) setSelectedChannelId(v); }}>
-                      <SelectTrigger className="bg-zinc-800/60 border-zinc-700/50 text-white h-9 text-sm">
+                      <SelectTrigger className="bg-white border-zinc-300 text-zinc-900 h-9 text-sm">
                         <SelectValue placeholder="Select channel" />
                       </SelectTrigger>
                       <SelectContent className="bg-zinc-800 border-zinc-700">
@@ -1000,7 +1185,7 @@ export function PostGenerator() {
 
                   {/* Recommended time slots — one click to pick */}
                   <div className="space-y-1.5">
-                    <label className="text-xs text-zinc-500">Pick a recommended time</label>
+                    <label className="text-xs text-white">Pick a recommended time</label>
                     <div className="grid grid-cols-1 gap-1.5">
                       {(() => {
                         const slots: { label: string; dateStr: string }[] = [];
@@ -1043,7 +1228,7 @@ export function PostGenerator() {
                             className={`text-left text-xs px-3 py-2 rounded-lg transition-colors ${
                               scheduleDateTime === slot.dateStr
                                 ? 'bg-teal-500/20 text-teal-400 ring-1 ring-teal-500/30'
-                                : 'bg-zinc-800/60 text-zinc-400 hover:text-teal-400 hover:bg-teal-500/10'
+                                : 'bg-zinc-800/60 text-white hover:text-teal-400 hover:bg-teal-500/10'
                             }`}
                           >
                             {slot.label}
@@ -1055,12 +1240,12 @@ export function PostGenerator() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs text-zinc-500">Or pick a custom date/time</label>
+                    <label className="text-xs text-white">Or pick a custom date/time</label>
                     <Input
                       type="datetime-local"
                       value={scheduleDateTime}
                       onChange={(e) => setScheduleDateTime(e.target.value)}
-                      className="bg-zinc-800/60 border-zinc-700/50 text-white h-9 text-sm"
+                      className="bg-white border-zinc-300 text-zinc-900 h-9 text-sm"
                     />
                   </div>
 

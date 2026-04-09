@@ -65,6 +65,18 @@ export async function PATCH(request: NextRequest) {
     if ('timezone' in body && typeof body.timezone === 'string' && body.timezone.length <= 50) {
       updates.timezone = body.timezone;
     }
+    if ('brandVoiceTone' in body && typeof body.brandVoiceTone === 'string' && ['casual', 'neutral', 'professional', 'playful', 'serious'].includes(body.brandVoiceTone)) {
+      updates.brandVoiceTone = body.brandVoiceTone;
+    }
+    if ('brandVoiceStyle' in body && typeof body.brandVoiceStyle === 'string' && ['short_punchy', 'balanced', 'storytelling', 'educational'].includes(body.brandVoiceStyle)) {
+      updates.brandVoiceStyle = body.brandVoiceStyle;
+    }
+    if ('brandVoiceDos' in body && typeof body.brandVoiceDos === 'string') {
+      updates.brandVoiceDos = body.brandVoiceDos.slice(0, 2000);
+    }
+    if ('brandVoiceDonts' in body && typeof body.brandVoiceDonts === 'string') {
+      updates.brandVoiceDonts = body.brandVoiceDonts.slice(0, 2000);
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(

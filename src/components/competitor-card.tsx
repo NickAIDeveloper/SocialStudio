@@ -67,12 +67,12 @@ export default function CompetitorCard({
     <div className="bg-zinc-900/80 border border-zinc-800/50 rounded-xl p-4 flex items-start justify-between gap-3">
       <div className="min-w-0 space-y-1">
         <p className="text-white font-medium truncate">@{handle}</p>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-white">
           {formatFollowers(followerCount)} followers
         </p>
         <div className="flex items-center gap-1.5">
           <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
-          <span className="text-xs text-zinc-500">{label}</span>
+          <span className="text-xs text-white">{label}</span>
         </div>
       </div>
       <button

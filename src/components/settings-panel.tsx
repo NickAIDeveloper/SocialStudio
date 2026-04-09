@@ -77,7 +77,7 @@ function ProviderSection({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-white">{label}</h3>
-          <p className="text-sm text-zinc-500 mt-0.5">{description}</p>
+          <p className="text-sm text-white mt-0.5">{description}</p>
         </div>
         {account ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-500/10 px-3 py-1 text-xs font-medium text-teal-400">
@@ -85,7 +85,7 @@ function ProviderSection({
             Connected
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-700/50 px-3 py-1 text-xs font-medium text-zinc-400">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-700/50 px-3 py-1 text-xs font-medium text-white">
             <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" />
             Not connected
           </span>
@@ -93,7 +93,7 @@ function ProviderSection({
       </div>
 
       {account && (
-        <div className="rounded-lg bg-zinc-800/40 border border-white/5 px-4 py-3 text-sm text-zinc-400">
+        <div className="rounded-lg bg-zinc-800/40 border border-white/5 px-4 py-3 text-sm text-white">
           Connected on{' '}
           {new Date(account.connectedAt).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -113,7 +113,7 @@ function ProviderSection({
             onChange={(e) => setToken(e.target.value)}
             placeholder={placeholder}
             disabled={loading}
-            className="flex-1 rounded-lg border border-white/5 bg-zinc-800/60 px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-teal-500/50 disabled:opacity-50"
+            className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 disabled:opacity-50"
           />
           <button
             onClick={handleConnect}

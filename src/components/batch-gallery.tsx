@@ -12,11 +12,12 @@ import { suggestedQueries, brandCategories } from '@/lib/pixabay';
 import type { PixabayImage } from '@/lib/pixabay';
 import { generateCaption, extractHookText, resetCaptionHistory } from '@/lib/caption-engine';
 
-type Brand = 'affectly' | 'pacebrain';
+type Brand = string;
 type ContentType = 'quote' | 'tip' | 'carousel' | 'community' | 'promo';
 
 function getHashtagsForPost(brand: Brand): string {
-  const tags = hashtagSets[brand];
+  const tags = hashtagSets[brand as keyof typeof hashtagSets];
+  if (!tags) return '';
   const branded = tags.branded.slice(0, 1);
   const reach = [...tags.tier1_reach].sort(() => Math.random() - 0.5).slice(0, 2);
   const niche = [...tags.tier3_niche].sort(() => Math.random() - 0.5).slice(0, 2);
@@ -43,7 +44,7 @@ interface BatchPost {
 
 // Generate optimal time slots for a brand over the next 7 days
 function generateTimeSlots(brand: Brand, count: number): { iso: string; label: string }[] {
-  const times = optimalPostingTimes[brand];
+  const times = optimalPostingTimes[brand as keyof typeof optimalPostingTimes] || optimalPostingTimes[Object.keys(optimalPostingTimes)[0] as keyof typeof optimalPostingTimes];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const bestDaySet = new Set(times.bestDays.map((d: string) => d.toLowerCase()));
@@ -118,18 +119,18 @@ export function BatchGallery() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [bufferOrgs, setBufferOrgs] = useState<BufferOrganization[]>([]);
-  const [filter, setFilter] = useState<'all' | Brand>('all');
+  const [filter, setFilter] = useState('all');
   const generatingRef = useRef(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [apiBrands, setApiBrands] = useState<ApiBrand[]>([]);
 
-  // Load Buffer orgs + brands on mount
+  // Load Buffer orgs + brands on mount (cached)
   useEffect(() => {
-    fetch('/api/buffer?action=channels')
-      .then(r => r.json())
-      .then(data => {
-        if (data.organizations) setBufferOrgs(data.organizations);
-      })
-      .catch(() => {});
+    (async () => {
+      const { cachedBufferFetch } = await import('@/lib/buffer-cache');
+      const data = await cachedBufferFetch<{ organizations: BufferOrganization[] }>('/api/buffer?action=channels');
+      if (data?.organizations) setBufferOrgs(data.organizations);
+    })();
 
     fetch('/api/brands')
       .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed')))
@@ -140,12 +141,12 @@ export function BatchGallery() {
   }, []);
 
   // Find matching channel for a brand
-  const getChannelForBrand = useCallback((brand: Brand): { channelId: string; orgId: string } | null => {
+  const getChannelForBrand = useCallback((brandSlug: Brand): { channelId: string; orgId: string } | null => {
     for (const org of bufferOrgs) {
       for (const ch of org.channels) {
-        const name = ch.name.toLowerCase();
-        if (brand === 'affectly' && name.includes('affectly')) return { channelId: ch.id, orgId: org.id };
-        if (brand === 'pacebrain' && name.includes('pacebrain')) return { channelId: ch.id, orgId: org.id };
+        if (ch.name.toLowerCase().includes(brandSlug.toLowerCase())) {
+          return { channelId: ch.id, orgId: org.id };
+        }
       }
     }
     // Fallback: first channel
@@ -163,20 +164,51 @@ export function BatchGallery() {
     setPosts([]);
 
     const contentTypes: ContentType[] = ['quote', 'tip', 'carousel', 'community', 'promo'];
-    const brands: Brand[] = ['affectly', 'pacebrain'];
+    // Use actual brands from DB
+    const brandSlugs: Brand[] = apiBrands.length > 0
+      ? apiBrands.map(b => b.slug)
+      : [];
     const newPosts: BatchPost[] = [];
 
-    // Generate 10 posts per brand (1 per content type x2 rounds), auto-assign optimal times
-    // Use all content types, ensuring unique captions by clearing used pools first
+    // Generate 10 posts per brand using AI (falls back to pools)
     resetCaptionHistory();
     let postIdx = 0;
-    for (const brand of brands) {
+    for (const brand of brandSlugs) {
       const slots = generateTimeSlots(brand, 10);
-      // 2 rounds through all 5 types = 10 posts per brand
       for (let round = 0; round < 2; round++) {
         for (const type of contentTypes) {
-          const caption = generateCaption(brand, type);
-          const hookText = extractHookText(caption);
+          let caption = '';
+          let hashtags = '';
+          let hookText = '';
+
+          // Try AI generation
+          try {
+            const aiRes = await fetch('/api/captions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ brandSlug: brand, contentType: type }),
+            });
+            const aiData = await aiRes.json();
+            if (aiData.success && aiData.caption) {
+              caption = aiData.caption;
+              hashtags = aiData.hashtags || '';
+              hookText = aiData.hookText || '';
+            }
+          } catch {
+            // Fall through to pool
+          }
+
+          // Fallback to pre-written pool (only works for known brands)
+          if (!caption) {
+            try {
+              caption = generateCaption(brand as 'affectly' | 'pacebrain', type);
+            } catch {
+              caption = `Check out our latest ${type} content!`;
+            }
+            hashtags = getHashtagsForPost(brand);
+            hookText = extractHookText(caption);
+          }
+
           const slot = slots[postIdx % slots.length] || undefined;
           postIdx++;
           newPosts.push({
@@ -184,7 +216,7 @@ export function BatchGallery() {
             brand,
             contentType: type,
             caption,
-            hashtags: getHashtagsForPost(brand),
+            hashtags,
             hookText,
             imageUrl: null,
             processedImageUrl: null,
@@ -192,37 +224,75 @@ export function BatchGallery() {
             scheduledAt: slot?.iso,
             scheduledLabel: slot?.label,
           });
+
+          // Update UI progressively
+          setPosts([...newPosts]);
         }
       }
     }
 
     // Shuffle within each brand for variety
-    const affectlyPosts = newPosts.filter(p => p.brand === 'affectly').sort(() => Math.random() - 0.5);
-    const pacebrainPosts = newPosts.filter(p => p.brand === 'pacebrain').sort(() => Math.random() - 0.5);
-    const shuffled = [...affectlyPosts, ...pacebrainPosts];
+    const shuffled = brandSlugs.flatMap(b =>
+      newPosts.filter(p => p.brand === b).sort(() => Math.random() - 0.5)
+    );
     setPosts(shuffled);
 
     // Fetch unique images — cycle through all queries, never reusing the same one
-    const usedQueries: Record<string, number> = { affectly: 0, pacebrain: 0 };
+    const usedQueries: Record<string, number> = {};
+    for (const b of brandSlugs) usedQueries[b] = 0;
     const usedImageIds = new Set<number>();
     const batchSize = 4;
     for (let i = 0; i < shuffled.length; i += batchSize) {
       const batch = shuffled.slice(i, i + batchSize);
       await Promise.all(batch.map(async (post) => {
         try {
-          // Cycle through queries so each post gets a different search term
-          const queries = suggestedQueries[post.brand];
-          const qIdx = usedQueries[post.brand] % queries.length;
-          usedQueries[post.brand]++;
-          const query = queries[qIdx];
-          const response = await fetch(`/api/pixabay?q=${encodeURIComponent(query)}&orientation=all&category=${brandCategories[post.brand] || ''}`);
+          // Use AI to pick the best search term for this caption
+          let query = '';
+          try {
+            const pickRes = await fetch('/api/images/pick', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ caption: post.caption, brand: post.brand, contentType: post.contentType }),
+            });
+            const pickData = await pickRes.json();
+            if (pickData.searchTerm) query = pickData.searchTerm;
+          } catch { /* fallback below */ }
+
+          // Fallback to cycling queries
+          if (!query) {
+            const queries = suggestedQueries[post.brand as keyof typeof suggestedQueries];
+            if (queries && queries.length > 0) {
+              const qIdx = (usedQueries[post.brand] ?? 0) % queries.length;
+              usedQueries[post.brand] = (usedQueries[post.brand] ?? 0) + 1;
+              query = queries[qIdx];
+            } else {
+              query = 'social media content';
+            }
+          }
+
+          const response = await fetch(`/api/images?source=all&q=${encodeURIComponent(query)}`);
           const data = await response.json();
-          const hits: PixabayImage[] = data.hits || [];
+          const hits: PixabayImage[] = data.images || data.hits || [];
           if (hits.length > 0) {
-            // Pick an image not already used by another post
+            // Use AI to pick the best image
+            let img = hits[0];
+            try {
+              const pickRes = await fetch('/api/images/pick', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ caption: post.caption, brand: post.brand, images: hits.slice(0, 10) }),
+              });
+              const pickData = await pickRes.json();
+              if (typeof pickData.pickedIndex === 'number' && hits[pickData.pickedIndex]) {
+                img = hits[pickData.pickedIndex];
+              }
+            } catch { /* use first image */ }
+
+            // Skip already-used images
             const unused = hits.filter((h: PixabayImage) => !usedImageIds.has(h.id));
-            const pool = unused.length > 0 ? unused : hits;
-            const img = pool[Math.floor(Math.random() * Math.min(pool.length, 10))];
+            if (unused.length > 0 && usedImageIds.has(img.id)) {
+              img = unused[0];
+            }
             usedImageIds.add(img.id);
 
             // Process image with overlay via /api/logo (returns raw image bytes)
@@ -422,17 +492,27 @@ export function BatchGallery() {
           <>
             <Separator orientation="vertical" className="h-6 bg-zinc-700" />
             <div className="flex gap-1">
-              {(['all', 'affectly', 'pacebrain'] as const).map(f => (
+              <button
+                onClick={() => setFilter('all')}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                  filter === 'all'
+                    ? 'bg-zinc-700 text-white'
+                    : 'text-white hover:text-white hover:bg-zinc-800/50'
+                }`}
+              >
+                All
+              </button>
+              {apiBrands.map(b => (
                 <button
-                  key={f}
-                  onClick={() => setFilter(f)}
+                  key={b.id}
+                  onClick={() => setFilter(b.slug)}
                   className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                    filter === f
+                    filter === b.slug
                       ? 'bg-zinc-700 text-white'
-                      : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
+                      : 'text-white hover:text-white hover:bg-zinc-800/50'
                   }`}
                 >
-                  {f === 'all' ? 'All' : f === 'affectly' ? 'Affectly' : 'PaceBrain'}
+                  {b.name}
                 </button>
               ))}
             </div>
@@ -452,7 +532,7 @@ export function BatchGallery() {
               </Button>
             )}
             <Separator orientation="vertical" className="h-6 bg-zinc-700" />
-            <div className="flex gap-3 text-xs text-zinc-500">
+            <div className="flex gap-3 text-xs text-white">
               <span>{readyCount} ready</span>
               <span className="text-emerald-400">{scheduledCount} scheduled</span>
             </div>
@@ -466,9 +546,9 @@ export function BatchGallery() {
           <div className="w-16 h-16 rounded-2xl bg-zinc-800/60 flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">📋</span>
           </div>
-          <h3 className="text-lg font-medium text-zinc-300 mb-1">Batch Gallery</h3>
-          <p className="text-sm text-zinc-500 max-w-md mx-auto">
-            Generate 20 pre-made posts (10 Affectly + 10 PaceBrain) with images, captions, and hooks.
+          <h3 className="text-lg font-medium text-white mb-1">Batch Gallery</h3>
+          <p className="text-sm text-white max-w-md mx-auto">
+            Generate pre-made posts for all your brands with images, captions, and hooks.
             Preview each one, then schedule the ones you like with a single click.
           </p>
         </div>
@@ -520,15 +600,11 @@ export function BatchGallery() {
               )}
               {/* Brand badge */}
               <Badge
-                className={`absolute top-2 left-2 text-[10px] ${
-                  post.brand === 'affectly'
-                    ? 'bg-teal-500/80 text-white border-0'
-                    : 'bg-orange-500/80 text-white border-0'
-                }`}
+                className="absolute top-2 left-2 text-[10px] bg-teal-500/80 text-white border-0"
               >
-                {post.brand === 'affectly' ? 'Affectly' : 'PaceBrain'}
+                {apiBrands.find(b => b.slug === post.brand)?.name || post.brand}
               </Badge>
-              <Badge className="absolute top-2 right-2 bg-zinc-900/70 text-zinc-300 border-0 text-[10px]">
+              <Badge className="absolute top-2 right-2 bg-zinc-900/70 text-white border-0 text-[10px]">
                 {post.contentType}
               </Badge>
               {post.status === 'scheduled' && (
@@ -540,12 +616,12 @@ export function BatchGallery() {
 
             <CardContent className="p-3 space-y-2">
               {/* Hook preview */}
-              <p className="text-xs text-zinc-300 font-medium leading-snug line-clamp-2">
+              <p className="text-xs text-white font-medium leading-snug line-clamp-2">
                 {post.hookText || post.caption.split('\n')[0]}
               </p>
 
               {/* Caption preview (truncated) */}
-              <p className="text-[11px] text-zinc-500 leading-snug line-clamp-3">
+              <p className="text-[11px] text-white leading-snug line-clamp-3">
                 {post.caption}
               </p>
 
@@ -571,14 +647,14 @@ export function BatchGallery() {
                       size="sm"
                       variant="outline"
                       onClick={() => setExpandedId(expandedId === post.id ? null : post.id)}
-                      className="h-7 text-xs border-zinc-700 text-zinc-400 hover:text-white"
+                      className="h-7 text-xs border-zinc-700 text-white hover:text-white"
                     >
                       Preview
                     </Button>
                   </>
                 )}
                 {post.status === 'scheduling' && (
-                  <div className="flex items-center gap-2 text-xs text-zinc-400">
+                  <div className="flex items-center gap-2 text-xs text-white">
                     <span className="w-3 h-3 border-2 border-zinc-600 border-t-teal-400 rounded-full animate-spin" />
                     Scheduling...
                   </div>
@@ -596,7 +672,7 @@ export function BatchGallery() {
                           p.id === post.id ? { ...p, status: 'ready', error: undefined } : p
                         ));
                       }}
-                      className="h-6 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                      className="h-6 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-white"
                     >
                       Retry
                     </Button>
@@ -609,7 +685,7 @@ export function BatchGallery() {
             {expandedId === post.id && (
               <div className="border-t border-zinc-800/60 p-3 space-y-3 bg-zinc-950/50">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">Caption</label>
+                  <label className="text-[10px] text-white uppercase tracking-wider font-medium">Caption</label>
                   <Textarea
                     value={post.caption}
                     onChange={(e) => updateCaption(post.id, e.target.value)}
@@ -617,13 +693,13 @@ export function BatchGallery() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">Hook Text</label>
+                  <label className="text-[10px] text-white uppercase tracking-wider font-medium">Hook Text</label>
                   <p className="text-xs text-teal-400 bg-zinc-800/40 rounded px-2 py-1.5">
                     {post.hookText || '(auto-generated from caption)'}
                   </p>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">Hashtags</label>
+                  <label className="text-[10px] text-white uppercase tracking-wider font-medium">Hashtags</label>
                   <p className="text-[11px] text-blue-400 bg-zinc-800/40 rounded px-2 py-1.5">
                     {post.hashtags}
                   </p>
