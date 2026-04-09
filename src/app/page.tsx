@@ -443,12 +443,22 @@ export default function LandingPage() {
                   <Link href="/register" className="text-sm text-zinc-600 hover:text-zinc-300 transition-colors">Register</Link>
                 </div>
               </div>
+              <div>
+                <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Legal</p>
+                <div className="flex flex-col gap-3">
+                  <Link href="/terms" className="text-sm text-zinc-600 hover:text-zinc-300 transition-colors">Terms of Service</Link>
+                  <Link href="/privacy" className="text-sm text-zinc-600 hover:text-zinc-300 transition-colors">Privacy Policy</Link>
+                </div>
+              </div>
             </div>
           </div>
 
           <div className="mt-14 pt-8 border-t border-white/[0.04] flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-xs text-zinc-700">&copy; {new Date().getFullYear()} GoViraleza. All rights reserved.</p>
-            <p className="text-xs text-zinc-800">Built for Instagram creators who want to grow with data.</p>
+            <div className="flex items-center gap-4">
+              <Link href="/terms" className="text-xs text-zinc-700 hover:text-zinc-400 transition-colors">Terms of Service</Link>
+              <Link href="/privacy" className="text-xs text-zinc-700 hover:text-zinc-400 transition-colors">Privacy Policy</Link>
+            </div>
           </div>
         </div>
       </footer>
