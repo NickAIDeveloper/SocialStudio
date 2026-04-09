@@ -159,6 +159,8 @@ export function BatchGallery() {
   // Generate all posts
   const [batchCount, setBatchCount] = useState(10);
   const batchCountRef = useRef(10);
+  const [batchContentType, setBatchContentType] = useState<ContentType | 'mixed'>('mixed');
+  const batchContentTypeRef = useRef<ContentType | 'mixed'>('mixed');
 
   const generateBatch = useCallback(async () => {
     const currentBatchCount = batchCountRef.current;
@@ -167,7 +169,10 @@ export function BatchGallery() {
     setIsGenerating(true);
     setPosts([]);
 
-    const contentTypes: ContentType[] = ['quote', 'tip', 'carousel', 'community', 'promo'];
+    const selectedType = batchContentTypeRef.current;
+    const contentTypes: ContentType[] = selectedType === 'mixed'
+      ? ['quote', 'tip', 'community', 'promo']
+      : [selectedType];
     // Use actual brands from DB
     const brandSlugs: Brand[] = apiBrands.length > 0
       ? apiBrands.map(b => b.slug)
@@ -513,7 +518,18 @@ export function BatchGallery() {
             </span>
           </Button>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={batchContentType}
+              onChange={(e) => { setBatchContentType(e.target.value as ContentType | 'mixed'); batchContentTypeRef.current = e.target.value as ContentType | 'mixed'; }}
+              className="h-9 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm px-3 focus:outline-none focus:ring-1 focus:ring-teal-500"
+            >
+              <option value="mixed">Mixed Content</option>
+              <option value="promo">Promo</option>
+              <option value="quote">Quote</option>
+              <option value="tip">Tips / How-to</option>
+              <option value="community">Community</option>
+            </select>
             {[5, 10, 15, 20].map(n => (
               <button
                 key={n}

@@ -142,31 +142,46 @@ export async function POST(request: NextRequest) {
       console.error('[Captions] Non-critical error:', err instanceof Error ? err.message : err);
     }
 
+    const contentTypeGuide: Record<string, string> = {
+      promo: 'PROMO POST: Create urgency. Highlight the product benefit, explain why now, and tell them how to get it. Use a direct CTA like "Download now" or "Link in bio".',
+      quote: 'QUOTE POST: Share a powerful, original thought or insight related to the brand. Make it quotable and shareable. The hook itself should BE the quote.',
+      tip: 'TIP/HOW-TO POST: Share actionable advice. Use numbered steps (1. 2. 3.). Each step should be one clear sentence. End with "Save this for later" or "Share with someone who needs this".',
+      community: 'COMMUNITY POST: Ask a genuine question to spark conversation. Share a relatable experience. The goal is comments and shares, not clicks.',
+      carousel: 'CAROUSEL POST: Tease what the carousel contains. Use "Swipe for..." or "Save this guide". Keep caption short since the value is in the slides.',
+    };
+
     const prompt = `You are an expert Instagram content creator for "${brandName}" ${handle}.
 
-Content type: ${contentType}
+CONTENT TYPE: ${contentType}
+${contentTypeGuide[contentType] || ''}
+
 ${competitorContext}
 ${ownPostContext}
 ${insightContext}
 ${brandVoiceContext}
 
-REQUIREMENTS:
-- Write a compelling caption (150-250 words) that BEATS the competition
-- Strong scroll-stopping hook in the first line
-- Use line breaks for readability
-- End with a call-to-action or engaging question
-- Use 2-3 emojis naturally
-- Do NOT include hashtags in the caption
-- NEVER use dashes, em-dashes, en-dashes, or hyphens as separators. Use commas or periods instead
+INSTAGRAM CAPTION FORMAT (research-backed for maximum engagement):
+
+1. HOOK (first line): A scroll-stopping statement or question. This is what people see BEFORE tapping "more". Make it irresistible. Under 10 words.
+
+2. BODY (2-4 short paragraphs): Deliver value. Use line breaks between paragraphs. Keep total caption under 150 words (shorter captions = higher engagement). NEVER use dashes or hyphens as separators.
+
+3. CTA (last line): End with ONE clear call-to-action. Either a question ("What's yours?"), action ("Save this"), or engagement prompt ("Tag someone who needs this").
+
+RULES:
+- NO hashtags in the caption text
+- NO dashes, em-dashes, en-dashes, or hyphens
+- 1-2 emojis maximum, placed naturally
+- Every sentence must be TRUE and relevant to ${brandName}
+- Do not fabricate features or make claims that aren't real
 - If competitor data is provided, write content that outperforms their style
-- If own top posts data is provided, replicate the patterns that worked
 
-Also generate:
-- 15-20 relevant hashtags (mix of branded, niche, and reach hashtags)
-- A short punchy hook text (3-6 words MAX) for image overlay. This appears on the image so it MUST be short, impactful, and make sense on its own. Examples: "Your mood shapes learning", "Race day secrets revealed", "Stop guessing your pace"
+ALSO GENERATE:
+- hookText: A punchy 3-6 word hook for image overlay. Must make complete sense alone. Examples: "Your mood shapes learning", "Race day secrets", "Stop guessing your pace"
+- hashtags: 5 highly relevant hashtags (mix of branded + niche). Quality over quantity.
 
-Return ONLY valid JSON. Hashtags separated by newlines:
-{"caption":"full caption","hashtags":"#tag1\\n#tag2\\n#tag3","hookText":"3-6 word hook"}`;
+Return ONLY valid JSON:
+{"caption":"hook line\\n\\nbody paragraphs\\n\\nCTA line","hashtags":"#tag1\\n#tag2\\n#tag3\\n#tag4\\n#tag5","hookText":"3-6 word hook"}`;
 
     const content = await cerebrasChatCompletion(
       [{ role: 'user', content: prompt }],
