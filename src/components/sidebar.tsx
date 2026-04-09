@@ -74,11 +74,11 @@ export function Sidebar() {
       <div className="flex h-14 items-center justify-between gap-2.5 px-4 border-b border-zinc-800/60">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-blue-500">
-            <span className="text-sm font-bold text-white">S</span>
+            <span className="text-sm font-bold text-white">G</span>
           </div>
           {!collapsed && (
             <span className="text-sm font-semibold tracking-tight text-zinc-100">
-              Social Studio
+              GoViraleza
             </span>
           )}
         </div>

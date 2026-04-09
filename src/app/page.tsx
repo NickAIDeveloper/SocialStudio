@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Sparkles,
   Users,
@@ -18,7 +19,7 @@ import {
 function Logo() {
   return (
     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-blue-500">
-      <span className="text-base font-bold text-white">S</span>
+      <span className="text-base font-bold text-white">G</span>
     </div>
   );
 }
@@ -123,14 +124,19 @@ export default function LandingPage() {
   return (
     <div className="relative min-h-screen bg-zinc-950 text-zinc-100">
       <GridPattern />
+      {/* Ambient glow matching hero image colors */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-0 top-0 h-[600px] w-[600px] rounded-full bg-pink-500/[0.04] blur-[120px]" />
+        <div className="absolute right-0 top-0 h-[600px] w-[600px] rounded-full bg-cyan-500/[0.04] blur-[120px]" />
+      </div>
 
       {/* ── Navigation ── */}
       <header className="relative z-10">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 sm:px-6 py-4 sm:py-5">
-          <Link href="/" className="flex items-center gap-2" aria-label="Social Studio home">
+          <Link href="/" className="flex items-center gap-2" aria-label="GoViraleza home">
             <Logo />
             <span className="text-sm sm:text-base font-semibold tracking-tight">
-              Social Studio
+              GoViraleza
             </span>
           </Link>
           <nav className="flex items-center gap-1.5 sm:gap-2">
@@ -164,7 +170,7 @@ export default function LandingPage() {
             </span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-zinc-400 sm:text-lg">
-            Social Studio uses AI to generate captions, find the right images, discover your competitors, and tell you exactly what to post and when. Built for Instagram creators and brands who want to grow with data, not guesswork.
+            GoViraleza uses AI to generate captions, find the right images, discover your competitors, and tell you exactly what to post and when. Built for Instagram creators and brands who want to grow with data, not guesswork.
           </p>
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link
@@ -181,6 +187,22 @@ export default function LandingPage() {
               See What It Does
               <ChevronRight className="h-4 w-4" />
             </a>
+          </div>
+
+          {/* Hero Image */}
+          <div className="relative mt-16 mx-auto max-w-4xl">
+            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-teal-500/20 via-purple-500/20 to-pink-500/20 blur-2xl opacity-60" />
+            <div className="relative overflow-hidden rounded-2xl border border-zinc-800/50 shadow-2xl shadow-teal-500/10">
+              <Image
+                src="/hero-goviraleza.png"
+                alt="GoViraleza - Social media content creation platform"
+                width={1200}
+                height={600}
+                className="w-full h-auto"
+                priority
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/60 via-transparent to-transparent" />
+            </div>
           </div>
         </div>
       </section>
@@ -264,7 +286,7 @@ export default function LandingPage() {
       <section className="relative z-10 mx-auto max-w-6xl px-6 pb-24 sm:pb-32">
         <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-10 backdrop-blur-sm sm:p-14">
           <h2 className="mb-8 text-center text-2xl font-bold tracking-tight sm:text-3xl">
-            What powers Social Studio
+            What powers GoViraleza
           </h2>
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
             {[
@@ -293,7 +315,7 @@ export default function LandingPage() {
               Ready to create smarter content?
             </h2>
             <p className="mx-auto mb-8 max-w-lg text-zinc-400">
-              Social Studio is free during beta. Connect your Instagram, discover your competitors, and start creating AI-powered content today.
+              GoViraleza is free during beta. Connect your Instagram, discover your competitors, and start creating AI-powered content today.
             </p>
             <Link
               href="/register"
@@ -315,7 +337,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-2.5">
             <Logo />
             <span className="text-sm font-semibold tracking-tight text-zinc-400">
-              Social Studio
+              GoViraleza
             </span>
           </div>
           <nav className="flex items-center gap-6 text-sm text-zinc-500">
@@ -323,7 +345,7 @@ export default function LandingPage() {
             <Link href="/register" className="transition-colors hover:text-zinc-300">Register</Link>
           </nav>
           <p className="text-xs text-zinc-600">
-            &copy; {new Date().getFullYear()} Social Studio
+            &copy; {new Date().getFullYear()} GoViraleza
           </p>
         </div>
       </footer>

@@ -22,10 +22,10 @@ export function Nav() {
         <div className="flex items-center justify-between h-14">
           <Link href="/home" className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-500 to-blue-500 flex items-center justify-center">
-              <span className="text-white text-xs font-bold">S</span>
+              <span className="text-white text-xs font-bold">G</span>
             </div>
             <span className="text-base font-semibold tracking-tight text-zinc-100">
-              Social Studio
+              GoViraleza
             </span>
           </Link>
           <div className="flex items-center gap-0.5">

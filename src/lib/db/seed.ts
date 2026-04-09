@@ -34,7 +34,7 @@ async function seed() {
   console.log('Starting seed...\n');
 
   // 1. Validate seed credentials from env
-  const seedEmail = process.env.SEED_USER_EMAIL || 'origae@socialstudio.app';
+  const seedEmail = process.env.SEED_USER_EMAIL || 'origae@goviraleza.com';
   const seedPassword = process.env.SEED_USER_PASSWORD;
   if (!seedPassword) {
     throw new Error('SEED_USER_PASSWORD env var is required for seeding');

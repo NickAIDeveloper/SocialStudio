@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Social Studio",
+  title: "GoViraleza",
   description: "Professional social media content creation",
 };
 

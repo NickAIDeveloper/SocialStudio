@@ -41,11 +41,11 @@ export function LoginForm() {
     <div className="w-full max-w-md">
       <div className="mb-8 text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-blue-500">
-          <span className="text-lg font-bold text-white">S</span>
+          <span className="text-lg font-bold text-white">G</span>
         </div>
         <h1 className="text-2xl font-bold text-zinc-100">Welcome back</h1>
         <p className="mt-1 text-sm text-white">
-          Sign in to Social Studio
+          Sign in to GoViraleza
         </p>
       </div>
 
