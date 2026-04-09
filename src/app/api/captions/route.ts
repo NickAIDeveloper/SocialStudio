@@ -253,35 +253,46 @@ IMPORTANT FORMAT NOTES:
     );
 
     // Strip markdown fences and clean AI response
-    const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').replace(/^[^{]*/, '').trim();
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      // Fallback: try to extract caption from raw text
-      return NextResponse.json({
-        success: true,
-        caption: cleaned.slice(0, 500),
-        hashtags: '',
-        hookText: '',
-        source: 'cerebras-raw',
-      });
+
+    let parsed: { caption?: string; hashtags?: string; hookText?: string } | null = null;
+
+    if (jsonMatch) {
+      // Try multiple JSON repair strategies
+      const repairs = [
+        jsonMatch[0],
+        jsonMatch[0].replace(/,\s*}/g, '}').replace(/,\s*]/g, ']'),
+        // Replace unescaped newlines inside JSON strings
+        jsonMatch[0].replace(/(?<=:\s*"[^"]*)\n/g, '\\n'),
+      ];
+      for (const attempt of repairs) {
+        try {
+          parsed = JSON.parse(attempt);
+          break;
+        } catch { /* try next repair */ }
+      }
     }
 
-    let parsed;
-    try {
-      // Fix common JSON issues from AI: trailing commas, unescaped newlines
-      const fixedJson = jsonMatch[0].replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
-      parsed = JSON.parse(fixedJson);
-    } catch {
-      // Still return usable content rather than failing
-      const rawText = cleaned.replace(/[{}"]/g, '');
-      const extractedHashtags = (rawText.match(/#\w+/g) || []).slice(0, 5).join('\n');
-      const captionText = rawText.replace(/#\w+/g, '').replace(/\s{2,}/g, ' ').slice(0, 500).trim();
+    // Manual extraction fallback if JSON parsing completely fails
+    if (!parsed || !parsed.caption) {
+      const raw = cleaned.replace(/[{}]/g, '');
+      // Extract fields manually using key: "value" pattern
+      const captionMatch = raw.match(/["']?caption["']?\s*:\s*["']([^"']+)["']/i)
+        || raw.match(/caption["']?\s*:\s*(.+?)(?:,\s*["']?hashtags|,\s*["']?hookText|$)/i);
+      const hashtagsMatch = raw.match(/#\w+/g);
+      const hookMatch = raw.match(/["']?hookText["']?\s*:\s*["']([^"']+)["']/i);
+
+      const captionText = captionMatch
+        ? captionMatch[1].replace(/\\n/g, '\n').replace(/["']/g, '').trim()
+        : raw.replace(/#\w+/g, '').replace(/["':{}]/g, '').replace(/\s{2,}/g, ' ').slice(0, 500).trim();
+
       return NextResponse.json({
         success: true,
         caption: captionText,
-        hashtags: extractedHashtags,
-        hookText: captionText.split(/[.\n]/)[0]?.slice(0, 40) || '',
-        source: 'cerebras-raw',
+        hashtags: (hashtagsMatch || []).slice(0, 5).join('\n'),
+        hookText: hookMatch ? hookMatch[1].trim() : captionText.split(/[.\n]/)[0]?.slice(0, 40) || '',
+        source: 'cerebras-extracted',
       });
     }
 
@@ -291,28 +302,39 @@ IMPORTANT FORMAT NOTES:
       .slice(0, 5)
       .join('\n');
 
-    // Clean up AI output
+    // Aggressively clean all AI output artifacts
     const cleanText = (s: string, isCaption = false) => {
-      let cleaned = s
-        .replace(/\\n/g, '\n')                  // fix escaped newlines
-        .replace(/\s*[—–]{1,3}\s*/g, ' ')      // strip em/en dashes
-        .replace(/^(caption|hook|hookText)\s*:\s*/i, '')  // strip prefixes
-        .replace(/\*\*/g, '')                   // strip markdown bold
+      let cleaned = String(s)
+        .replace(/\\n/g, '\n')                    // fix escaped newlines
+        .replace(/\s*[—–]{1,3}\s*/g, ' ')        // strip em/en dashes
+        .replace(/\*\*/g, '')                     // strip markdown bold
+        .replace(/^["']+|["']+$/g, '')            // strip wrapping quotes
+        .replace(/^(caption|hook|hookText)\s*:\s*/i, '')  // strip key prefixes
         .trim();
       if (isCaption) {
-        // Strip trailing hashtag/hookText content that leaked in
-        cleaned = cleaned.replace(/,?\s*hashtags?\s*:[\s\S]*$/i, '').trim();
-        cleaned = cleaned.replace(/,?\s*hookText\s*:[\s\S]*$/i, '').trim();
+        // Strip ALL trailing JSON-like content
+        cleaned = cleaned.replace(/,?\s*["']?hashtags?["']?\s*:[\s\S]*$/i, '').trim();
+        cleaned = cleaned.replace(/,?\s*["']?hookText["']?\s*:[\s\S]*$/i, '').trim();
         cleaned = cleaned.replace(/,\s*$/, '');
-        // Insert line breaks before numbered steps if missing (e.g. "text 1. step" → "text\n1. step")
+        // Strip any remaining hashtags from caption body
+        cleaned = cleaned.replace(/#\w+/g, '').trim();
+        // Insert line breaks before numbered steps
         cleaned = cleaned.replace(/([.!?])\s*(\d+)\.\s/g, '$1\n$2. ');
-        // Also handle "text 1." at start without preceding sentence
         cleaned = cleaned.replace(/([a-z])\s+(\d+)\.\s/g, '$1\n\n$2. ');
-        // Normalize multiple newlines to max double
+        // Normalize whitespace
         cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+        cleaned = cleaned.replace(/  +/g, ' ');
       } else {
-        // For hooks: single line only, no newlines, strip trailing numbers
-        cleaned = cleaned.replace(/\n/g, ' ').replace(/\s+\d+$/, '').replace(/\s{2,}/g, ' ').trim();
+        // For hooks: single line, no artifacts
+        cleaned = cleaned.replace(/\n/g, ' ');
+        cleaned = cleaned.replace(/\s+\d+\.?\s*$/, '');  // strip trailing "1." or "1"
+        cleaned = cleaned.replace(/,?\s*hashtags?.*$/i, '');  // strip hashtags leak
+        cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
+        // Max 45 chars
+        if (cleaned.length > 45) {
+          const space = cleaned.lastIndexOf(' ', 45);
+          cleaned = space > 10 ? cleaned.substring(0, space) : cleaned.substring(0, 45);
+        }
       }
       return cleaned;
     };
