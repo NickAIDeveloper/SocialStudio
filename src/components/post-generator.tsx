@@ -285,7 +285,7 @@ export function PostGenerator() {
       const aiRes = await fetch('/api/captions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brandSlug: brand, contentType }),
+        body: JSON.stringify({ brandSlug: brand, contentType, variationSeed: Date.now() % 10000 }),
       });
       const aiData = await aiRes.json();
 

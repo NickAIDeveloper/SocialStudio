@@ -221,12 +221,20 @@ export function BatchGallery() {
             .slice(0, 10)                                        // max 10 hashtags
             .join('\n');
 
-          // Try AI generation
+          // Try AI generation with uniqueness tracking
           try {
             const aiRes = await fetch('/api/captions', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ brandSlug: brand, contentType: type }),
+              body: JSON.stringify({
+                brandSlug: brand,
+                contentType: type,
+                variationSeed: postIdx * 100 + Math.floor(Math.random() * 99),
+                avoidTopics: newPosts
+                  .filter(p => p.brand === brand)
+                  .map(p => p.hookText)
+                  .filter(Boolean),
+              }),
             });
             const aiData = await aiRes.json();
             if (aiData.success && aiData.caption) {

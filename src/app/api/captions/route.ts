@@ -11,6 +11,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { brandSlug, contentType } = body;
 
+    const avoidTopics: string[] = body.avoidTopics || [];
+    const variationSeed = body.variationSeed || Math.floor(Math.random() * 1000);
+
     if (!brandSlug || !contentType) {
       return NextResponse.json({ error: 'brandSlug and contentType required' }, { status: 400 });
     }
@@ -214,6 +217,9 @@ ${ownPostContext}
 ${insightContext}
 ${brandVoiceContext}
 
+UNIQUENESS REQUIREMENT (variation #${variationSeed}):
+This post MUST be completely different from any previous posts. Use a fresh angle, different opening, different structure.${avoidTopics.length > 0 ? `\nDO NOT use any of these hooks or topics that were already used: ${avoidTopics.join(', ')}` : ''}
+
 STRICT RULES:
 1. Caption must be under 100 words total
 2. First line is the hook (under 10 words, attention grabbing)
@@ -239,7 +245,7 @@ The hashtags must be exactly 5 hashtags separated by spaces.`;
         { role: 'system', content: systemMessage },
         { role: 'user', content: prompt },
       ],
-      { temperature: 0.7, maxTokens: 800 },
+      { temperature: 0.9, maxTokens: 800 },
     );
 
     // Strip markdown fences and clean AI response
@@ -262,12 +268,15 @@ The hashtags must be exactly 5 hashtags separated by spaces.`;
       const fixedJson = jsonMatch[0].replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
       parsed = JSON.parse(fixedJson);
     } catch {
-      // Still return the raw caption text rather than failing
+      // Still return usable content rather than failing
+      const rawText = cleaned.replace(/[{}"]/g, '');
+      const extractedHashtags = (rawText.match(/#\w+/g) || []).slice(0, 5).join('\n');
+      const captionText = rawText.replace(/#\w+/g, '').replace(/\s{2,}/g, ' ').slice(0, 500).trim();
       return NextResponse.json({
         success: true,
-        caption: cleaned.replace(/[{}"]/g, '').slice(0, 500),
-        hashtags: '',
-        hookText: '',
+        caption: captionText,
+        hashtags: extractedHashtags,
+        hookText: captionText.split(/[.\n]/)[0]?.slice(0, 40) || '',
         source: 'cerebras-raw',
       });
     }
