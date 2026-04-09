@@ -177,7 +177,7 @@ RULES:
 - If competitor data is provided, write content that outperforms their style
 
 ALSO GENERATE:
-- hookText: A punchy 3-6 word hook for image overlay. Must make complete sense alone. Examples: "Your mood shapes learning", "Race day secrets", "Stop guessing your pace"
+- hookText: A punchy 3-6 word hook for image overlay. Must make complete sense alone. NEVER include newlines, the word "caption", or meta-commentary. Examples: "Your mood shapes learning", "Race day secrets", "Stop guessing your pace"
 - hashtags: 5 highly relevant hashtags (mix of branded + niche). Quality over quantity.
 
 Return ONLY valid JSON:
@@ -232,14 +232,19 @@ Return ONLY valid JSON:
     // Clean up AI output
     const cleanText = (s: string, isCaption = false) => {
       let cleaned = s
-        .replace(/\s*[—–]{1,3}\s*/g, ' ')    // strip em/en dashes (not hyphens in words)
-        .replace(/\s{2,}/g, ' ')               // collapse whitespace
-        .replace(/^(caption|hook|hookText)\s*:\s*/i, '')  // strip "caption:" prefix
+        .replace(/\\n/g, '\n')                  // fix escaped newlines
+        .replace(/\s*[—–]{1,3}\s*/g, ' ')      // strip em/en dashes
+        .replace(/^(caption|hook|hookText)\s*:\s*/i, '')  // strip prefixes
         .trim();
       // For captions, strip trailing hashtag content that leaked in
       if (isCaption) {
         cleaned = cleaned.replace(/,?\s*hashtags?\s*:[\s\S]*$/i, '').trim();
         cleaned = cleaned.replace(/,\s*$/, '');
+        // Normalize multiple newlines to max double
+        cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+      } else {
+        // For hooks: single line only, no newlines
+        cleaned = cleaned.replace(/\n/g, ' ').replace(/\s{2,}/g, ' ').trim();
       }
       return cleaned;
     };
