@@ -11,7 +11,7 @@ interface CacheEntry<T> {
 const cache = new Map<string, CacheEntry<unknown>>();
 const inflight = new Map<string, Promise<unknown>>();
 
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes (avoid Buffer rate limits)
 const MAX_CACHE_SIZE = 50;
 
 export async function cachedBufferFetch<T>(
@@ -35,13 +35,15 @@ export async function cachedBufferFetch<T>(
   const promise = (async () => {
     try {
       const res = await fetch(url);
-      if (!res.ok) return null;
       const data = await res.json();
-      if (cache.size >= MAX_CACHE_SIZE) {
-        const firstKey = cache.keys().next().value;
-        if (firstKey) cache.delete(firstKey);
+      // Only cache successful responses, not errors
+      if (res.ok) {
+        if (cache.size >= MAX_CACHE_SIZE) {
+          const firstKey = cache.keys().next().value;
+          if (firstKey) cache.delete(firstKey);
+        }
+        cache.set(url, { data, timestamp: Date.now() });
       }
-      cache.set(url, { data, timestamp: Date.now() });
       return data as T;
     } catch {
       return null;

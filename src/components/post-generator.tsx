@@ -244,18 +244,22 @@ export function PostGenerator() {
   const hasCompletePost = caption.trim().length > 0 && activeImages.length > 0;
   const allChannels = bufferOrgs.flatMap(org => org.channels);
 
-  // Load Buffer channels on mount (direct fetch, no cache)
+  // Load Buffer channels on mount (cached to avoid rate limits)
   const [bufferLoadError, setBufferLoadError] = useState<string | null>(null);
-  const loadBufferChannels = useCallback(async () => {
+  const loadBufferChannels = useCallback(async (bypassCache = false) => {
     setBufferLoadError(null);
     try {
-      const res = await fetch('/api/buffer?action=channels');
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setBufferLoadError(data.error || `Failed to load channels (${res.status})`);
+      const { cachedBufferFetch, invalidateBufferCache } = await import('@/lib/buffer-cache');
+      if (bypassCache) invalidateBufferCache();
+      const data = await cachedBufferFetch<{ organizations: BufferOrganization[] } | { error: string }>('/api/buffer?action=channels');
+      if (!data) {
+        setBufferLoadError('Could not connect to Buffer. Check Settings.');
         return;
       }
-      const data = await res.json();
+      if ('error' in data) {
+        setBufferLoadError(data.error);
+        return;
+      }
       const orgs: BufferOrganization[] = data.organizations || [];
       setBufferOrgs(orgs);
       const channels = orgs.flatMap(o => o.channels);
@@ -1335,7 +1339,7 @@ export function PostGenerator() {
                     <p className="text-xs text-zinc-400">Loading Buffer channels...</p>
                   )}
                   <button
-                    onClick={() => void loadBufferChannels()}
+                    onClick={() => void loadBufferChannels(true)}
                     className="text-xs text-teal-400 hover:text-teal-300 underline"
                   >
                     Retry

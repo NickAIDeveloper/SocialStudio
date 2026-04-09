@@ -72,6 +72,9 @@ async function bufferGraphQL<T>(apiKey: string, query: string, variables?: Recor
   if (!response.ok) {
     const errorBody = await response.text();
     console.error(`Buffer GraphQL error [${response.status}]:`, errorBody);
+    if (response.status === 429) {
+      throw new Error('Buffer rate limit exceeded. Please wait 15 minutes and try again.');
+    }
     throw new Error(`Buffer API error (HTTP ${response.status}): ${errorBody}`);
   }
 
