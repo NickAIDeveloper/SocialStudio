@@ -16,6 +16,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "GoViraleza",
   description: "Professional social media content creation",
+  icons: {
+    icon: "/favicon-32.png",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({

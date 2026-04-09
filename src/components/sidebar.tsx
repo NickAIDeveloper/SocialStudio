@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
@@ -73,9 +74,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex h-14 items-center justify-between gap-2.5 px-4 border-b border-zinc-800/60">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-blue-500">
-            <span className="text-sm font-bold text-white">G</span>
-          </div>
+          <Image src="/logo-goviraleza.png" alt="GoViraleza" width={32} height={22} className="shrink-0 rounded" />
           {!collapsed && (
             <span className="text-sm font-semibold tracking-tight text-zinc-100">
               GoViraleza

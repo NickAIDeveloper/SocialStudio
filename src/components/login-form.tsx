@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -40,9 +41,7 @@ export function LoginForm() {
   return (
     <div className="w-full max-w-md">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-blue-500">
-          <span className="text-lg font-bold text-white">G</span>
-        </div>
+        <Image src="/logo-goviraleza.png" alt="GoViraleza" width={52} height={36} className="mx-auto mb-2 rounded-lg" />
         <h1 className="text-2xl font-bold text-zinc-100">Welcome back</h1>
         <p className="mt-1 text-sm text-white">
           Sign in to GoViraleza

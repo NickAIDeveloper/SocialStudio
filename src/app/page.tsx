@@ -18,9 +18,13 @@ import {
 
 function Logo() {
   return (
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-blue-500">
-      <span className="text-base font-bold text-white">G</span>
-    </div>
+    <Image
+      src="/logo-goviraleza.png"
+      alt="GoViraleza"
+      width={36}
+      height={25}
+      className="shrink-0 rounded-md"
+    />
   );
 }
 

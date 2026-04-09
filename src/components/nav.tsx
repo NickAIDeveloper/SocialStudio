@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
@@ -21,9 +22,7 @@ export function Nav() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
           <Link href="/home" className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-500 to-blue-500 flex items-center justify-center">
-              <span className="text-white text-xs font-bold">G</span>
-            </div>
+            <Image src="/logo-goviraleza.png" alt="GoViraleza" width={28} height={19} className="rounded" />
             <span className="text-base font-semibold tracking-tight text-zinc-100">
               GoViraleza
             </span>
