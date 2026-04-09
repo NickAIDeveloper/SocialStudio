@@ -300,19 +300,25 @@ export function CompetitorDashboard() {
   };
 
   // AI competitive insights
+  const [aiError, setAiError] = useState<string | null>(null);
   const fetchAiInsights = async () => {
     setAiLoading(true);
+    setAiError(null);
     try {
       const res = await fetch('/api/insights/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ brandId: selectedBrandId || null, type: 'competitors' }),
       });
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setAiInsights(data.insights ?? []);
+      } else {
+        setAiError(data.error || `AI analysis failed (${res.status})`);
       }
-    } catch { /* silent */ }
+    } catch {
+      setAiError('Failed to connect to AI service. Check your Cerebras API key in Vercel env vars.');
+    }
     finally { setAiLoading(false); }
   };
 
@@ -394,7 +400,13 @@ export function CompetitorDashboard() {
           </button>
         </div>
 
-        {aiInsights.length === 0 && !aiLoading && (
+        {aiError && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {aiError}
+          </div>
+        )}
+
+        {aiInsights.length === 0 && !aiLoading && !aiError && (
           <p className="text-sm text-zinc-400">Click &ldquo;Generate AI Analysis&rdquo; for AI-powered competitive insights.</p>
         )}
 

@@ -416,6 +416,7 @@ export function PostGenerator() {
       // Image search failed, user can manually search
     } finally {
       randomGeneratingRef.current = false;
+      generationDoneAtRef.current = Date.now();
     }
   }, [brand, contentType, textPosition, fontSize, overlayStyle]);
 
@@ -736,13 +737,19 @@ export function PostGenerator() {
       // Image search failed, user can manually search
     } finally {
       randomGeneratingRef.current = false;
+      generationDoneAtRef.current = Date.now();
     }
   }, [apiBrands]);
 
-  // Auto-reprocess image when settings change (skipped during random generation)
+  // Cooldown timestamp to prevent reprocess immediately after generation
+  const generationDoneAtRef = useRef(0);
+
+  // Auto-reprocess image when settings change (skipped during/after generation)
   const reprocessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (randomGeneratingRef.current) return;
+    // Skip reprocess for 2 seconds after generation completes
+    if (Date.now() - generationDoneAtRef.current < 2000) return;
     const currentImage = isCarousel ? selectedCarouselImages[0] : selectedImage;
     if (!currentImage || !processedImageUrl) return;
 

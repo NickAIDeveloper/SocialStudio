@@ -60,7 +60,14 @@ export async function GET(request: NextRequest) {
 
     if (action === 'posts') {
       const [sent, queued] = await Promise.all([getSentPosts(apiKey), getQueuedPosts(apiKey)]);
-      return NextResponse.json({ posts: sent, queued });
+      // Merge all posts into one array so the command center can filter by status
+      const seen = new Set<string>();
+      const allPosts = [...sent, ...queued].filter(p => {
+        if (seen.has(p.id)) return false;
+        seen.add(p.id);
+        return true;
+      });
+      return NextResponse.json({ posts: allPosts });
     }
 
     if (action === 'analyze') {

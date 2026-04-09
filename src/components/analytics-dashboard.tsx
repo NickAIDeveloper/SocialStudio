@@ -460,8 +460,10 @@ export default function AnalyticsDashboard() {
     }
   }, []);
 
+  const [aiError, setAiError] = useState<string | null>(null);
   const fetchAiInsights = useCallback(async () => {
     setAiLoading(true);
+    setAiError(null);
     try {
       const brandId = selectedBrand && selectedBrand !== 'all' ? selectedBrand : null;
       const res = await fetch('/api/insights/ai', {
@@ -469,11 +471,15 @@ export default function AnalyticsDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ brandId, type: 'analytics' }),
       });
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setAiInsights(data.insights ?? []);
+      } else {
+        setAiError(data.error || `AI generation failed (${res.status})`);
       }
-    } catch { /* silent */ }
+    } catch {
+      setAiError('Failed to connect to AI service. Check your Cerebras API key in Vercel env vars.');
+    }
     finally { setAiLoading(false); }
   }, [selectedBrand]);
 
@@ -689,7 +695,13 @@ export default function AnalyticsDashboard() {
           </button>
         </div>
 
-        {aiInsights.length === 0 && !aiLoading && (
+        {aiError && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {aiError}
+          </div>
+        )}
+
+        {aiInsights.length === 0 && !aiLoading && !aiError && (
           <p className="text-sm text-zinc-400">Click &ldquo;Generate AI Insights&rdquo; to get personalized recommendations powered by AI.</p>
         )}
 

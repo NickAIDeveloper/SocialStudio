@@ -106,7 +106,7 @@ export function CommandCenter() {
   const nextScheduled = scheduledPosts[0] ?? null;
 
   const pendingPosts = posts.filter(
-    (p) => p.status === 'pending' || p.status === 'scheduled'
+    (p) => p.status === 'sending' || p.status === 'scheduled'
   );
 
   const recentPosts = [...posts]
