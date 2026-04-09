@@ -325,10 +325,11 @@ export function BatchGallery() {
             usedImageIds.add(img.id);
 
             // Process image with overlay via /api/logo (returns raw image bytes)
+            const cleanHook = (post.hookText || '').replace(/^(caption|hook)\s*:\s*/i, '').trim();
             const body: Record<string, unknown> = {
               imageUrl: img.largeImageURL,
               brand: post.brand,
-              overlayText: post.hookText,
+              overlayText: cleanHook || undefined,
               textPosition: 'center',
               fontSize: 80,
               overlayStyle: 'editorial',

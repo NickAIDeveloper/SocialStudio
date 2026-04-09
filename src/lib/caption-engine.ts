@@ -186,13 +186,18 @@ export function resetCaptionHistory(): void {
 
 export function extractHookText(caption: string): string {
   if (!caption.trim()) return '';
-  // Remove emojis for cleaner hook text
-  const cleanCaption = caption.replace(/[\u{1F600}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}]/gu, '').trim();
+  // Remove emojis and "caption:" prefix
+  const cleanCaption = caption
+    .replace(/[\u{1F600}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}]/gu, '')
+    .replace(/^(caption|hook)\s*:\s*/i, '')
+    .trim();
   const lines = cleanCaption.split('\n').map(l => l.trim()).filter(Boolean);
   if (lines.length === 0) return '';
 
   // First line is the hook candidate
   let hook = lines[0];
+  // Strip "caption:" prefix if present in the line
+  hook = hook.replace(/^(caption|hook)\s*:\s*/i, '');
 
   // Remove trailing punctuation
   hook = hook.replace(/[.:,]\s*$/, '');
