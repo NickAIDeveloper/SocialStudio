@@ -244,26 +244,37 @@ export function PostGenerator() {
   const hasCompletePost = caption.trim().length > 0 && activeImages.length > 0;
   const allChannels = bufferOrgs.flatMap(org => org.channels);
 
-  // Load Buffer channels on mount (cached)
+  // Load Buffer channels on mount (direct fetch, no cache)
+  const [bufferLoadError, setBufferLoadError] = useState<string | null>(null);
+  const loadBufferChannels = useCallback(async () => {
+    setBufferLoadError(null);
+    try {
+      const res = await fetch('/api/buffer?action=channels');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setBufferLoadError(data.error || `Failed to load channels (${res.status})`);
+        return;
+      }
+      const data = await res.json();
+      const orgs: BufferOrganization[] = data.organizations || [];
+      setBufferOrgs(orgs);
+      const channels = orgs.flatMap(o => o.channels);
+      const match = channels.find(c => c.name.toLowerCase().includes(brand));
+      if (match) {
+        setSelectedChannelId(match.id);
+      } else if (channels.length > 0) {
+        setSelectedChannelId(channels[0].id);
+      }
+    } catch {
+      setBufferLoadError('Network error loading Buffer channels');
+    }
+  }, [brand]);
+
   const profilesLoadedRef = useRef(false);
   useEffect(() => {
     if (profilesLoadedRef.current) return;
     profilesLoadedRef.current = true;
-    (async () => {
-      const { cachedBufferFetch } = await import('@/lib/buffer-cache');
-      const data = await cachedBufferFetch<{ organizations: BufferOrganization[] }>('/api/buffer?action=channels');
-      if (data) {
-        const orgs = data.organizations || [];
-        setBufferOrgs(orgs);
-        const channels = orgs.flatMap(o => o.channels);
-        const match = channels.find(c => c.name.toLowerCase().includes(brand));
-        if (match) {
-          setSelectedChannelId(match.id);
-        } else if (channels.length > 0) {
-          setSelectedChannelId(channels[0].id);
-        }
-      }
-    })();
+    void loadBufferChannels();
   }, []);
 
   // Auto-switch Buffer channel when brand changes
@@ -1318,24 +1329,16 @@ export function PostGenerator() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-xs text-zinc-400">
-                    Buffer channels not loaded. This may take a moment.
-                  </p>
+                  {bufferLoadError ? (
+                    <p className="text-xs text-red-400">{bufferLoadError}</p>
+                  ) : (
+                    <p className="text-xs text-zinc-400">Loading Buffer channels...</p>
+                  )}
                   <button
-                    onClick={async () => {
-                      const { cachedBufferFetch, invalidateBufferCache } = await import('@/lib/buffer-cache');
-                      invalidateBufferCache();
-                      const data = await cachedBufferFetch<{ organizations: BufferOrganization[] }>('/api/buffer?action=channels');
-                      if (data) {
-                        const orgs = data.organizations || [];
-                        setBufferOrgs(orgs);
-                        const channels = orgs.flatMap(o => o.channels);
-                        if (channels.length > 0) setSelectedChannelId(channels[0].id);
-                      }
-                    }}
+                    onClick={() => void loadBufferChannels()}
                     className="text-xs text-teal-400 hover:text-teal-300 underline"
                   >
-                    Retry loading channels
+                    Retry
                   </button>
                 </div>
               )}
