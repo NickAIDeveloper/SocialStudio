@@ -467,13 +467,17 @@ export async function createInstagramImageWithText(
     <rect width="${width}" height="${height}" fill="rgba(0,0,0,0.50)"/>
   </svg>`;
 
-  // Create text image using sharp's text input
+  // Create text image using sharp's text input (Pango rendering)
+  // Pango font_size in markup is in 1/1024 of a point, so multiply by 1024
+  const pangoSize = fontSize * 1024;
   const textImage = await sharp({
     text: {
-      text: `<span foreground="white" font_size="${fontSize * 1000}">${escapeXml(overlayText)}</span>`,
+      text: `<span foreground="white" font_size="${pangoSize}" font_weight="bold">${escapeXml(overlayText)}</span>`,
       rgba: true,
       width: width - 200,
       align: 'center',
+      font: 'sans-serif',
+      dpi: 72,
     },
   })
     .png()
