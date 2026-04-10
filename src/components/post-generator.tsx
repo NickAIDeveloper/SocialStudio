@@ -423,7 +423,7 @@ export function PostGenerator() {
             setProcessedImageUrl(url);
             if (isCarousel) setProcessedCarouselUrls([url]);
             // Mark this overlay state as already rendered so reprocess timer skips it
-            lastRenderedOverlayRef.current = `${!!hook}|${hook}|${textPosition}|${overlayStyle}|${fontSize}|${brand}`;
+            generationTimestampRef.current = Date.now();
           }
         } finally {
           setIsProcessing(false);
@@ -720,7 +720,7 @@ export function PostGenerator() {
             }
             setProcessedCarouselUrls(carouselUrls);
             setProcessedImageUrl(carouselUrls[0]);
-            lastRenderedOverlayRef.current = `true|${hook}|${randomTextPos}|${randomOverlayStyle}|${randomFontSize}|${randomBrand}`;
+            generationTimestampRef.current = Date.now();
           } catch { /* preview still shows unprocessed */ }
         } else {
           const randomImg = available[Math.floor(Math.random() * Math.min(available.length, 8))];
@@ -749,7 +749,7 @@ export function PostGenerator() {
             if (resp.ok) {
               const blob = await resp.blob();
               setProcessedImageUrl(URL.createObjectURL(blob));
-              lastRenderedOverlayRef.current = `true|${hook}|${randomTextPos}|${randomOverlayStyle}|${randomFontSize}|${randomBrand}`;
+              generationTimestampRef.current = Date.now();
             }
           } catch {
             // Processing failed, preview still shows unprocessed image
@@ -763,31 +763,27 @@ export function PostGenerator() {
     }
   }, [apiBrands]);
 
-  // Auto-reprocess image when overlay settings change manually (NOT during generation)
+  // Auto-reprocess image ONLY when user manually changes overlay settings
+  // Uses a generation timestamp to skip reprocessing for 3 seconds after any generation
+  const generationTimestampRef = useRef(0);
   const reprocessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Track the last overlay state that was rendered to avoid redundant reprocessing
-  const lastRenderedOverlayRef = useRef('');
 
   useEffect(() => {
+    // Skip during active generation
     if (randomGeneratingRef.current) return;
+    // Skip for 3 seconds after generation completed (prevents overlay stripping)
+    if (Date.now() - generationTimestampRef.current < 3000) return;
+
     const currentImage = isCarousel ? selectedCarouselImages[0] : selectedImage;
     if (!currentImage || !processedImageUrl) return;
 
-    // Build a fingerprint of current overlay state
-    const fingerprint = `${overlayEnabled}|${overlayText}|${textPosition}|${overlayStyle}|${fontSize}|${brand}`;
-    // Skip if nothing actually changed from what's already rendered
-    if (fingerprint === lastRenderedOverlayRef.current) return;
-
     if (reprocessTimerRef.current) clearTimeout(reprocessTimerRef.current);
     reprocessTimerRef.current = setTimeout(async () => {
-      // Double-check we're not in a generation
       if (randomGeneratingRef.current) return;
+      if (Date.now() - generationTimestampRef.current < 3000) return;
       const url = await processImage(currentImage);
-      if (url) {
-        setProcessedImageUrl(url);
-        lastRenderedOverlayRef.current = fingerprint;
-      }
-    }, 800);
+      if (url) setProcessedImageUrl(url);
+    }, 1000);
 
     return () => {
       if (reprocessTimerRef.current) clearTimeout(reprocessTimerRef.current);

@@ -1,5 +1,4 @@
 import { CommandCenter } from '@/components/command-center';
-import { ContentCalendar } from '@/components/content-calendar';
 
 export default function Home() {
   return (
@@ -10,8 +9,6 @@ export default function Home() {
           Your content command center. See what&apos;s happening and take action.
         </p>
       </div>
-      <ContentCalendar />
-      <div className="mt-6" />
       <CommandCenter />
     </>
   );

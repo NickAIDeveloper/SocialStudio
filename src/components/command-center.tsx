@@ -113,18 +113,33 @@ export function CommandCenter() {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 8);
 
-  // Calculate top content type from sent posts
-  const topContentType = (() => {
-    const sentPosts = posts.filter(p => p.status === 'sent');
+  // Calculate analytics from post data
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const mostCommonDay = (() => {
+    const sentPosts = posts.filter(p => p.status === 'sent' && p.createdAt);
     if (sentPosts.length === 0) return 'N/A';
-    const counts: Record<string, number> = {};
+    const dayCounts: Record<number, number> = {};
     for (const p of sentPosts) {
-      const type = p.shareMode || 'post';
-      counts[type] = (counts[type] || 0) + 1;
+      const day = new Date(p.createdAt).getDay();
+      dayCounts[day] = (dayCounts[day] || 0) + 1;
     }
-    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    const label = sorted[0][0];
-    return label.charAt(0).toUpperCase() + label.slice(1);
+    const topDay = Object.entries(dayCounts).sort((a, b) => Number(b[1]) - Number(a[1]))[0];
+    return topDay ? dayNames[Number(topDay[0])] : 'N/A';
+  })();
+
+  const mostCommonTime = (() => {
+    const sentPosts = posts.filter(p => p.status === 'sent' && p.createdAt);
+    if (sentPosts.length === 0) return 'N/A';
+    const hourCounts: Record<number, number> = {};
+    for (const p of sentPosts) {
+      const hour = new Date(p.createdAt).getHours();
+      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+    }
+    const topHour = Object.entries(hourCounts).sort((a, b) => Number(b[1]) - Number(a[1]))[0];
+    if (!topHour) return 'N/A';
+    const h = Number(topHour[0]);
+    return `${h === 0 ? 12 : h > 12 ? h - 12 : h}:00 ${h >= 12 ? 'PM' : 'AM'}`;
   })();
 
   return (
@@ -184,28 +199,22 @@ export function CommandCenter() {
           )}
         </div>
 
-        {/* Queue Depth */}
+        {/* Peak Posting Time */}
         <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5">
           <p className="text-xs font-medium uppercase tracking-wider text-white mb-1">
-            Queue Depth
+            Peak Time
           </p>
-          {loading ? (
-            <Skeleton className="h-8 w-10 mt-1" />
-          ) : (
-            <p className="text-2xl font-semibold text-white font-mono">
-              {posts.length > 0 ? pendingPosts.length : '\u2014'}
-            </p>
-          )}
-          <p className="text-xs text-white mt-1">Pending across all channels</p>
+          <p className="text-2xl font-semibold text-white font-mono">{loading ? '\u2014' : mostCommonTime}</p>
+          <p className="text-xs text-white mt-1">Most common posting time</p>
         </div>
 
-        {/* Top Content Type */}
+        {/* Most Active Day */}
         <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5">
           <p className="text-xs font-medium uppercase tracking-wider text-white mb-1">
-            Top Content Type
+            Most Active Day
           </p>
-          <p className="text-2xl font-semibold text-white font-mono">{topContentType}</p>
-          <p className="text-xs text-white mt-1">{postsThisWeek.length > 0 ? 'Most used format this week' : 'No posts this week'}</p>
+          <p className="text-2xl font-semibold text-white font-mono">{loading ? '\u2014' : mostCommonDay}</p>
+          <p className="text-xs text-white mt-1">Most posts sent on this day</p>
         </div>
       </div>
 
