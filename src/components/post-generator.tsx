@@ -1144,10 +1144,6 @@ export function PostGenerator() {
 
                         {/* Text container */}
                         <div className={`absolute inset-x-0 ${TEXT_POSITION_CLASSES[textPosition]} p-6 flex flex-col items-center`}>
-                          {/* Accent line for editorial */}
-                          {overlayStyle === 'editorial' && (
-                            <div className="w-16 h-0.5 bg-teal-400 rounded-full mb-3" />
-                          )}
 
                           {/* Bold card background */}
                           {overlayStyle === 'bold-card' && (
@@ -1165,6 +1161,10 @@ export function PostGenerator() {
                           >
                             {overlayText}
                           </p>
+                          {/* Accent line below text for editorial */}
+                          {overlayStyle === 'editorial' && (
+                            <div className="w-16 h-0.5 bg-teal-400 rounded-full mt-3" />
+                          )}
                         </div>
                       </>
                     )}
