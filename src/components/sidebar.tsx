@@ -18,6 +18,7 @@ import {
   PanelLeft,
   Menu,
   X,
+  User,
 } from 'lucide-react';
 
 const navItems = [
@@ -27,6 +28,7 @@ const navItems = [
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/competitors', label: 'Competitors', icon: Users },
   { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/profile', label: 'Profile', icon: User },
 ];
 
 export function Sidebar() {

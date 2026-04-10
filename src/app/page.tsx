@@ -505,7 +505,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="flex gap-16">
+            <div className="flex flex-wrap gap-10 sm:gap-16">
               <div>
                 <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Product</p>
                 <div className="flex flex-col gap-3">
