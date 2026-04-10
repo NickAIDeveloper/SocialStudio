@@ -314,12 +314,12 @@ function buildOverlaySvg(
   }
 
   const textLines = lines.map((line, i) =>
-    `<tspan x="50%" dy="${i === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`
+    `<tspan x="${width / 2}" dy="${i === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`
   ).join('\n      ');
 
   // Shadow text (rendered behind main text for depth)
   const shadowLines = lines.map((line, i) =>
-    `<tspan x="50%" dy="${i === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`
+    `<tspan x="${width / 2}" dy="${i === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`
   ).join('\n      ');
 
   switch (style) {
@@ -329,10 +329,10 @@ function buildOverlaySvg(
       return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
   <rect width="${width}" height="${height}" fill="rgba(0,0,0,0.50)"/>
   <line x1="${width / 2 - 60}" y1="${accentY}" x2="${width / 2 + 60}" y2="${accentY}" stroke="${colors.accent}" stroke-width="3" stroke-linecap="round"/>
-  <text x="50%" y="${textY + 3}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="400" font-size="${fontSize}" fill="rgba(0,0,0,0.3)" letter-spacing="0.5">
+  <text x="${width / 2}" y="${textY + 3}" text-anchor="middle" font-family="sans-serif" font-weight="400" font-size="${fontSize}" fill="rgba(0,0,0,0.3)" letter-spacing="0.5">
       ${shadowLines}
   </text>
-  <text x="50%" y="${textY}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="400" font-size="${fontSize}" fill="#FFFFFF" letter-spacing="0.5">
+  <text x="${width / 2}" y="${textY}" text-anchor="middle" font-family="sans-serif" font-weight="400" font-size="${fontSize}" fill="#FFFFFF" letter-spacing="0.5">
       ${textLines}
   </text>
 </svg>`;
@@ -363,7 +363,7 @@ function buildOverlaySvg(
   <rect width="${width}" height="${height}" fill="rgba(0,0,0,0.25)"/>
   <rect x="${cardX}" y="${cardY}" width="${cardW}" height="${cardH}" rx="${cornerR}" ry="${cornerR}" fill="url(#cardGrad)"/>
   <rect x="${cardX}" y="${cardY}" width="${cardW}" height="${cardH}" rx="${cornerR}" ry="${cornerR}" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
-  <text x="50%" y="${cardTextY}" text-anchor="middle" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-weight="700" font-size="${fontSize}" fill="#FFFFFF" letter-spacing="-0.5">
+  <text x="${width / 2}" y="${cardTextY}" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="${fontSize}" fill="#FFFFFF" letter-spacing="-0.5">
       ${textLines}
   </text>
 </svg>`;
@@ -398,10 +398,10 @@ function buildOverlaySvg(
     </linearGradient>
   </defs>
   <rect x="0" y="${gradTop}" width="${width}" height="${gradH}" fill="url(#barGrad)"/>
-  <text x="50%" y="${textY + 3}" text-anchor="middle" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-weight="800" font-size="${fontSize}" fill="rgba(0,0,0,0.35)" letter-spacing="-1">
+  <text x="${width / 2}" y="${textY + 3}" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="${fontSize}" fill="rgba(0,0,0,0.35)" letter-spacing="-1">
       ${shadowLines}
   </text>
-  <text x="50%" y="${textY}" text-anchor="middle" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-weight="800" font-size="${fontSize}" fill="#FFFFFF" letter-spacing="-1">
+  <text x="${width / 2}" y="${textY}" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="${fontSize}" fill="#FFFFFF" letter-spacing="-1">
       ${textLines}
   </text>
   <line x1="${pad}" y1="${textY + textBlockH + 8}" x2="${pad + 80}" y2="${textY + textBlockH + 8}" stroke="${colors.accent}" stroke-width="4" stroke-linecap="round"/>
@@ -419,10 +419,10 @@ function buildOverlaySvg(
     </linearGradient>
   </defs>
   <rect width="${width}" height="${height}" fill="url(#tintGrad)"/>
-  <text x="50%" y="${textY + 3}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${fontSize}" fill="rgba(0,0,0,0.2)">
+  <text x="${width / 2}" y="${textY + 3}" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="${fontSize}" fill="rgba(0,0,0,0.2)">
       ${shadowLines}
   </text>
-  <text x="50%" y="${textY}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${fontSize}" fill="#FFFFFF">
+  <text x="${width / 2}" y="${textY}" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="${fontSize}" fill="#FFFFFF">
       ${textLines}
   </text>
 </svg>`;
