@@ -1128,28 +1128,45 @@ export function PostGenerator() {
                       unoptimized={!!(isCarousel ? processedCarouselUrls[carouselIndex] : processedImageUrl)}
                       sizes="400px"
                     />
-                    {/* Text overlay preview — always shown when overlay is enabled */}
+                    {/* Text overlay — styled per overlay type */}
                     {overlayEnabled && overlayText && (
-                      <div className={`absolute inset-x-0 ${TEXT_POSITION_CLASSES[textPosition]} p-4`}>
-                        <div className={`rounded-lg p-3 ${
-                          overlayStyle === 'bold-card'
-                            ? 'bg-teal-700/85'
-                            : overlayStyle === 'full-tint'
-                              ? 'bg-teal-800/75'
-                              : 'bg-black/50 backdrop-blur-sm'
-                        }`}>
+                      <>
+                        {/* Full-image tint layer */}
+                        {overlayStyle === 'editorial' && (
+                          <div className="absolute inset-0 bg-black/50" />
+                        )}
+                        {overlayStyle === 'gradient-bar' && (
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                        )}
+                        {overlayStyle === 'full-tint' && (
+                          <div className="absolute inset-0 bg-teal-900/70" />
+                        )}
+
+                        {/* Text container */}
+                        <div className={`absolute inset-x-0 ${TEXT_POSITION_CLASSES[textPosition]} p-6 flex flex-col items-center`}>
+                          {/* Accent line for editorial */}
+                          {overlayStyle === 'editorial' && (
+                            <div className="w-16 h-0.5 bg-teal-400 rounded-full mb-3" />
+                          )}
+
+                          {/* Bold card background */}
+                          {overlayStyle === 'bold-card' && (
+                            <div className="absolute inset-x-6 inset-y-0 rounded-2xl bg-gradient-to-br from-teal-600/90 to-teal-800/95 border border-white/10" />
+                          )}
+
                           <p
-                            className={`text-center leading-tight ${
-                              overlayStyle === 'editorial' || overlayStyle === 'full-tint'
-                                ? 'font-serif'
-                                : 'font-bold'
+                            className={`relative text-center leading-tight text-white drop-shadow-lg ${
+                              overlayStyle === 'editorial' ? 'font-serif tracking-wide' :
+                              overlayStyle === 'bold-card' ? 'font-bold px-4' :
+                              overlayStyle === 'gradient-bar' ? 'font-extrabold tracking-tight' :
+                              'font-serif'
                             }`}
-                            style={{ fontSize: `${fontSize / 4}px`, color: '#ffffff' }}
+                            style={{ fontSize: `${fontSize / 4}px` }}
                           >
                             {overlayText}
                           </p>
                         </div>
-                      </div>
+                      </>
                     )}
                     {isProcessing && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
