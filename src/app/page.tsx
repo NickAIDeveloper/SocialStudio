@@ -168,14 +168,13 @@ export default function LandingPage() {
 
           {/* Headline */}
           <h1 className="text-5xl font-black leading-[1.05] tracking-tight sm:text-6xl lg:text-[5.5rem]">
-            Create content that<br />
-            <GradientText className="font-black">outperforms</GradientText>{' '}
-            your<br className="hidden sm:block" /> competition
+            Create <GradientText className="font-black">20 posts</GradientText> in<br className="hidden sm:block" />
+            under 5 minutes
           </h1>
 
           {/* Sub */}
           <p className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-zinc-400 sm:text-xl">
-            AI content generation meets competitor intelligence. Create smarter Instagram posts backed by real data from your market.
+            AI-powered captions, competitor intelligence, and one-click scheduling. Create Instagram content backed by real data from your market.
           </p>
 
           {/* CTAs */}
@@ -337,6 +336,86 @@ export default function LandingPage() {
               );
             })}
           </div>
+        </div>
+      </section>
+
+      {/* ── Skip Section (Comparison) ── */}
+      <section className="relative z-10 mx-auto max-w-7xl px-6 pb-32 sm:pb-40">
+        <div className="mx-auto max-w-3xl text-center">
+          <SectionLabel>Why GoViraleza</SectionLabel>
+          <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl mb-6">
+            Skip the guesswork.<br />
+            <span className="text-zinc-500">Skip the spreadsheets.</span><br />
+            <span className="text-zinc-600">Skip the content calendar chaos.</span>
+          </h2>
+          <p className="text-base text-zinc-400 leading-relaxed mb-10">
+            Most brands waste hours switching between analytics tools, caption generators, image libraries, and scheduling apps. GoViraleza replaces them all with one AI-powered workflow.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              { before: 'Manually research competitors', after: 'AI finds and tracks 10 competitors automatically' },
+              { before: 'Write captions from scratch', after: 'AI generates captions informed by your data' },
+              { before: 'Guess the best posting time', after: 'Analytics show your peak engagement times' },
+            ].map((item, i) => (
+              <div key={i} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 text-left">
+                <p className="text-xs font-bold uppercase tracking-wider text-red-400/70 mb-2">Before</p>
+                <p className="text-sm text-zinc-500 mb-4">{item.before}</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-teal-400 mb-2">With GoViraleza</p>
+                <p className="text-sm text-zinc-200">{item.after}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Who It's For ── */}
+      <section className="relative z-10 mx-auto max-w-7xl px-6 pb-32 sm:pb-40">
+        <div className="mb-16 text-center">
+          <SectionLabel>Built For</SectionLabel>
+          <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+            Who uses GoViraleza?
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[
+            { emoji: '📱', title: 'App Founders', description: 'Generate consistent Instagram content for your app without hiring a social media manager.' },
+            { emoji: '🏪', title: 'Small Businesses', description: 'Compete with bigger brands by using AI to create content informed by what already works in your niche.' },
+            { emoji: '🎯', title: 'Marketing Teams', description: 'Batch create weeks of content in minutes. Focus your team on strategy, not caption writing.' },
+            { emoji: '🎨', title: 'Creators and Coaches', description: 'Build your personal brand with AI-powered posts that match your voice and outperform competitors.' },
+            { emoji: '🛒', title: 'E-commerce Brands', description: 'Create promo, community, and educational content that drives traffic from Instagram to your store.' },
+            { emoji: '🏢', title: 'Agencies', description: 'Manage multiple brand accounts with separate voice settings, competitor tracking, and analytics per brand.' },
+          ].map((item) => (
+            <div key={item.title} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all duration-300 hover:border-white/[0.1] hover:bg-white/[0.04]">
+              <span className="text-2xl mb-3 block">{item.emoji}</span>
+              <h3 className="text-base font-bold text-white mb-2">{item.title}</h3>
+              <p className="text-sm text-zinc-500 leading-relaxed">{item.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section className="relative z-10 mx-auto max-w-7xl px-6 pb-32 sm:pb-40">
+        <div className="mb-16 text-center">
+          <SectionLabel>FAQ</SectionLabel>
+          <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+            Common questions
+          </h2>
+        </div>
+        <div className="mx-auto max-w-3xl space-y-4">
+          {[
+            { q: 'Is GoViraleza really free?', a: 'Yes. During our beta period, all features are completely free with no credit card required. We will introduce paid plans in the future with advance notice.' },
+            { q: 'How does the AI generate captions?', a: 'Our AI analyzes your brand description, competitor data, and your best-performing content to generate unique captions tailored to your voice. Each caption is informed by real market data, not generic templates.' },
+            { q: 'What Instagram data do you access?', a: 'We only access publicly available profile data like follower counts, post counts, and public post captions. We never access private messages, stories, or require your Instagram login credentials.' },
+            { q: 'Can I manage multiple Instagram accounts?', a: 'Yes. You can add multiple brands, each with their own Instagram handle, brand voice settings, competitor tracking, and analytics. Content is generated specifically for each brand.' },
+            { q: 'How does scheduling work?', a: 'We integrate with Buffer for scheduling. Connect your Buffer account in Settings, then schedule posts directly from the Create or Batch pages with one click.' },
+            { q: 'Do I own the content I create?', a: 'Absolutely. You retain full ownership of all content generated through GoViraleza. See our Terms of Service for details.' },
+          ].map((item) => (
+            <div key={item.q} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6">
+              <h3 className="text-base font-bold text-white mb-2">{item.q}</h3>
+              <p className="text-sm text-zinc-400 leading-relaxed">{item.a}</p>
+            </div>
+          ))}
         </div>
       </section>
 
