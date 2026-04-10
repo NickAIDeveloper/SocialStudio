@@ -459,47 +459,50 @@ export async function createInstagramImageWithText(
     .jpeg({ quality: 95 })
     .toBuffer();
 
-  // Build overlay: dark tint (SVG) + text (separate SVG with foreignObject for reliable rendering)
-  const lines = wrapText(overlayText, 20);
+  // Render text using sharp's native text input (Pango-based, works on Vercel)
   const colors = BRAND_STYLES[brand] || BRAND_STYLES.affectly;
-  const lineHeight = fontSize * 1.35;
-  const textBlockH = lines.length * lineHeight;
-  const pad = Math.round(width * 0.10);
-
-  let textY: number;
-  switch (textPosition) {
-    case 'top': textY = pad; break;
-    case 'bottom': textY = height - pad - textBlockH; break;
-    default: textY = (height - textBlockH) / 2; break;
-  }
 
   // Dark overlay tint
   const tintSvg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
     <rect width="${width}" height="${height}" fill="rgba(0,0,0,0.50)"/>
-    <line x1="${width / 2 - 60}" y1="${textY - 16}" x2="${width / 2 + 60}" y2="${textY - 16}" stroke="${colors.accent}" stroke-width="3" stroke-linecap="round"/>
   </svg>`;
 
-  // Text as separate SVG using foreignObject (renders via Pango on Vercel)
-  const textContent = lines.map(l => escapeXml(l)).join('<br/>');
-  const textSvg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-    <foreignObject x="${pad}" y="${textY}" width="${width - pad * 2}" height="${textBlockH + 40}">
-      <div xmlns="http://www.w3.org/1999/xhtml" style="
-        color: white;
-        font-size: ${fontSize}px;
-        font-family: sans-serif;
-        font-weight: 400;
-        text-align: center;
-        line-height: ${lineHeight}px;
-        text-shadow: 0 3px 6px rgba(0,0,0,0.5);
-        letter-spacing: 0.5px;
-      ">${textContent}</div>
-    </foreignObject>
-  </svg>`;
+  // Create text image using sharp's text input
+  const textImage = await sharp({
+    text: {
+      text: `<span foreground="white" font_size="${fontSize * 1000}">${escapeXml(overlayText)}</span>`,
+      rgba: true,
+      width: width - 200,
+      align: 'center',
+    },
+  })
+    .png()
+    .toBuffer();
+
+  // Get text dimensions for positioning
+  const textMeta = await sharp(textImage).metadata();
+  const textW = textMeta.width || 400;
+  const textH = textMeta.height || 100;
+
+  let textTop: number;
+  switch (textPosition) {
+    case 'top': textTop = 100; break;
+    case 'bottom': textTop = height - textH - 100; break;
+    default: textTop = Math.max(0, Math.floor((height - textH) / 2)); break;
+  }
+  const textLeft = Math.max(0, Math.floor((width - textW) / 2));
+
+  // Add text shadow by compositing a darkened version first
+  const shadowImage = await sharp(textImage)
+    .modulate({ brightness: 0 })
+    .ensureAlpha(0.4)
+    .toBuffer();
 
   const imageWithText = await sharp(squareImage)
     .composite([
       { input: Buffer.from(tintSvg), top: 0, left: 0 },
-      { input: Buffer.from(textSvg), top: 0, left: 0 },
+      { input: shadowImage, top: textTop + 3, left: textLeft + 3, blend: 'over' },
+      { input: textImage, top: textTop, left: textLeft, blend: 'over' },
     ])
     .jpeg({ quality: 95 })
     .toBuffer();
