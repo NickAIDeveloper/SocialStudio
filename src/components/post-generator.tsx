@@ -1128,8 +1128,8 @@ export function PostGenerator() {
                       unoptimized={!!(isCarousel ? processedCarouselUrls[carouselIndex] : processedImageUrl)}
                       sizes="400px"
                     />
-                    {/* Text overlay preview — shows style hint before processing */}
-                    {overlayEnabled && overlayText && !(isCarousel ? processedCarouselUrls[carouselIndex] : processedImageUrl) && (
+                    {/* Text overlay preview — always shown when overlay is enabled */}
+                    {overlayEnabled && overlayText && (
                       <div className={`absolute inset-x-0 ${TEXT_POSITION_CLASSES[textPosition]} p-4`}>
                         <div className={`rounded-lg p-3 ${
                           overlayStyle === 'bold-card'

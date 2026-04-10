@@ -58,18 +58,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const processedImage = overlayText
-      ? await createInstagramImageWithText(
-          imageUrl,
-          brand,
-          overlayText,
-          textPosition || 'center',
-          textColor || '#FFFFFF',
-          fontSize || 64,
-          overlayStyle || 'editorial',
-          logoUrl
-        )
-      : await createInstagramImage(imageUrl, brand, logoUrl);
+    // Always use base image processing (logo + tint). Hook text is rendered
+    // as a client-side CSS overlay in the preview since SVG text rendering
+    // is not reliable on serverless platforms.
+    const processedImage = await createInstagramImage(imageUrl, brand, logoUrl);
 
     return new NextResponse(new Uint8Array(processedImage), {
       headers: {
