@@ -568,10 +568,10 @@ export async function createInstagramImageWithText(
   // Target: text should occupy roughly the same visual proportion as the CSS preview
   const charCount = overlayText.length;
   let scaledFontSize: number;
-  if (charCount <= 20) scaledFontSize = Math.min(fontSize, 110);
-  else if (charCount <= 35) scaledFontSize = Math.min(fontSize, 90);
-  else if (charCount <= 50) scaledFontSize = Math.min(fontSize, 72);
-  else scaledFontSize = Math.min(fontSize, 58);
+  if (charCount <= 20) scaledFontSize = 110;
+  else if (charCount <= 35) scaledFontSize = 90;
+  else if (charCount <= 50) scaledFontSize = 72;
+  else scaledFontSize = 58;
 
   // Create text image using sharp's text input (Pango rendering)
   const textImage = await sharp({
