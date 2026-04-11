@@ -1,6 +1,6 @@
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const REPO_OWNER = 'NickAIDeveloper';
-const REPO_NAME = 'GoViraleza';
+const REPO_NAME = 'SocialStudio';
 const BRANCH = 'main';
 
 interface UploadResult {
