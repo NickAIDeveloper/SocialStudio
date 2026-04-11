@@ -564,6 +564,15 @@ export async function createInstagramImageWithText(
     <rect width="${width}" height="${height}" fill="rgba(0,0,0,0.50)"/>
   </svg>`;
 
+  // Scale font size based on text length so short hooks don't dominate the image
+  // Target: text should occupy roughly the same visual proportion as the CSS preview
+  const charCount = overlayText.length;
+  let scaledFontSize: number;
+  if (charCount <= 20) scaledFontSize = Math.min(fontSize, 48);
+  else if (charCount <= 35) scaledFontSize = Math.min(fontSize, 40);
+  else if (charCount <= 50) scaledFontSize = Math.min(fontSize, 34);
+  else scaledFontSize = Math.min(fontSize, 28);
+
   // Create text image using sharp's text input (Pango rendering)
   const textImage = await sharp({
     text: {
@@ -571,8 +580,8 @@ export async function createInstagramImageWithText(
       rgba: true,
       width: width - 200,
       align: 'center',
-      font: `sans ${fontSize}`,
-      dpi: 150,
+      font: `sans ${scaledFontSize}`,
+      dpi: 72,
     },
   })
     .png()
