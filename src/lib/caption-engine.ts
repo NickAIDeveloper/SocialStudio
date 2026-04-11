@@ -48,7 +48,7 @@ export function sanitizeHook(text: string): string {
     .replace(/\s+\d+\.?\s*$/, '')                        // strip trailing "1." or "1"
     .replace(/\s{2,}/g, ' ')                             // collapse whitespace
     .trim()
-    .slice(0, 45);                                       // max 45 chars
+    .slice(0, 60);                                       // max 60 chars
 }
 
 export function sanitizeHashtags(text: string): string {
@@ -258,19 +258,19 @@ export function extractHookText(caption: string): string {
     return hook.substring(0, questionMark + 1);
   }
 
-  // Truncate to max 45 chars at a word boundary for clean display
-  if (hook.length > 45) {
+  // Truncate to max 60 chars at a word boundary for clean display
+  if (hook.length > 60) {
     // Try to find a natural break (comma, period) first
     const comma = hook.indexOf(',');
-    if (comma > 10 && comma <= 45) {
+    if (comma > 10 && comma <= 60) {
       return hook.substring(0, comma);
     }
     const period = hook.indexOf('.');
-    if (period > 10 && period <= 45) {
+    if (period > 10 && period <= 60) {
       return hook.substring(0, period);
     }
     // Otherwise truncate at word boundary
-    const truncated = hook.substring(0, 45);
+    const truncated = hook.substring(0, 60);
     const lastSpace = truncated.lastIndexOf(' ');
     return lastSpace > 10 ? truncated.substring(0, lastSpace) : truncated;
   }
