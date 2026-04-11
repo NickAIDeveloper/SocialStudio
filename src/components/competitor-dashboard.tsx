@@ -209,7 +209,7 @@ export function CompetitorDashboard() {
         }
       }
 
-      // Scan all tracked competitors
+      // Quick sync: get follower counts for all accounts
       setScanMessage('Scanning Instagram profiles...');
       const syncRes = await fetch('/api/sync', {
         method: 'POST',
@@ -221,7 +221,28 @@ export function CompetitorDashboard() {
       const scraped = ig?.accountsSynced ?? 0;
 
       await fetchCompetitors();
-      setScanMessage(`Done! Scanned ${scraped} accounts. Generating AI analysis...`);
+      setScanMessage(`Profiles synced (${scraped}). Now deep scanning for post data...`);
+
+      // Deep scan each competitor for actual post engagement data
+      const compHandles = competitors.map(c => c.handle);
+      for (let i = 0; i < compHandles.length; i++) {
+        const h = compHandles[i];
+        setScanMessage(`Deep scanning @${h} (${i + 1}/${compHandles.length})...`);
+        try {
+          const res = await fetch('/api/competitors/scrape', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ handle: h }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setAnalyses(prev => ({ ...prev, [h]: data }));
+          }
+        } catch { /* skip failed */ }
+      }
+
+      await fetchCompetitors();
+      setScanMessage(`Done! Scanned ${scraped} profiles + ${compHandles.length} deep scans. Generating AI analysis...`);
       void fetchAiInsights();
       void fetchComputedInsights();
     } catch (err) {

@@ -667,31 +667,29 @@ export function BatchGallery() {
           >
             {/* Image preview */}
             <div className="relative aspect-square bg-zinc-800/40">
-              {post.processedImageUrl ? (
-                <Image
-                  src={post.processedImageUrl}
-                  alt="Post preview"
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
-              ) : post.imageUrl ? (
-                <div className="relative w-full h-full">
+              {(post.processedImageUrl || post.imageUrl) ? (
+                <>
                   <Image
-                    src={post.imageUrl}
+                    src={post.processedImageUrl || post.imageUrl!}
                     alt="Post preview"
                     fill
                     className="object-cover"
                     unoptimized
                   />
-                  {/* Approximate overlay preview */}
-                  <div className="absolute inset-0 bg-black/30" />
-                  <div className="absolute inset-0 flex items-center justify-center p-4">
-                    <p className="text-white text-center font-serif text-sm leading-snug drop-shadow-lg">
-                      {post.hookText}
-                    </p>
-                  </div>
-                </div>
+                  {/* Hook text CSS overlay (editorial style) */}
+                  {post.hookText && (
+                    <>
+                      <div className="absolute inset-0 bg-black/50" />
+                      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 p-6 flex flex-col items-center">
+                        <p className="relative text-center leading-tight text-white drop-shadow-lg font-serif tracking-wide"
+                           style={{ fontSize: '20px' }}>
+                          {post.hookText}
+                        </p>
+                        <div className="w-16 h-0.5 bg-teal-400 rounded-full mt-3" />
+                      </div>
+                    </>
+                  )}
+                </>
               ) : isGenerating ? (
                 <div className="flex items-center justify-center h-full">
                   <span className="w-6 h-6 border-2 border-zinc-600 border-t-zinc-400 rounded-full animate-spin" />

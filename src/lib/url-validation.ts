@@ -9,6 +9,10 @@ const ALLOWED_IMAGE_HOSTS = new Set([
 ]);
 
 export function assertAllowedImageUrl(url: string): void {
+  // Allow inline data URIs (e.g. from Gemini AI image generation) — no external fetch, no SSRF risk
+  if (url.startsWith('data:image/')) {
+    return;
+  }
   let parsed: URL;
   try {
     parsed = new URL(url);

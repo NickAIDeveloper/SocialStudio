@@ -518,9 +518,8 @@ export default function AnalyticsDashboard() {
     }
   }, [selectedBrand]);
 
+  // Load profile stats once on mount (all own accounts — filtered at display time)
   useEffect(() => {
-    fetchInsights(false);
-    // Load last-known profile stats from DB
     fetch('/api/sync')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -537,6 +536,11 @@ export default function AnalyticsDashboard() {
         }
       })
       .catch(() => {});
+  }, []);
+
+  // Refresh insights when selected brand changes
+  useEffect(() => {
+    fetchInsights(false);
   }, [fetchInsights]);
 
   if (status === 'loading') {

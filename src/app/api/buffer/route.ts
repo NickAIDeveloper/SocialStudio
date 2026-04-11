@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Default: createPost (schedule to channel)
-    const { channelId, organizationId, text, imageUrl, brand, brandId, overlayText, textPosition, fontSize, overlayStyle, scheduledAt, mode } = body;
+    const { channelId, organizationId, text, imageUrl, brand, brandId, overlayText, textPosition, fontSize, overlayStyle, imageEffect, scheduledAt, mode } = body;
     if (!channelId || !text) {
       return NextResponse.json({ error: 'channelId and text are required' }, { status: 400 });
     }
@@ -163,15 +163,16 @@ export async function POST(request: NextRequest) {
             logoUrl
           );
         } else {
-          processedBuffer = await createInstagramImage(imageUrl, brand, logoUrl);
+          processedBuffer = await createInstagramImage(imageUrl, brand, logoUrl, imageEffect || 'none');
         }
         const fileName = `buffer-${Date.now()}.jpg`;
         const upload = await uploadImageToGitHub(processedBuffer, fileName);
         imageUrls = [upload.url];
       } catch (imgErr) {
-        console.error('Image processing failed:', imgErr instanceof Error ? imgErr.message : imgErr);
+        const errMsg = imgErr instanceof Error ? imgErr.message : String(imgErr);
+        console.error('Image processing failed:', errMsg, imgErr instanceof Error ? imgErr.stack : '');
         return NextResponse.json(
-          { error: 'Image processing failed. Please try again or use a different image.' },
+          { error: `Image processing failed: ${errMsg}` },
           { status: 422 }
         );
       }

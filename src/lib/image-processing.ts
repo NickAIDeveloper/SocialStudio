@@ -4,6 +4,20 @@ import fs from 'fs/promises';
 import { assertAllowedImageUrl } from '@/lib/url-validation';
 import type { Brand } from '@/lib/domain-types';
 
+/** Resolve an image URL to a Buffer — handles both data URIs and HTTPS URLs. */
+async function fetchImageBuffer(imageUrl: string): Promise<Buffer> {
+  if (imageUrl.startsWith('data:image/')) {
+    const base64Data = imageUrl.split(',')[1];
+    if (!base64Data) throw new Error('Invalid data URI: missing base64 payload');
+    return Buffer.from(base64Data, 'base64');
+  }
+  const response = await fetch(imageUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.status}`);
+  }
+  return Buffer.from(await response.arrayBuffer());
+}
+
 const LOGOS_DIR = path.join(process.cwd(), 'public', 'logos');
 
 // In-memory cache for downloaded logo buffers (keyed by URL)
@@ -211,12 +225,7 @@ export async function createInstagramImage(
   imageEffect: ImageEffect = 'none',
 ): Promise<Buffer> {
   assertAllowedImageUrl(imageUrl);
-  const response = await fetch(imageUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch image: ${response.status}`);
-  }
-
-  const imageBuffer = Buffer.from(await response.arrayBuffer());
+  const imageBuffer = await fetchImageBuffer(imageUrl);
 
   const width = 1080;
   const height = 1080;
@@ -534,12 +543,7 @@ export async function createInstagramImageWithText(
   logoUrl?: string | null
 ): Promise<Buffer> {
   assertAllowedImageUrl(imageUrl);
-  const response = await fetch(imageUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch image: ${response.status}`);
-  }
-
-  const imageBuffer = Buffer.from(await response.arrayBuffer());
+  const imageBuffer = await fetchImageBuffer(imageUrl);
 
   const width = 1080;
   const height = 1080;

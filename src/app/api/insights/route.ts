@@ -338,24 +338,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check cache
-    const [cached] = await db
-      .select()
-      .from(insightsCache)
-      .where(and(eq(insightsCache.userId, userId), eq(insightsCache.type, type)));
+    const brandId = searchParams.get('brandId');
 
-    if (cached && isCacheFresh(cached.computedAt)) {
-      const data = cached.data as { insights: InsightCard[]; summary?: string } | null;
-      return NextResponse.json({
-        insights: data?.insights ?? [],
-        healthScore: cached.healthScore ?? undefined,
-        summary: data?.summary ?? undefined,
-        computedAt: cached.computedAt.toISOString(),
-      });
+    // Check cache — skip for brand-specific analytics (cache is not brand-keyed)
+    if (!brandId) {
+      const [cached] = await db
+        .select()
+        .from(insightsCache)
+        .where(and(eq(insightsCache.userId, userId), eq(insightsCache.type, type)));
+
+      if (cached && isCacheFresh(cached.computedAt)) {
+        const data = cached.data as { insights: InsightCard[]; summary?: string } | null;
+        return NextResponse.json({
+          insights: data?.insights ?? [],
+          healthScore: cached.healthScore ?? undefined,
+          summary: data?.summary ?? undefined,
+          computedAt: cached.computedAt.toISOString(),
+        });
+      }
     }
 
     // Compute fresh
-    const brandId = searchParams.get('brandId');
     const result =
       type === 'analytics'
         ? await computeAnalytics(userId, brandId)
