@@ -20,19 +20,21 @@ export async function POST(request: NextRequest) {
     // Step 1: Generate the ideal search term based on caption
     let searchTerm = '';
     if (!images || images.length === 0) {
-      const searchPrompt = `You are picking stock photos for an Instagram post. Given this caption, generate the BEST single search term (2-4 words) to find a matching photo on Pixabay.
+      const searchPrompt = `You are picking stock photos for an Instagram post. Given this caption, generate the BEST single search term (2-4 words) to find a matching photo on Pixabay/Unsplash/Pexels.
 
 Caption: "${(caption ?? '').slice(0, 300)}"
 Brand: ${brand ?? 'unknown'}
 Content type: ${contentType ?? 'general'}
 
 Requirements:
-- The search term should find a visually striking, emotional photo
-- Avoid generic terms like "business" or "technology"
-- Think about what would look amazing as an Instagram post
-- The photo should complement the caption, not literally illustrate it
+- Extract the CORE SUBJECT or EMOTION from the caption
+- The search term must directly relate to what the caption is about
+- Use concrete, visual nouns (e.g. "woman journaling morning" not "self-improvement")
+- Avoid abstract/generic terms like "business", "technology", "success"
+- Think: what scene would visually MATCH this specific message?
+- If the caption mentions a specific activity, person, or setting, use that
 
-Return ONLY the search term, nothing else.`;
+Return ONLY the search term (2-4 words), nothing else.`;
 
       const termResult = await cerebrasChatCompletion(
         [{ role: 'user', content: searchPrompt }],

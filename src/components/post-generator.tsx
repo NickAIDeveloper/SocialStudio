@@ -672,8 +672,17 @@ export function PostGenerator() {
     const hook = sanitizeHook(extractHookText(newCaption));
     if (hook) setOverlayText(hook);
 
-    // Auto-search for a topic-aligned image via the ImageSourceSelector
-    const searchTerm = pickFreshQuery(randomBrand);
+    // Use AI to derive search term from caption + hook for better image alignment
+    let searchTerm = pickFreshQuery(randomBrand);
+    try {
+      const pickRes = await fetch('/api/images/pick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caption: newCaption, brand: randomBrand, contentType: randomType }),
+      });
+      const pickData = await pickRes.json();
+      if (pickData.searchTerm) searchTerm = pickData.searchTerm;
+    } catch { /* fall back to brand query */ }
     if (imageSelectorRef.current) {
       imageSelectorRef.current.triggerSearch(searchTerm);
     }
@@ -1053,6 +1062,11 @@ export function PostGenerator() {
           <h3 className="text-xs font-medium uppercase tracking-wider text-white">
             Find Images {isCarousel && <span className="text-teal-400 normal-case">(select up to 10 for carousel)</span>}
           </h3>
+          {caption.trim() && (
+            <p className="text-[10px] text-zinc-500">
+              Images are auto-matched to your caption. Hit Generate or search manually below.
+            </p>
+          )}
           <ImageSourceSelector
             ref={imageSelectorRef}
             onImagesLoaded={setImages}

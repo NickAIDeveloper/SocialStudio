@@ -304,18 +304,14 @@ export function BatchGallery() {
             if (pickData.searchTerm) query = pickData.searchTerm;
           } catch { /* fallback below */ }
 
-          // Fallback: extract 2-3 key words from the caption for image search
+          // Fallback: extract keywords from caption + hook for relevant search
           if (!query) {
-            const brandQueries = suggestedQueries[post.brand as keyof typeof suggestedQueries];
-            if (brandQueries && brandQueries.length > 0) {
-              const qIdx = (usedQueries[post.brand] ?? 0) % brandQueries.length;
-              usedQueries[post.brand] = (usedQueries[post.brand] ?? 0) + 1;
-              query = brandQueries[qIdx];
-            } else {
-              // Extract keywords from caption for relevant image search
-              const words = post.caption.split(/\s+/).filter((w: string) => w.length > 4 && !w.startsWith('#') && !w.startsWith('@'));
-              query = words.slice(0, 3).join(' ') || post.brand;
-            }
+            const source = `${post.hookText} ${post.caption}`;
+            const stopWords = new Set(['about','after','being','could','every','their','these','thing','think','those','would','which','while','your','from','have','into','just','know','like','make','more','most','much','only','over','some','such','take','than','that','them','then','they','this','very','want','what','when','will','with']);
+            const words = source.split(/\s+/)
+              .map((w: string) => w.replace(/[^a-zA-Z]/g, '').toLowerCase())
+              .filter((w: string) => w.length > 3 && !stopWords.has(w) && !w.startsWith('#'));
+            query = words.slice(0, 3).join(' ') || post.brand;
           }
 
           const response = await fetch(`/api/images?source=all&q=${encodeURIComponent(query)}`);
