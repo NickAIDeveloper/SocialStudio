@@ -88,6 +88,7 @@ async function computeAnalytics(userId: string, brandId?: string | null): Promis
   if (brandId) {
     const [brand] = await db.select().from(brands).where(and(eq(brands.userId, userId), eq(brands.id, brandId))).limit(1);
     brandHandle = brand?.instagramHandle ?? null;
+    console.log(`[Insights] Brand filter: brandId=${brandId}, resolved handle="${brandHandle}"`);
   }
 
   // 1. Fetch Buffer-scheduled posts with analytics (filtered by brand)
@@ -117,13 +118,22 @@ async function computeAnalytics(userId: string, brandId?: string | null): Promis
   );
 
   // 2. Fetch scraped Instagram posts (own accounts only — filtered by brand handle)
+  // STRICT: when a brand is selected, ONLY show that brand's scraped posts
   const scrapedConditions = [
     eq(scrapedPosts.userId, userId),
     eq(scrapedAccounts.isCompetitor, false),
   ];
-  if (brandHandle) scrapedConditions.push(eq(scrapedAccounts.handle, brandHandle));
+  if (brandId) {
+    if (!brandHandle) {
+      // Brand selected but has no Instagram handle — no scraped data to show
+      console.log(`[Insights] Brand ${brandId} has no instagramHandle, skipping scraped posts`);
+    } else {
+      scrapedConditions.push(eq(scrapedAccounts.handle, brandHandle));
+    }
+  }
 
-  const ownScrapedRows = await db
+  // Skip scraped query entirely if brand selected but has no handle
+  const ownScrapedRows = (brandId && !brandHandle) ? [] : await db
     .select({
       post: scrapedPosts,
       handle: scrapedAccounts.handle,
