@@ -256,17 +256,24 @@ SCROLL-STOPPING HOOK RULES (this is the most important part):
 CAPTION RULES:
 - Under 80 words. Dense with value. Every sentence earns the next.
 - First line must hook HARD. Create a "wait, what?" reaction.
-- Middle delivers insight using real data or surprising truth.
 - End with a specific CTA. Never say "download" (this is a web app). Say "try it free", "link in bio", "save this", etc.
 - No hashtags in caption body. No dashes or hyphens. No markdown. No emojis.
 - Write like a human who actually cares, not a marketing robot.
+
+ABSOLUTE RULE — NO FABRICATIONS:
+- NEVER invent statistics, percentages, or study results (e.g. "200% more retention" is BANNED).
+- NEVER claim "research shows" or "studies prove" unless the claim is common knowledge (e.g. "stress affects focus").
+- NEVER fabricate testimonials, user counts, or social proof.
+- If referencing a general concept, use soft language: "many people find that..." or "you might notice that..."
+- Only state product features that actually exist in the app. Do not invent features.
+- Stick to relatable truths and personal experiences, not fake science.
 
 Return ONLY valid JSON:
 {"caption":"full caption text","hashtags":"#tag1 #tag2 #tag3 #tag4 #tag5","hookText":"3-6 word scroll-stopping hook"}`;
 
     const content = await cerebrasChatCompletion(
       [
-        { role: 'system', content: `You are an elite Instagram growth strategist and copywriter. You write captions that stop the scroll, create emotional resonance, and drive action. You use frameworks like PAS (Pain-Agitate-Solution), AIDA (Attention-Interest-Desire-Action), and contrarian hooks. Every word earns its place. You NEVER use generic marketing language. You write like someone who genuinely understands the audience's daily struggles. Reply with ONLY a JSON object. No other text.` },
+        { role: 'system', content: `You are an elite Instagram growth strategist and copywriter. You write captions that stop the scroll, create emotional resonance, and drive action. You use frameworks like PAS (Pain-Agitate-Solution), AIDA (Attention-Interest-Desire-Action), and contrarian hooks. Every word earns its place. You NEVER use generic marketing language. You write like someone who genuinely understands the audience's daily struggles. CRITICAL: You NEVER fabricate statistics, study results, or percentages. You NEVER claim "research shows X%" unless it is widely known common knowledge. You use relatable truths, not fake science. Reply with ONLY a JSON object. No other text.` },
         { role: 'user', content: prompt },
       ],
       { temperature: 0.9, maxTokens: 600 },
