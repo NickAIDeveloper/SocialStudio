@@ -73,6 +73,29 @@ export function getHealthVerdict(score: number): { color: 'red' | 'amber' | 'gre
   return { color: 'red', label: 'Needs work' };
 }
 
+// ---------------------------------------------------------------------------
+// Engagement rate tier benchmarks (industry standard 2026)
+// ---------------------------------------------------------------------------
+
+export function getEngagementTier(followers: number): { name: string; avg: number } {
+  if (followers < 5000) return { name: '1K\u20135K (Nano)', avg: 3.0 };
+  if (followers < 20000) return { name: '5K\u201320K (Micro)', avg: 2.5 };
+  if (followers < 200000) return { name: '20K\u2013200K (Mid)', avg: 2.15 };
+  if (followers < 1000000) return { name: '200K\u20131M (Macro)', avg: 1.5 };
+  return { name: '1M+ (Mega)', avg: 0.24 };
+}
+
+export function getCompetitiveGrade(score: number): string {
+  if (score >= 90) return 'A+';
+  if (score >= 80) return 'A';
+  if (score >= 70) return 'B+';
+  if (score >= 60) return 'B';
+  if (score >= 50) return 'C+';
+  if (score >= 40) return 'C';
+  if (score >= 30) return 'D';
+  return 'F';
+}
+
 export function getHealthSummary(score: number, insights: InsightCard[]): string {
   const topInsight = insights[0];
   const verdict = getHealthVerdict(score);

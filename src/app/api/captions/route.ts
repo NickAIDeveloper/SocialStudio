@@ -163,74 +163,113 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const contentTypeExamples: Record<string, string> = {
+    const contentTypeGuide: Record<string, string> = {
       promo: `CONTENT TYPE: Promotional
-Write a promo post. Create urgency, highlight the key benefit, tell them how to get it.
-Example caption style:
-"Your focus is about to change.
+GOAL: Make them NEED to try the product RIGHT NOW.
+FRAMEWORK: PAS (Pain → Agitate → Solution). Open with a pain point they feel daily, twist the knife, then reveal the product as the answer.
+HOOK STYLE: Bold claim or "what if" that challenges their current reality.
+CTA: "Try it free" or "Link in bio" (NEVER say download, this is a web app).
+EXAMPLE:
+"You're studying the same way you did 10 years ago.
 
-Affectly adapts every lesson to how you're feeling right now. Stressed? Slower pace. Energized? Deeper content.
+Meanwhile your brain is begging for something different. It wants to learn at YOUR pace. In YOUR emotional state. On YOUR terms.
 
-No more one size fits all learning.
+${brandName} adapts every session to how you actually feel right now. Not how a textbook thinks you should feel.
 
-Download free today. Link in bio."`,
-      quote: `CONTENT TYPE: Quote
-Write a quote post. Share a powerful, original insight. The first line IS the quote. Make it shareable.
-Example caption style:
-"The best learning happens when you feel safe to fail.
+Try it free. Link in bio."`,
 
-Most apps push you harder when you struggle. Affectly does the opposite. It meets you where you are.
+      quote: `CONTENT TYPE: Quote / Insight
+GOAL: Create a screenshot-worthy moment. The first line should be so good people save it.
+FRAMEWORK: Contrarian truth — say something true that most people haven't articulated yet. Challenge conventional wisdom.
+HOOK STYLE: A truth bomb. Short. Punchy. Makes them stop and think "damn, that's true."
+CTA: "Save this" or "Tag someone who needs this."
+EXAMPLE:
+"Nobody taught you how to learn. They just told you to study harder.
 
-Double tap if you agree."`,
+That's like telling someone to run faster without fixing their form. More effort, worse results.
+
+The missing piece was never discipline. It was self awareness.
+
+Save this if you've ever blamed yourself for not studying enough."`,
+
       tip: `CONTENT TYPE: Tips / How-to
-Write a tips post. Use numbered steps. Each step is one clear sentence.
-Example caption style:
-"3 ways to study smarter, not harder.
+GOAL: Deliver immediate value. Each tip should feel like a small revelation, not obvious advice.
+FRAMEWORK: Open with a counterintuitive claim, then prove it with actionable steps. Each step should feel surprising or fresh.
+HOOK STYLE: Number + surprising benefit. "3 ways" is boring. "3 study tricks your professor never told you" creates curiosity.
+CTA: "Save this for your next session" or "Which one are you trying first?"
+EXAMPLE:
+"3 ways to remember anything after reading it once.
 
-1. Check your mood before you start. Your emotional state affects retention.
-2. Match your material to your energy. Complex topics when you're sharp, reviews when you're tired.
-3. Take a 2 minute reflection break between topics.
+1. Read it out loud in a weird accent. Your brain flags unusual experiences as important.
 
-Save this for later."`,
-      community: `CONTENT TYPE: Community
-Write a community post. Ask a genuine question. Share a relatable experience. Goal is comments.
-Example caption style:
-"What subject do you always avoid studying?
+2. Teach it to an empty chair. If you can't explain it simply, you don't know it yet.
 
-For me it was statistics. Until I realized my brain just needed a different approach on low energy days.
+3. Check your mood first. A stressed brain literally uses different pathways than a calm one.
 
-Tell me yours in the comments."`,
-      carousel: `CONTENT TYPE: Carousel
-Write a carousel teaser. Keep it short since the value is in the slides.
-Example caption style:
-"5 signs your study routine needs an upgrade. Swipe to find out.
+Save this. You'll need it."`,
 
-Save this guide for your next study session."`,
+      community: `CONTENT TYPE: Community / Engagement
+GOAL: Get comments. Create a post so relatable that people MUST respond.
+FRAMEWORK: Share a specific, vulnerable experience. Then ask a question that's easy to answer but feels personal.
+HOOK STYLE: "Be honest:" or "Unpopular opinion:" or a relatable confession.
+CTA: "Tell me yours" or "Drop your answer below."
+EXAMPLE:
+"Be honest. How many times have you re-read the same page because your mind was somewhere else?
+
+I used to think I was bad at studying. Turns out I was just ignoring how I was feeling before I started.
+
+Stressed brain + complex material = zero retention. Every time.
+
+When does this happen to you most? Tell me below."`,
+
+      carousel: `CONTENT TYPE: Carousel Teaser
+GOAL: Create irresistible curiosity to swipe. The caption teases, the slides deliver.
+FRAMEWORK: Promise a specific transformation or reveal. Use "swipe" naturally.
+HOOK STYLE: Specific claim + "Swipe to see how."
+CTA: "Save this guide" or "Share with someone who needs this."
+EXAMPLE:
+"The difference between studying for 4 hours and actually remembering it? One simple change.
+
+Swipe to see the method that changed everything.
+
+Save this for exam season."`,
     };
 
-    const prompt = `Write an Instagram caption for "${brandName}" (@${handle || brandName}).
+    const prompt = `You are a world-class Instagram copywriter for "${brandName}" (${handle || brandName}). Your captions consistently go viral.
 ${brandContext}
 
-${contentTypeExamples[contentType] || contentTypeExamples.promo}
+${contentTypeGuide[contentType] || contentTypeGuide.promo}
 
 ${competitorContext}
 ${ownPostContext}
 ${insightContext}
 ${brandVoiceContext}
 
-Write a UNIQUE post (variation ${variationSeed}). ${avoidTopics.length > 0 ? `Avoid these already-used themes: ${avoidTopics.slice(0, 5).join(', ')}.` : ''} Use a completely fresh angle.
+VARIATION SEED: ${variationSeed}. ${avoidTopics.length > 0 ? `AVOID these already-used themes: ${avoidTopics.slice(0, 5).join(', ')}.` : ''} Write from a completely fresh angle.
 
-Rules: Under 80 words. No hashtags in caption. No dashes or hyphens. No markdown. Natural English. End with a call to action.
+SCROLL-STOPPING HOOK RULES (this is the most important part):
+- The hookText appears as large text overlaid on the image. It MUST be 3-6 words max.
+- It must create an irresistible curiosity gap, a bold contrarian claim, or a pattern interrupt.
+- GREAT hooks: "Your study method is broken" / "Nobody talks about this" / "Stop doing this today" / "This changes everything"
+- BAD hooks: "Imperfect mastery" / "Learning matters" / "Study tips" (too vague, no emotion)
 
-Return valid JSON only:
-{"caption":"the full caption text","hashtags":"#${brandName} #tag2 #tag3 #tag4 #tag5","hookText":"3 to 5 word hook"}`;
+CAPTION RULES:
+- Under 80 words. Dense with value. Every sentence earns the next.
+- First line must hook HARD. Create a "wait, what?" reaction.
+- Middle delivers insight using real data or surprising truth.
+- End with a specific CTA. Never say "download" (this is a web app). Say "try it free", "link in bio", "save this", etc.
+- No hashtags in caption body. No dashes or hyphens. No markdown. No emojis.
+- Write like a human who actually cares, not a marketing robot.
+
+Return ONLY valid JSON:
+{"caption":"full caption text","hashtags":"#tag1 #tag2 #tag3 #tag4 #tag5","hookText":"3-6 word scroll-stopping hook"}`;
 
     const content = await cerebrasChatCompletion(
       [
-        { role: 'system', content: 'You write Instagram captions. Reply with only a JSON object. No other text.' },
+        { role: 'system', content: `You are an elite Instagram growth strategist and copywriter. You write captions that stop the scroll, create emotional resonance, and drive action. You use frameworks like PAS (Pain-Agitate-Solution), AIDA (Attention-Interest-Desire-Action), and contrarian hooks. Every word earns its place. You NEVER use generic marketing language. You write like someone who genuinely understands the audience's daily struggles. Reply with ONLY a JSON object. No other text.` },
         { role: 'user', content: prompt },
       ],
-      { temperature: 0.85, maxTokens: 600 },
+      { temperature: 0.9, maxTokens: 600 },
     );
 
     // Strip markdown fences and clean AI response

@@ -19,7 +19,7 @@ import type { InsightCard, PostData, CompetitorPostData } from '@/lib/health-sco
 // ---------------------------------------------------------------------------
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
-const NICHE_AVG_ENGAGEMENT = 50; // sensible default until we have niche data
+const DEFAULT_NICHE_AVG_ENGAGEMENT = 50;
 
 type InsightType = 'analytics' | 'competitors';
 
@@ -139,15 +139,40 @@ async function computeAnalytics(userId: string): Promise<CachedPayload> {
   }));
 
   // 3. Merge — scraped posts have real engagement, Buffer posts might not
-  // Prefer scraped data since it has actual likes/comments from Instagram
   const postData = scrapedPostData.length > 0 ? scrapedPostData : bufferPostData;
-
-  // If we have both, combine them (deduplicate by caption similarity)
   const allPostData = scrapedPostData.length > 0 && bufferPostData.length > 0
     ? [...scrapedPostData, ...bufferPostData.filter(bp => bp.likes > 0 || bp.comments > 0)]
     : postData;
 
-  const { insights, healthScore } = generateAnalyticsInsights(allPostData, NICHE_AVG_ENGAGEMENT);
+  // 4. Get follower count for engagement rate benchmarking
+  const ownAccounts = await db
+    .select()
+    .from(scrapedAccounts)
+    .where(and(eq(scrapedAccounts.userId, userId), eq(scrapedAccounts.isCompetitor, false)));
+  const followerCount = ownAccounts.reduce((max, a) => Math.max(max, a.followerCount ?? 0), 0);
+
+  // 5. Calculate dynamic niche avg from competitor data
+  const competitorAccountRows = await db
+    .select()
+    .from(scrapedAccounts)
+    .where(and(eq(scrapedAccounts.userId, userId), eq(scrapedAccounts.isCompetitor, true)));
+
+  let nicheAvg = DEFAULT_NICHE_AVG_ENGAGEMENT;
+  if (competitorAccountRows.length > 0) {
+    const compPostRows = await db
+      .select()
+      .from(scrapedPosts)
+      .innerJoin(scrapedAccounts, eq(scrapedPosts.accountId, scrapedAccounts.id))
+      .where(and(eq(scrapedPosts.userId, userId), eq(scrapedAccounts.isCompetitor, true)))
+      .limit(200);
+
+    if (compPostRows.length > 0) {
+      const compAvgEng = compPostRows.reduce((s, r) => s + r.scraped_posts.likes + r.scraped_posts.comments, 0) / compPostRows.length;
+      nicheAvg = Math.max(1, compAvgEng);
+    }
+  }
+
+  const { insights, healthScore } = generateAnalyticsInsights(allPostData, nicheAvg, followerCount);
   const summary = getHealthSummary(healthScore, insights);
   const computedAt = new Date().toISOString();
 
@@ -174,6 +199,12 @@ async function computeAnalytics(userId: string): Promise<CachedPayload> {
 }
 
 async function computeCompetitors(userId: string): Promise<CachedPayload> {
+  // Fetch competitor accounts with follower data
+  const competitorAccountRows = await db
+    .select()
+    .from(scrapedAccounts)
+    .where(and(eq(scrapedAccounts.userId, userId), eq(scrapedAccounts.isCompetitor, true)));
+
   // Fetch competitor scraped posts joined with scraped accounts
   const competitorRows = await db
     .select({
@@ -195,6 +226,26 @@ async function computeCompetitors(userId: string): Promise<CachedPayload> {
     mapScrapedToCompetitor(r.post, r.handle),
   );
 
+  // Fetch user's own account for comparison
+  const ownAccountRows = await db
+    .select()
+    .from(scrapedAccounts)
+    .where(and(eq(scrapedAccounts.userId, userId), eq(scrapedAccounts.isCompetitor, false)));
+  const ownAccount = ownAccountRows[0] ?? null;
+  const userAccountData = ownAccount ? {
+    handle: ownAccount.handle,
+    followerCount: ownAccount.followerCount ?? 0,
+    followingCount: ownAccount.followingCount ?? 0,
+    postCount: ownAccount.postCount ?? 0,
+  } : null;
+
+  const competitorAccountData = competitorAccountRows.map(a => ({
+    handle: a.handle,
+    followerCount: a.followerCount ?? 0,
+    followingCount: a.followingCount ?? 0,
+    postCount: a.postCount ?? 0,
+  }));
+
   // Also fetch user posts for comparison
   const userPostRows = await db
     .select()
@@ -213,11 +264,26 @@ async function computeCompetitors(userId: string): Promise<CachedPayload> {
 
   const analyticsMap = new Map(analyticsRows.map((a) => [a.postId, a]));
 
-  const userPosts: PostData[] = userPostRows.map((row) =>
+  // Also include scraped own posts (they have real engagement data)
+  const ownScrapedRows = ownAccount
+    ? await db.select().from(scrapedPosts).where(and(eq(scrapedPosts.userId, userId), eq(scrapedPosts.accountId, ownAccount.id))).orderBy(desc(scrapedPosts.scrapedAt)).limit(100)
+    : [];
+
+  const scrapedUserPosts: PostData[] = ownScrapedRows.map(r => ({
+    id: r.id, caption: r.caption ?? '', likes: r.likes, comments: r.comments,
+    saves: 0, shares: 0, reach: 0, impressions: 0,
+    hashtags: r.hashtags ? r.hashtags.split(',').map(t => t.trim()).filter(Boolean) : [],
+    contentType: r.isVideo ? 'reel' : 'image',
+    postedAt: r.postedAt ?? r.scrapedAt, brand: ownAccount?.handle ?? '',
+  }));
+
+  const bufferUserPosts: PostData[] = userPostRows.map((row) =>
     mapRowToPostData(row, analyticsMap.get(row.id)),
   );
 
-  const insights = generateCompetitorInsights(userPosts, competitorPosts);
+  const userPosts = scrapedUserPosts.length > 0 ? scrapedUserPosts : bufferUserPosts;
+
+  const insights = generateCompetitorInsights(userPosts, competitorPosts, userAccountData, competitorAccountData);
   const computedAt = new Date().toISOString();
 
   // Cache result (upsert)

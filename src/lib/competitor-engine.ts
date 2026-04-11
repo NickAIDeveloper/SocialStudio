@@ -1,4 +1,12 @@
 import type { InsightCard, PostData, CompetitorPostData } from './health-score';
+import { getCompetitiveGrade, getEngagementTier } from './health-score';
+
+export interface CompetitorAccount {
+  handle: string;
+  followerCount: number;
+  followingCount: number;
+  postCount: number;
+}
 
 // --- helpers ---
 
@@ -335,19 +343,250 @@ function hashtagOpportunityCard(
   };
 }
 
+// --- new insight generators: scorecard, you-vs-them, schedule, hashtag mining ---
+
+function buildCompetitiveScorecard(
+  competitorPosts: CompetitorPostData[],
+  competitorAccounts: CompetitorAccount[],
+): InsightCard | null {
+  if (competitorAccounts.length === 0) return null;
+
+  const byHandle = groupByHandle(competitorPosts);
+
+  const scorecards = competitorAccounts.map(acc => {
+    const cposts = byHandle[acc.handle] ?? [];
+    const hasData = cposts.length > 0 || acc.followerCount > 0;
+    const avgEng = cposts.length > 0
+      ? cposts.reduce((s, p) => s + getEngagement(p), 0) / cposts.length
+      : 0;
+    const engRate = acc.followerCount > 0 ? (avgEng / acc.followerCount) * 100 : 0;
+    const freq = postsPerWeek(cposts);
+
+    const tier = getEngagementTier(acc.followerCount);
+    const engScore = Math.min(100, (engRate / Math.max(0.1, tier.avg)) * 50);
+    const freqScore = Math.min(100, freq * 14.3);
+    const sizeScore = Math.min(100, Math.log10(Math.max(1, acc.followerCount)) * 20);
+    const totalScore = hasData ? Math.round(engScore * 0.5 + freqScore * 0.3 + sizeScore * 0.2) : -1;
+
+    return {
+      handle: acc.handle,
+      grade: hasData ? getCompetitiveGrade(totalScore) : 'N/A',
+      score: totalScore,
+      engagement: Math.round(engRate * 100) / 100,
+      postsPerWeek: Math.round(freq * 10) / 10,
+      followers: acc.followerCount,
+      avgLikes: cposts.length > 0 ? Math.round(cposts.reduce((s, p) => s + p.likes, 0) / cposts.length) : 0,
+      avgComments: cposts.length > 0 ? Math.round(cposts.reduce((s, p) => s + p.comments, 0) / cposts.length) : 0,
+      hasData,
+    };
+  }).sort((a, b) => b.score - a.score);
+
+  const top = scorecards[0];
+  if (!top) return null;
+
+  return {
+    id: 'competitive-scorecard',
+    priority: 3,
+    type: 'competitive-scorecard',
+    icon: 'Award',
+    title: `@${top.handle} leads with grade ${top.grade}`,
+    verdict: 'opportunity',
+    summary: `${scorecards.length} competitors scored. Top: @${top.handle} (${top.grade}), Bottom: @${scorecards[scorecards.length - 1]?.handle} (${scorecards[scorecards.length - 1]?.grade}).`,
+    action: `Study @${top.handle}'s strategy \u2014 they have the strongest overall performance.`,
+    data: { scorecards },
+  };
+}
+
+function buildYouVsThem(
+  userPosts: PostData[],
+  competitorPosts: CompetitorPostData[],
+  userAccount: CompetitorAccount | null,
+  competitorAccounts: CompetitorAccount[],
+): InsightCard | null {
+  if (!userAccount || competitorAccounts.length === 0) return null;
+
+  const byHandle = groupByHandle(competitorPosts);
+  const userAvgEng = userPosts.length > 0 ? userPosts.reduce((s, p) => s + (p.likes + p.comments), 0) / userPosts.length : 0;
+  const userEngRate = userAccount.followerCount > 0 ? (userAvgEng / userAccount.followerCount) * 100 : 0;
+  const userFreq = postsPerWeek(userPosts);
+
+  const you = {
+    handle: userAccount.handle,
+    followers: userAccount.followerCount,
+    engRate: Math.round(userEngRate * 100) / 100,
+    postsPerWeek: Math.round(userFreq * 10) / 10,
+    avgLikes: userPosts.length > 0 ? Math.round(userPosts.reduce((s, p) => s + p.likes, 0) / userPosts.length) : 0,
+    avgComments: userPosts.length > 0 ? Math.round(userPosts.reduce((s, p) => s + p.comments, 0) / userPosts.length) : 0,
+  };
+
+  const competitors = competitorAccounts.map(acc => {
+    const cposts = byHandle[acc.handle] ?? [];
+    const avgEng = cposts.length > 0 ? cposts.reduce((s, p) => s + getEngagement(p), 0) / cposts.length : 0;
+    return {
+      handle: acc.handle,
+      followers: acc.followerCount,
+      engRate: acc.followerCount > 0 ? Math.round((avgEng / acc.followerCount) * 10000) / 100 : 0,
+      postsPerWeek: Math.round(postsPerWeek(cposts) * 10) / 10,
+      avgLikes: cposts.length > 0 ? Math.round(cposts.reduce((s, p) => s + p.likes, 0) / cposts.length) : 0,
+      avgComments: cposts.length > 0 ? Math.round(cposts.reduce((s, p) => s + p.comments, 0) / cposts.length) : 0,
+    };
+  });
+
+  let wins = 0;
+  for (const comp of competitors) {
+    if (you.engRate > comp.engRate) wins++;
+  }
+
+  const compAvgRate = competitors.length > 0 ? competitors.reduce((s, c) => s + c.engRate, 0) / competitors.length : 0;
+
+  return {
+    id: 'you-vs-them',
+    priority: 2,
+    type: 'you-vs-them',
+    icon: 'Swords',
+    title: wins > competitors.length / 2
+      ? `You beat ${wins}/${competitors.length} competitors on engagement`
+      : `${competitors.length - wins}/${competitors.length} competitors outperform you`,
+    verdict: wins > competitors.length / 2 ? 'positive' : 'negative',
+    summary: `Your engagement rate: ${you.engRate}% vs competitor avg: ${compAvgRate.toFixed(2)}%.`,
+    action: wins <= competitors.length / 2
+      ? 'Focus on engagement quality \u2014 study top competitors\' most-engaged posts.'
+      : 'Your engagement is strong. Focus on growth and consistency.',
+    data: { you, competitors },
+  };
+}
+
+function buildScheduleComparison(
+  userPosts: PostData[],
+  competitorPosts: CompetitorPostData[],
+): InsightCard | null {
+  if (userPosts.length < 3 || competitorPosts.length < 3) return null;
+
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const BLOCK_NAMES = ['Morning', 'Midday', 'Afternoon', 'Evening'];
+
+  function getBlock(hour: number): number {
+    if (hour >= 5 && hour < 11) return 0;
+    if (hour >= 11 && hour < 14) return 1;
+    if (hour >= 14 && hour < 18) return 2;
+    return 3;
+  }
+
+  const yourHeatmap: number[][] = Array.from({ length: 7 }, () => Array(4).fill(0) as number[]);
+  const compHeatmap: number[][] = Array.from({ length: 7 }, () => Array(4).fill(0) as number[]);
+
+  for (const p of userPosts) {
+    const d = new Date(p.postedAt);
+    yourHeatmap[d.getDay()][getBlock(d.getHours())]++;
+  }
+  for (const p of competitorPosts) {
+    const d = new Date(p.postedAt);
+    compHeatmap[d.getDay()][getBlock(d.getHours())]++;
+  }
+
+  const gaps: Array<{ day: string; time: string }> = [];
+  const opportunities: Array<{ day: string; time: string; compPosts: number }> = [];
+  const maxComp = Math.max(...compHeatmap.flat(), 1);
+
+  for (let d = 0; d < 7; d++) {
+    for (let t = 0; t < 4; t++) {
+      if (compHeatmap[d][t] === 0 && yourHeatmap[d][t] > 0) {
+        gaps.push({ day: DAY_NAMES[d], time: BLOCK_NAMES[t] });
+      }
+      if (compHeatmap[d][t] >= maxComp * 0.5 && yourHeatmap[d][t] === 0) {
+        opportunities.push({ day: DAY_NAMES[d], time: BLOCK_NAMES[t], compPosts: compHeatmap[d][t] });
+      }
+    }
+  }
+
+  return {
+    id: 'schedule-comparison',
+    priority: 3,
+    type: 'schedule-comparison',
+    icon: 'Clock',
+    title: gaps.length > 0
+      ? `${gaps.length} time slots where you post and competitors don't`
+      : 'Your schedule overlaps heavily with competitors',
+    verdict: gaps.length > 0 ? 'positive' : 'opportunity',
+    summary: gaps.length > 0
+      ? `Low-competition windows: ${gaps.slice(0, 3).map(g => `${g.day} ${g.time}`).join(', ')}.`
+      : 'Consider posting at different times to stand out.',
+    action: gaps.length > 0
+      ? `Schedule important content for ${gaps[0]?.day} ${gaps[0]?.time} \u2014 no competitors post then.`
+      : opportunities.length > 0
+        ? `Try posting on ${opportunities[0]?.day} ${opportunities[0]?.time} \u2014 competitors get traction there.`
+        : 'Experiment with different posting times to find your unique window.',
+    data: { yourHeatmap, compHeatmap, gaps, opportunities },
+  };
+}
+
+function buildHashtagMining(
+  userPosts: PostData[],
+  competitorPosts: CompetitorPostData[],
+  competitorAccounts: CompetitorAccount[],
+): InsightCard | null {
+  const userTags = new Set(userPosts.flatMap(p => p.hashtags.map(t => t.toLowerCase().replace(/^#/, ''))));
+  const byHandle = groupByHandle(competitorPosts);
+
+  const tagData: Record<string, { usedBy: Set<string>; totalEng: number; count: number }> = {};
+  for (const p of competitorPosts) {
+    const eng = getEngagement(p);
+    for (const rawTag of p.hashtags) {
+      const tag = rawTag.toLowerCase().replace(/^#/, '');
+      if (userTags.has(tag)) continue;
+      const entry = tagData[tag] ?? { usedBy: new Set(), totalEng: 0, count: 0 };
+      entry.usedBy.add(p.handle);
+      entry.totalEng += eng;
+      entry.count += 1;
+      tagData[tag] = entry;
+    }
+  }
+
+  const ranked = Object.entries(tagData)
+    .filter(([, v]) => v.count >= 2)
+    .map(([tag, v]) => ({
+      tag,
+      avgEng: Math.round(v.totalEng / v.count),
+      usedBy: Array.from(v.usedBy),
+      uses: v.count,
+    }))
+    .sort((a, b) => b.avgEng - a.avgEng)
+    .slice(0, 10);
+
+  if (ranked.length === 0) return null;
+
+  return {
+    id: 'hashtag-mining',
+    priority: 2,
+    type: 'hashtag-mining',
+    icon: 'Hash',
+    title: `${ranked.length} competitor hashtags you should steal`,
+    verdict: 'opportunity',
+    summary: `Top: #${ranked[0].tag} (avg ${ranked[0].avgEng} engagement, used by ${ranked[0].usedBy.length} competitors).`,
+    action: `Try adding #${ranked.slice(0, 3).map(t => t.tag).join(' #')} to your next posts.`,
+    data: { tags: ranked },
+  };
+}
+
 // --- main export ---
 
 export function generateCompetitorInsights(
   userPosts: PostData[],
   competitorPosts: CompetitorPostData[],
+  userAccount?: CompetitorAccount | null,
+  competitorAccounts?: CompetitorAccount[],
 ): InsightCard[] {
-  if (competitorPosts.length === 0) return [];
+  if (competitorPosts.length === 0 && (!competitorAccounts || competitorAccounts.length === 0)) return [];
 
   const limitedMode = competitorPosts.length < 3;
+  const accounts = competitorAccounts ?? [];
 
   const builders: Array<() => InsightCard | null> = [
+    () => buildYouVsThem(userPosts, competitorPosts, userAccount ?? null, accounts),
+    () => buildCompetitiveScorecard(competitorPosts, accounts),
     () => postingFrequencyCard(userPosts, competitorPosts),
     () => timingMismatchCard(userPosts, competitorPosts),
+    () => buildScheduleComparison(userPosts, competitorPosts),
   ];
 
   if (!limitedMode) {
@@ -356,6 +595,7 @@ export function generateCompetitorInsights(
       () => stealFormulaCard(userPosts, competitorPosts),
       () => marketGapCard(competitorPosts),
       () => hashtagOpportunityCard(userPosts, competitorPosts),
+      () => buildHashtagMining(userPosts, competitorPosts, accounts),
     );
   }
 

@@ -7,6 +7,7 @@ import {
   AreaChart, Area, CartesianGrid,
 } from 'recharts';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { PostAnalyzer } from '@/components/post-analyzer';
 import type { InsightCard as InsightCardType } from '@/lib/health-score';
 
 // ---------------------------------------------------------------------------
@@ -393,7 +394,7 @@ export default function AnalyticsDashboard() {
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [selectedBrand, setSelectedBrand] = useState<string>('all');
+  const [selectedBrand, setSelectedBrand] = useState<string>('');
   const [profileStats, setProfileStats] = useState<Array<{handle: string; followers: number; following: number; postCount: number}>>(() => {
     if (typeof window === 'undefined') return [];
     try { return JSON.parse(localStorage.getItem('ss_profileStats') ?? '[]'); } catch { return []; }
@@ -441,7 +442,11 @@ export default function AnalyticsDashboard() {
       const ig = json.results?.instagram;
       const buf = json.results?.buffer;
       const parts: string[] = [];
-      if (ig?.accountsSynced) parts.push(`${ig.accountsSynced} Instagram profiles synced (your accounts + competitors)`);
+      if (ig?.accountsSynced) {
+        const ownCount = (ig.profiles ?? []).length;
+        const compCount = ig.accountsSynced - ownCount;
+        parts.push(`Your Instagram profile synced${compCount > 0 ? ` + ${compCount} competitor profiles` : ''}`);
+      }
       if (ig?.postsSynced) parts.push(`${ig.postsSynced} posts found`);
       if (buf?.postsSynced) parts.push(`${buf.postsSynced} Buffer posts synced`);
       // Store profile stats from sync
@@ -465,7 +470,7 @@ export default function AnalyticsDashboard() {
     setAiLoading(true);
     setAiError(null);
     try {
-      const brandId = selectedBrand && selectedBrand !== 'all' ? selectedBrand : null;
+      const brandId = selectedBrand || null;
       const res = await fetch('/api/insights/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -615,6 +620,10 @@ export default function AnalyticsDashboard() {
   const momentum = findInsight('momentum');
   const topPost = findInsight('top-post');
   const worstPost = findInsight('worst-post');
+  const engBenchmark = findInsight('engagement-benchmark');
+  const consistency = findInsight('consistency-score');
+  const leaderboard = findInsight('post-leaderboard');
+  const captionPatterns = findInsight('caption-patterns');
 
   return (
     <div className="space-y-4">
@@ -707,11 +716,14 @@ export default function AnalyticsDashboard() {
         )}
       </div>
 
+      {/* Post Analyzer — analyze any of your Instagram posts */}
+      <PostAnalyzer />
+
       {/* Account Overview — profile stats from Instagram scraping */}
       {profileStats.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {profileStats
-            .filter(p => selectedBrand === 'all' || brands.find(b => b.id === selectedBrand)?.instagramHandle === p.handle)
+            .filter(p => !selectedBrand || brands.find(b => b.id === selectedBrand)?.instagramHandle === p.handle)
             .map(profile => {
               const brand = brands.find(b => b.instagramHandle === profile.handle);
               return (
@@ -756,6 +768,82 @@ export default function AnalyticsDashboard() {
                 </div>
               );
             })}
+        </div>
+      )}
+
+      {/* Key Metrics: Engagement Benchmark + Consistency + Caption Patterns */}
+      {(engBenchmark || consistency || captionPatterns) && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {engBenchmark && (
+            <VisualCard title="Engagement Rate">
+              <div className="space-y-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold" style={{ color: (engBenchmark.data.status as string) === 'above' ? COLORS.green : (engBenchmark.data.status as string) === 'at' ? COLORS.amber : COLORS.red }}>
+                    {engBenchmark.data.rate as number}%
+                  </span>
+                  <span className="text-sm text-zinc-400">your rate</span>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-400">Tier avg: {engBenchmark.data.tierAvg as number}%</span>
+                    <span className="text-zinc-400">{engBenchmark.data.tier as string}</span>
+                  </div>
+                  <div className="h-3 bg-zinc-800 rounded-full overflow-hidden relative">
+                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, ((engBenchmark.data.rate as number) / ((engBenchmark.data.tierAvg as number) * 2)) * 100)}%`, backgroundColor: (engBenchmark.data.status as string) === 'above' ? COLORS.green : (engBenchmark.data.status as string) === 'at' ? COLORS.amber : COLORS.red }} />
+                    <div className="absolute top-0 h-full w-0.5 bg-white/50" style={{ left: '50%' }} title="Tier average" />
+                  </div>
+                </div>
+                <div className="rounded-md bg-teal-500/10 border border-teal-500/20 px-3 py-2">
+                  <p className="text-xs text-teal-300">{engBenchmark.action}</p>
+                </div>
+              </div>
+            </VisualCard>
+          )}
+          {consistency && (
+            <VisualCard title="Posting Consistency">
+              <div className="space-y-3">
+                <div className="flex items-center gap-4">
+                  <div className="relative w-20 h-20">
+                    <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
+                      <circle cx="18" cy="18" r="15" fill="none" stroke="#27272a" strokeWidth="3" />
+                      <circle cx="18" cy="18" r="15" fill="none" stroke={(consistency.data.score as number) >= 70 ? COLORS.green : (consistency.data.score as number) >= 40 ? COLORS.amber : COLORS.red} strokeWidth="3" strokeDasharray={`${(consistency.data.score as number) * 0.94} 100`} strokeLinecap="round" />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-lg font-bold text-white">{consistency.data.score as number}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{consistency.data.postsPerWeek as number}/week</p>
+                    <p className="text-xs text-zinc-400">Every {consistency.data.avgInterval as number} days</p>
+                    <p className="text-xs text-zinc-500">{consistency.data.postsLast30 as number} posts last 30d</p>
+                  </div>
+                </div>
+                <div className="rounded-md bg-teal-500/10 border border-teal-500/20 px-3 py-2">
+                  <p className="text-xs text-teal-300">{consistency.action}</p>
+                </div>
+              </div>
+            </VisualCard>
+          )}
+          {captionPatterns && (
+            <VisualCard title="Caption Style Analysis">
+              <div className="space-y-2">
+                {(captionPatterns.data.patterns as Array<{type: string; label: string; count: number; avgEngagement: number; lift: number}>).map((p) => (
+                  <div key={p.type} className="flex items-center gap-2">
+                    <span className="text-[11px] text-zinc-300 w-20 shrink-0 truncate">{p.label}</span>
+                    <div className="flex-1 h-5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full flex items-center justify-end pr-1.5" style={{ width: `${Math.min(100, Math.max(15, 50 + p.lift / 2))}%`, backgroundColor: p.lift > 0 ? 'rgba(16,185,129,0.5)' : 'rgba(239,68,68,0.35)' }}>
+                        <span className="text-[9px] font-bold text-white">{p.lift > 0 ? '+' : ''}{p.lift}%</span>
+                      </div>
+                    </div>
+                    <span className="text-[9px] text-zinc-500 w-8 text-right">{p.count}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-md bg-teal-500/10 border border-teal-500/20 px-3 py-2 mt-3">
+                <p className="text-xs text-teal-300">{captionPatterns.action}</p>
+              </div>
+            </VisualCard>
+          )}
         </div>
       )}
 
@@ -843,6 +931,46 @@ export default function AnalyticsDashboard() {
             <p className="text-xs text-teal-300">{hashtags.action}</p>
           </div>
         </VisualCard>
+      )}
+
+      {/* Post Performance Leaderboard */}
+      {leaderboard && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <VisualCard title="Top Performers">
+            <div className="space-y-2">
+              {(leaderboard.data.top as Array<{caption: string; total: number; likes: number; comments: number; contentType: string}>).map((post, i) => (
+                <div key={i} className="flex items-center gap-3 rounded-lg bg-green-500/5 border border-green-500/10 px-3 py-2">
+                  <span className="text-base font-bold text-green-400 w-6">#{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-zinc-300 truncate">{post.caption || 'No caption'}</p>
+                    <p className="text-[10px] text-zinc-500">{post.contentType}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-white">{post.total}</p>
+                    <p className="text-[10px] text-zinc-400">{post.likes} likes {post.comments} comments</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </VisualCard>
+          <VisualCard title="Underperformers">
+            <div className="space-y-2">
+              {(leaderboard.data.bottom as Array<{caption: string; total: number; likes: number; comments: number; contentType: string}>).map((post, i) => (
+                <div key={i} className="flex items-center gap-3 rounded-lg bg-red-500/5 border border-red-500/10 px-3 py-2">
+                  <span className="text-base font-bold text-red-400/50 w-6">#{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-zinc-300 truncate">{post.caption || 'No caption'}</p>
+                    <p className="text-[10px] text-zinc-500">{post.contentType}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-white">{post.total}</p>
+                    <p className="text-[10px] text-zinc-400">{post.likes} likes {post.comments} comments</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </VisualCard>
+        </div>
       )}
 
       {/* Row 4: Top & Worst Posts side by side */}

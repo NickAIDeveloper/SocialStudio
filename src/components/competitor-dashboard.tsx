@@ -99,9 +99,6 @@ export function CompetitorDashboard() {
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [newHandle, setNewHandle] = useState('');
-  const [adding, setAdding] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
@@ -117,6 +114,8 @@ export function CompetitorDashboard() {
     try { return JSON.parse(localStorage.getItem('ss_compAiInsights') ?? '[]'); } catch { return []; }
   });
   const [aiLoading, setAiLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [computedInsights, setComputedInsights] = useState<any[]>([]);
 
   const selectedBrand = brands.find(b => b.id === selectedBrandId);
   const ownHandles = brands.map(b => b.instagramHandle).filter(Boolean);
@@ -224,6 +223,7 @@ export function CompetitorDashboard() {
       await fetchCompetitors();
       setScanMessage(`Done! Scanned ${scraped} accounts. Generating AI analysis...`);
       void fetchAiInsights();
+      void fetchComputedInsights();
     } catch (err) {
       setScanMessage(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
@@ -258,22 +258,8 @@ export function CompetitorDashboard() {
     await fetchCompetitors();
     setScanMessage(`Done! Scraped ${handles.length} competitors. Generating AI analysis...`);
     setScanning(false);
-    // Auto-generate AI insights after scan
     void fetchAiInsights();
-  };
-
-  // Add
-  const handleAdd = async () => {
-    const handle = newHandle.trim().replace(/^@/, '');
-    if (!HANDLE_REGEX.test(handle)) return;
-    setAdding(true);
-    try {
-      await fetch('/api/competitors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ handle, brandId: selectedBrandId || undefined }) });
-      setNewHandle('');
-      setShowAdd(false);
-      await fetchCompetitors();
-    } catch { /* silent */ }
-    finally { setAdding(false); }
+    void fetchComputedInsights();
   };
 
   // Remove
@@ -321,6 +307,27 @@ export function CompetitorDashboard() {
     }
     finally { setAiLoading(false); }
   };
+
+  // Load computed competitor insights (scorecard, you-vs-them, hashtag mining, etc.)
+  const fetchComputedInsights = async () => {
+    try {
+      const res = await fetch('/api/insights?type=competitors', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setComputedInsights(data.insights ?? []);
+      }
+    } catch { /* silent */ }
+  };
+
+  // Load cached computed insights on brand change
+  useEffect(() => {
+    if (selectedBrandId) {
+      fetch('/api/insights?type=competitors')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.insights) setComputedInsights(data.insights); })
+        .catch(() => {});
+    }
+  }, [selectedBrandId]);
 
   const toggleSuggestion = (h: string) => {
     setSelectedSuggestions(prev => { const n = new Set(prev); n.has(h) ? n.delete(h) : n.add(h); return n; });
@@ -379,8 +386,26 @@ export function CompetitorDashboard() {
         </div>
       )}
 
-      {/* Post Analyzer */}
-      <PostAnalyzer />
+      {/* Action bar */}
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={() => void handleAutoFind()}
+          disabled={scanning}
+          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-500 hover:to-teal-400 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2 shadow-lg transition-all"
+        >
+          {scanning ? (
+            <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {scanMessage || 'Scanning...'}</>
+          ) : competitors.length === 0 ? 'Find & Analyze Competitors' : 'Scan & Analyze'}
+        </button>
+      </div>
+
+      {/* Status message */}
+      {scanMessage && (
+        <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-2.5 text-sm text-blue-300 flex items-center justify-between">
+          <span>{scanMessage}</span>
+          <button onClick={() => setScanMessage(null)} className="text-blue-400 hover:text-white ml-2">&times;</button>
+        </div>
+      )}
 
       {/* AI Competitive Insights */}
       <div className="rounded-xl border border-purple-500/20 bg-zinc-900/60 p-5 space-y-4">
@@ -421,50 +446,8 @@ export function CompetitorDashboard() {
         )}
       </div>
 
-      {/* Action bar — 2 buttons max */}
-      <div className="flex flex-wrap gap-3">
-        <button
-          onClick={() => void handleAutoFind()}
-          disabled={scanning}
-          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-500 hover:to-teal-400 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2 shadow-lg transition-all"
-        >
-          {scanning ? (
-            <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {scanMessage || 'Scanning...'}</>
-          ) : competitors.length === 0 ? 'Find & Analyze Competitors' : 'Scan & Analyze'}
-        </button>
-        <button
-          onClick={() => { setShowAdd(prev => !prev); setSuggestions([]); }}
-          className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium border border-zinc-700 flex items-center gap-1.5"
-        >
-          <span className="text-lg leading-none">+</span> Add
-        </button>
-      </div>
-
-      {/* Status message */}
-      {scanMessage && (
-        <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-2.5 text-sm text-blue-300 flex items-center justify-between">
-          <span>{scanMessage}</span>
-          <button onClick={() => setScanMessage(null)} className="text-blue-400 hover:text-white ml-2">&times;</button>
-        </div>
-      )}
-
-      {/* Add input */}
-      {showAdd && (
-        <div className="flex gap-2 max-w-md">
-          <div className="flex flex-1 items-center">
-            <span className="flex h-[38px] items-center rounded-l-lg border border-r-0 border-zinc-300 bg-zinc-100 px-2 text-sm text-zinc-500">@</span>
-            <input
-              type="text" value={newHandle} onChange={(e) => setNewHandle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void handleAdd(); }}
-              placeholder="instagram_handle"
-              className="flex-1 h-[38px] rounded-r-lg border border-l-0 border-zinc-300 bg-white px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            />
-          </div>
-          <button onClick={() => void handleAdd()} disabled={adding} className="h-[38px] px-5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-medium disabled:opacity-50">
-            {adding ? 'Adding...' : 'Add'}
-          </button>
-        </div>
-      )}
+      {/* Post Analyzer */}
+      <PostAnalyzer />
 
       {/* Suggestions */}
       {suggestions.length > 0 && (
@@ -491,6 +474,119 @@ export function CompetitorDashboard() {
           </div>
         </div>
       )}
+
+      {/* You vs Competitors Comparison */}
+      {(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const youVsThem = computedInsights.find((i: any) => i.type === 'you-vs-them');
+        if (!youVsThem) return null;
+        const { you, competitors: comps } = youVsThem.data;
+        return (
+          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-5 overflow-x-auto">
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-teal-500" />
+              You vs Competitors
+            </h3>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[10px] text-zinc-400 uppercase tracking-wider">
+                  <th className="text-left pb-3 pr-4">Account</th>
+                  <th className="text-right pb-3 px-2">Followers</th>
+                  <th className="text-right pb-3 px-2">Eng Rate</th>
+                  <th className="text-right pb-3 px-2">Posts/Wk</th>
+                  <th className="text-right pb-3 px-2 hidden sm:table-cell">Avg Likes</th>
+                  <th className="text-right pb-3 pl-2 hidden md:table-cell">Avg Comments</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t border-teal-500/30 bg-teal-500/5">
+                  <td className="py-2.5 pr-4 font-semibold text-teal-400">@{you.handle} (You)</td>
+                  <td className="py-2.5 px-2 text-right text-white font-medium">{formatNum(you.followers)}</td>
+                  <td className="py-2.5 px-2 text-right font-bold text-teal-400">{you.engRate}%</td>
+                  <td className="py-2.5 px-2 text-right text-white">{you.postsPerWeek}</td>
+                  <td className="py-2.5 px-2 text-right text-white hidden sm:table-cell">{you.avgLikes}</td>
+                  <td className="py-2.5 pl-2 text-right text-white hidden md:table-cell">{you.avgComments}</td>
+                </tr>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {(comps as any[]).map((comp: {handle: string; followers: number; engRate: number; postsPerWeek: number; avgLikes: number; avgComments: number}) => (
+                  <tr key={comp.handle} className="border-t border-zinc-800/50 hover:bg-zinc-800/20 transition">
+                    <td className="py-2.5 pr-4 text-white">@{comp.handle}</td>
+                    <td className="py-2.5 px-2 text-right text-zinc-300">{formatNum(comp.followers)}</td>
+                    <td className="py-2.5 px-2 text-right font-medium" style={{ color: comp.engRate > you.engRate ? '#ef4444' : '#10b981' }}>{comp.engRate}%</td>
+                    <td className="py-2.5 px-2 text-right text-zinc-300">{comp.postsPerWeek}</td>
+                    <td className="py-2.5 px-2 text-right text-zinc-300 hidden sm:table-cell">{comp.avgLikes}</td>
+                    <td className="py-2.5 pl-2 text-right text-zinc-300 hidden md:table-cell">{comp.avgComments}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
+
+      {/* Competitive Scorecards */}
+      {(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const scorecard = computedInsights.find((i: any) => i.type === 'competitive-scorecard');
+        if (!scorecard) return null;
+        const cards = scorecard.data.scorecards as Array<{handle: string; grade: string; score: number; engagement: number; postsPerWeek: number; followers: number; hasData?: boolean}>;
+        const gradeColors: Record<string, string> = { 'A+': '#10b981', 'A': '#10b981', 'B+': '#3b82f6', 'B': '#3b82f6', 'C+': '#f59e0b', 'C': '#f59e0b', 'D': '#ef4444', 'F': '#ef4444', 'N/A': '#52525b' };
+        return (
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              Competitive Scorecards
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {cards.map(card => (
+                <div key={card.handle} className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-4 text-center hover:border-zinc-700 transition">
+                  <div className="text-3xl font-black mb-1" style={{ color: gradeColors[card.grade] ?? '#a1a1aa' }}>{card.grade}</div>
+                  <p className="text-xs font-semibold text-white truncate">@{card.handle}</p>
+                  {card.hasData === false ? (
+                    <p className="text-[10px] text-zinc-500 mt-1">Scan to get data</p>
+                  ) : (
+                    <>
+                      <p className="text-[10px] text-zinc-400 mt-1">{card.engagement}% eng</p>
+                      <p className="text-[10px] text-zinc-400">{card.postsPerWeek}/week</p>
+                      <p className="text-[10px] text-zinc-500">{formatNum(card.followers)} followers</p>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Hashtags to Steal */}
+      {(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mining = computedInsights.find((i: any) => i.type === 'hashtag-mining');
+        if (!mining) return null;
+        const tags = mining.data.tags as Array<{tag: string; avgEng: number; usedBy: string[]; uses: number}>;
+        return (
+          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-5">
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
+              Hashtags to Steal
+            </h3>
+            <p className="text-xs text-zinc-400 mb-4">Competitor hashtags you&apos;re not using, ranked by their engagement</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {tags.slice(0, 8).map(t => (
+                <div key={t.tag} className="flex items-center gap-3 rounded-lg bg-teal-500/5 border border-teal-500/10 px-3 py-2">
+                  <span className="text-sm font-semibold text-teal-400 min-w-0 truncate">#{t.tag}</span>
+                  <span className="flex-1" />
+                  <span className="text-[10px] text-zinc-400 shrink-0">{t.avgEng} avg eng</span>
+                  <span className="text-[10px] text-zinc-500 shrink-0">{t.usedBy.length} comps</span>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md bg-teal-500/10 border border-teal-500/20 px-3 py-2 mt-3">
+              <p className="text-xs text-teal-300">{mining.action}</p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Follower comparison chart */}
       {chartData.length > 0 && (

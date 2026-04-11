@@ -1,5 +1,5 @@
 import type { InsightCard, PostData, HealthScoreInput } from './health-score';
-import { calculateHealthScore } from './health-score';
+import { calculateHealthScore, getEngagementTier } from './health-score';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -413,9 +413,10 @@ function detectPostReasons(post: PostData, posts: PostData[], isTop: boolean): s
 }
 
 function buildTopPost(posts: PostData[]): InsightCard | null {
-  if (posts.length < 2) return null;
+  const withEng = posts.filter(p => engagement(p) > 0);
+  if (withEng.length < 2) return null;
 
-  const sorted = [...posts].sort((a, b) => engagement(b) - engagement(a));
+  const sorted = [...withEng].sort((a, b) => engagement(b) - engagement(a));
   const top = sorted[0];
   const reasons = detectPostReasons(top, posts, true);
 
@@ -433,9 +434,10 @@ function buildTopPost(posts: PostData[]): InsightCard | null {
 }
 
 function buildWorstPost(posts: PostData[]): InsightCard | null {
-  if (posts.length < 2) return null;
+  const withEng = posts.filter(p => engagement(p) > 0);
+  if (withEng.length < 2) return null;
 
-  const sorted = [...posts].sort((a, b) => engagement(a) - engagement(b));
+  const sorted = [...withEng].sort((a, b) => engagement(a) - engagement(b));
   const worst = sorted[0];
   const reasons = detectPostReasons(worst, posts, false);
 
@@ -449,6 +451,173 @@ function buildWorstPost(posts: PostData[]): InsightCard | null {
     summary: `Your weakest post got ${engagement(worst)} total engagement (${worst.likes} likes, ${worst.comments} comments).`,
     action: 'Avoid repeating the patterns from this post. Check the reasons below.',
     data: { post: worst, reasons },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// New insight generators — engagement benchmark, consistency, leaderboard, patterns
+// ---------------------------------------------------------------------------
+
+function buildEngagementBenchmark(posts: PostData[], followerCount: number): InsightCard | null {
+  if (posts.length === 0 || followerCount === 0) return null;
+
+  const avgEng = safeDiv(posts.reduce((s, p) => s + engagement(p), 0), posts.length);
+  const rate = (avgEng / followerCount) * 100;
+  const tier = getEngagementTier(followerCount);
+  const status = rate >= tier.avg * 1.2 ? 'above' : rate >= tier.avg * 0.8 ? 'at' : 'below';
+
+  return {
+    id: 'engagement-benchmark',
+    priority: status === 'below' ? 1 : status === 'at' ? 5 : 7,
+    type: 'engagement-benchmark',
+    icon: '📊',
+    title: status === 'above'
+      ? `Your ${rate.toFixed(1)}% engagement beats the ${tier.name} average`
+      : status === 'at'
+        ? `Your ${rate.toFixed(1)}% engagement is on par with ${tier.name}`
+        : `Your ${rate.toFixed(1)}% engagement is below the ${tier.name} average`,
+    verdict: status === 'below' ? 'negative' : 'positive',
+    summary: `Accounts with ${followerCount.toLocaleString()} followers average ${tier.avg}% engagement. You're at ${rate.toFixed(2)}%.`,
+    action: status === 'below'
+      ? `Focus on creating more engaging content \u2014 aim for ${tier.avg}%+ engagement rate.`
+      : 'You\'re performing well for your size. Keep experimenting to stay ahead.',
+    data: {
+      rate: Math.round(rate * 100) / 100,
+      tierAvg: tier.avg,
+      tier: tier.name,
+      status,
+      followerCount,
+    },
+  };
+}
+
+function buildConsistencyScore(posts: PostData[]): InsightCard | null {
+  if (posts.length < 3) return null;
+
+  const now = Date.now();
+  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+  const recentPosts = posts
+    .filter(p => now - new Date(p.postedAt).getTime() < thirtyDays)
+    .sort((a, b) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
+
+  if (recentPosts.length < 2) return null;
+
+  const intervals: number[] = [];
+  for (let i = 1; i < recentPosts.length; i++) {
+    const diff = (new Date(recentPosts[i].postedAt).getTime() - new Date(recentPosts[i - 1].postedAt).getTime()) / (24 * 60 * 60 * 1000);
+    intervals.push(diff);
+  }
+
+  const avgInterval = safeDiv(intervals.reduce((s, v) => s + v, 0), intervals.length);
+  const variance = safeDiv(intervals.reduce((s, v) => s + Math.pow(v - avgInterval, 2), 0), intervals.length);
+  const stdDev = Math.sqrt(variance);
+  const consistencyRatio = safeDiv(stdDev, Math.max(1, avgInterval));
+  const score = Math.round(Math.max(0, Math.min(100, 100 - consistencyRatio * 50)));
+  const postsPerWeek = (recentPosts.length / 30) * 7;
+
+  return {
+    id: 'consistency-score',
+    priority: score < 40 ? 2 : score < 70 ? 4 : 6,
+    type: 'consistency-score',
+    icon: '📅',
+    title: score >= 70 ? 'Your posting is consistent' : score >= 40 ? 'Your posting schedule is irregular' : 'Your posting is very inconsistent',
+    verdict: score >= 70 ? 'positive' : score >= 40 ? 'opportunity' : 'negative',
+    summary: `You post every ${avgInterval.toFixed(1)} days on average (${postsPerWeek.toFixed(1)}/week), with ${score}/100 consistency.`,
+    action: score >= 70
+      ? 'Maintain your consistent schedule \u2014 the algorithm rewards regularity.'
+      : `Aim for every ${Math.round(avgInterval)} days consistently. Use a content calendar.`,
+    data: { score, avgInterval: Math.round(avgInterval * 10) / 10, stdDev: Math.round(stdDev * 10) / 10, postsLast30: recentPosts.length, postsPerWeek: Math.round(postsPerWeek * 10) / 10 },
+  };
+}
+
+function buildPostLeaderboard(posts: PostData[]): InsightCard | null {
+  const withEng = posts.filter(p => engagement(p) > 0);
+  if (withEng.length < 5) return null;
+
+  const sorted = [...withEng].sort((a, b) => engagement(b) - engagement(a));
+  const avgEng = safeDiv(withEng.reduce((s, p) => s + engagement(p), 0), withEng.length);
+
+  const mapPost = (p: PostData) => ({
+    caption: p.caption.slice(0, 120),
+    likes: p.likes,
+    comments: p.comments,
+    total: engagement(p),
+    contentType: p.contentType,
+    postedAt: p.postedAt,
+    hashtags: p.hashtags.slice(0, 5),
+  });
+
+  const top5 = sorted.slice(0, 5).map(mapPost);
+  const bottom5 = sorted.slice(-5).reverse().map(mapPost);
+  const topMultiplier = safeDiv(engagement(sorted[0]), avgEng);
+
+  return {
+    id: 'post-leaderboard',
+    priority: 4,
+    type: 'post-leaderboard',
+    icon: '🏅',
+    title: `Your best post got ${topMultiplier.toFixed(1)}x your average engagement`,
+    verdict: 'positive',
+    summary: `Top: ${engagement(sorted[0])} engagement. Worst: ${engagement(sorted[sorted.length - 1])}. Avg: ${Math.round(avgEng)}.`,
+    action: 'Study what your top posts have in common and avoid patterns from the bottom.',
+    data: { top: top5, bottom: bottom5, avgEngagement: Math.round(avgEng) },
+  };
+}
+
+function buildCaptionPatterns(posts: PostData[]): InsightCard | null {
+  if (posts.length < 5) return null;
+
+  const patterns: Record<string, PostData[]> = {
+    questions: [],
+    cta: [],
+    storytelling: [],
+    listicle: [],
+    short_punchy: [],
+  };
+
+  for (const p of posts) {
+    const lower = p.caption.toLowerCase();
+    if ((p.caption.match(/\?/g) ?? []).length >= 1) patterns.questions.push(p);
+    if (/\b(save|share|comment|tag|follow|link|tap|click|dm|grab)\b/i.test(lower)) patterns.cta.push(p);
+    if (/\b(i was|i remember|when i|my story|true story|one day)\b/i.test(lower)) patterns.storytelling.push(p);
+    if (/^\s*(\d+[\.\):]|[-\u2022])/m.test(p.caption) || /\btip[s]?\b/i.test(lower)) patterns.listicle.push(p);
+    if (wordCount(p.caption) < 30) patterns.short_punchy.push(p);
+  }
+
+  const avgEng = safeDiv(posts.reduce((s, p) => s + engagement(p), 0), posts.length);
+
+  const labels: Record<string, string> = {
+    questions: 'Questions',
+    cta: 'Call-to-Action',
+    storytelling: 'Storytelling',
+    listicle: 'Lists/Tips',
+    short_punchy: 'Short & Punchy',
+  };
+
+  const results = Object.entries(patterns)
+    .filter(([, arr]) => arr.length >= 2)
+    .map(([type, arr]) => {
+      const patternAvg = safeDiv(arr.reduce((s, p) => s + engagement(p), 0), arr.length);
+      const lift = avgEng > 0 ? Math.round(((patternAvg - avgEng) / avgEng) * 100) : 0;
+      return { type, label: labels[type] ?? type, count: arr.length, avgEngagement: Math.round(patternAvg), lift };
+    })
+    .sort((a, b) => b.lift - a.lift);
+
+  if (results.length === 0) return null;
+  const best = results[0];
+
+  return {
+    id: 'caption-patterns',
+    priority: 3,
+    type: 'caption-patterns',
+    icon: '✍️',
+    title: `${best.label} captions get ${best.lift > 0 ? '+' : ''}${best.lift}% engagement`,
+    verdict: best.lift > 10 ? 'positive' : 'opportunity',
+    summary: `Posts with ${best.label.toLowerCase()} patterns average ${best.avgEngagement} engagement across ${best.count} posts.`,
+    action: best.lift > 0
+      ? `Use more ${best.label.toLowerCase()} in your captions \u2014 they outperform your average.`
+      : 'Experiment with different caption styles to find what resonates.',
+    data: { patterns: results },
   };
 }
 
@@ -507,16 +676,21 @@ function deriveHealthScoreInput(
 export function generateAnalyticsInsights(
   posts: PostData[],
   nicheAvgEngagement: number,
+  followerCount: number = 0,
 ): { insights: InsightCard[]; healthScore: number } {
   if (posts.length === 0) {
     return { insights: [], healthScore: 0 };
   }
 
   const builders: Array<() => InsightCard | null> = [
+    () => buildEngagementBenchmark(posts, followerCount),
+    () => buildConsistencyScore(posts),
     () => buildBestContentType(posts),
     () => buildOptimalTiming(posts),
     () => buildHashtagHealth(posts),
     () => buildCaptionLength(posts),
+    () => buildPostLeaderboard(posts),
+    () => buildCaptionPatterns(posts),
     () => buildMomentum(posts),
     () => buildTopPost(posts),
     () => buildWorstPost(posts),

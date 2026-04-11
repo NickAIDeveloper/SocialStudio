@@ -58,27 +58,33 @@ export async function POST(request: NextRequest) {
         postedAt: p.postedAt?.toISOString() ?? '',
       }));
 
-      const prompt = `You are an Instagram analytics advisor. Analyze ONLY the real data below. Do NOT fabricate, estimate, or invent any numbers. Only reference data that is explicitly provided.
+      const followers = ownAccount?.followerCount ?? 0;
+      const avgLikes = postSummary.length > 0 ? Math.round(postSummary.reduce((s, p) => s + p.likes, 0) / postSummary.length) : 0;
+      const avgComments = postSummary.length > 0 ? Math.round(postSummary.reduce((s, p) => s + p.comments, 0) / postSummary.length) : 0;
+      const engRate = followers > 0 ? (((avgLikes + avgComments) / followers) * 100).toFixed(2) : 'unknown';
 
-Account: @${brand.instagramHandle ?? brand.name}
-Followers: ${ownAccount?.followerCount ?? 'no data'}
-Following: ${ownAccount?.followingCount ?? 'no data'}
-Total Posts: ${ownAccount?.postCount ?? 'no data'}
+      const prompt = `You are an Instagram growth advisor for @${brand.instagramHandle ?? brand.name}.
 
-Recent ${postSummary.length} posts with REAL engagement data:
-${JSON.stringify(postSummary, null, 1)}
+REAL DATA (do NOT fabricate any numbers):
+- Followers: ${followers || 'no data'} | Following: ${ownAccount?.followingCount ?? 'no data'} | Posts: ${ownAccount?.postCount ?? 'no data'}
+- Engagement rate: ${engRate}% (avg ${avgLikes} likes + ${avgComments} comments per post)
+- Recent ${postSummary.length} posts: ${JSON.stringify(postSummary, null, 1)}
 
-RULES:
-- ONLY reference numbers from the data above
-- If data is missing or zero, say "not enough data" — do NOT make up numbers
-- Do NOT fabricate engagement rates, percentages, or statistics
-- Each insight must be grounded in the actual post data provided
+Generate exactly 5 insights as a JSON array. Structure them as:
+1. A "Weekly Action" — one specific thing to do THIS WEEK (type: "opportunity")
+2. A "Content Insight" — what content patterns are working/failing based on the data (type: "positive" or "warning")
+3. A "Timing Insight" — when to post based on their posting patterns (type: "opportunity")
+4. A "Caption Insight" — what caption styles drive engagement in their posts (type: "positive" or "warning")
+5. A "Growth Tip" — one specific tactic to grow faster based on their current performance (type: "opportunity")
 
-Provide exactly 5 insights as a JSON array. Each insight:
-- "title": short headline (under 10 words)
-- "insight": 2-3 sentences referencing ONLY the real data above
-- "action": one specific thing to do next
+Each insight:
+- "title": short headline, max 8 words, be SPECIFIC not generic
+- "insight": 2 sentences referencing REAL numbers from the data
+- "action": ONE concrete action step (not vague advice like "post more")
 - "type": "positive", "warning", or "opportunity"
+
+BAD example: "Post more consistently" — too vague
+GOOD example: "Post a carousel about [topic from their captions] on Wednesday at 11am using #hashtag"
 
 Return ONLY the JSON array.`;
 
@@ -130,23 +136,22 @@ Return ONLY the JSON array.`;
         });
       }
 
-      const prompt = `You are an Instagram competitive intelligence advisor. Analyze ONLY the real data below. Do NOT fabricate any numbers.
+      const prompt = `You are an Instagram competitive intelligence advisor for @${brand.instagramHandle ?? brand.name} (${ownAccount?.followerCount ?? 'unknown'} followers).
 
-Your account: @${brand.instagramHandle ?? brand.name} (${ownAccount?.followerCount ?? 'unknown'} followers)
-
-Competitor REAL data:
+REAL competitor data:
 ${JSON.stringify(competitorData, null, 1)}
 
-RULES:
-- ONLY reference numbers from the data above
-- If a competitor has 0 posts scraped, say "no post data available" — do NOT make up engagement stats
-- Do NOT fabricate engagement rates or percentages that aren't calculable from the data
-- Compare follower counts, post counts, and any available engagement data ONLY
+Generate exactly 5 competitive insights as a JSON array. Structure them as:
+1. "Steal Their Formula" — analyze the TOP competitor's best post and explain exactly what makes it work: hook technique, caption structure, hashtag strategy. Give the user a template to copy. (type: "opportunity")
+2. "Content Gap" — find a topic or format that competitors do well but the user doesn't cover, or that NO competitor covers well. Be specific about the opportunity. (type: "opportunity")
+3. "Competitive Advantage" — identify something the user does better than competitors (even small wins). (type: "positive")
+4. "Threat Alert" — what's the biggest competitive threat? A competitor growing fast, dominating engagement, or covering their niche better? (type: "warning")
+5. "Quick Win" — one specific, actionable tactic the user can do THIS WEEK to close the gap. Reference specific competitor data. (type: "opportunity")
 
-Provide exactly 5 competitive insights as a JSON array. Each:
-- "title": short headline (under 10 words)
-- "insight": 2-3 sentences using ONLY the real data above
-- "action": one specific thing to do
+Each insight:
+- "title": short headline, max 8 words, be SPECIFIC
+- "insight": 2-3 sentences referencing REAL numbers from the data. Name specific competitor handles.
+- "action": ONE concrete, specific step (not vague like "study competitors")
 - "type": "positive", "warning", or "opportunity"
 
 Return ONLY the JSON array.`;
