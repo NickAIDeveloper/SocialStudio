@@ -606,11 +606,20 @@ export async function createInstagramImageWithText(
     .ensureAlpha(0.4)
     .toBuffer();
 
+  // Teal accent line below the text (matches CSS preview)
+  const lineWidth = 80;
+  const lineTop = textTop + textH + 16;
+  const lineLeft = Math.floor((width - lineWidth) / 2);
+  const accentSvg = `<svg width="${lineWidth}" height="4" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${lineWidth}" height="4" rx="2" fill="${colors.accent}"/>
+  </svg>`;
+
   const imageWithText = await sharp(squareImage)
     .composite([
       { input: Buffer.from(tintSvg), top: 0, left: 0 },
       { input: shadowImage, top: textTop + 3, left: textLeft + 3, blend: 'over' },
       { input: textImage, top: textTop, left: textLeft, blend: 'over' },
+      { input: Buffer.from(accentSvg), top: lineTop, left: lineLeft, blend: 'over' },
     ])
     .jpeg({ quality: 95 })
     .toBuffer();
