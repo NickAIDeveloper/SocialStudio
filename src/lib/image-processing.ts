@@ -599,7 +599,7 @@ export async function createInstagramImageWithText(
 
   // Center text in full image, clamped so accent line + logo fit below
   const accentGap = 50; // gap between text bottom and accent line
-  const logoGap = 80; // gap between accent line and logo top
+  const logoGap = 120; // gap between accent line and logo top
   const maxTextBottom = logoTopApprox - logoGap - accentGap;
   const textTopCentered = Math.floor((height - textH) / 2);
   const textTopClamped = maxTextBottom - textH;
