@@ -208,6 +208,7 @@ export async function createInstagramImage(
   imageUrl: string,
   brand: Brand,
   logoUrl?: string | null,
+  imageEffect: ImageEffect = 'none',
 ): Promise<Buffer> {
   assertAllowedImageUrl(imageUrl);
   const response = await fetch(imageUrl);
@@ -217,13 +218,19 @@ export async function createInstagramImage(
 
   const imageBuffer = Buffer.from(await response.arrayBuffer());
 
-  const squareImage = await sharp(imageBuffer)
-    .resize(1080, 1080, {
+  const width = 1080;
+  const height = 1080;
+
+  let squareImage = await sharp(imageBuffer)
+    .resize(width, height, {
       fit: 'cover',
       position: 'centre',
     })
     .jpeg({ quality: 95 })
     .toBuffer();
+
+  // Apply image effect before logo compositing
+  squareImage = await applyImageEffect(squareImage, imageEffect, brand, width, height);
 
   return compositeLogoOnImage(squareImage, brand, 0.22, logoUrl);
 }
@@ -260,6 +267,7 @@ function wrapText(text: string, maxCharsPerLine: number = 30): string[] {
 
 export type TextPosition = 'top' | 'center' | 'bottom';
 export type OverlayStyle = 'editorial' | 'bold-card' | 'gradient-bar' | 'full-tint';
+export type ImageEffect = 'none' | 'duotone' | 'color-blend' | 'vignette' | 'high-contrast';
 
 // Brand color palettes inspired by competitor analysis:
 // Affectly (like Calm/Headspace): soft teal gradients, warm and calming
@@ -282,6 +290,91 @@ const BRAND_STYLES = {
     gradient2: '#1e40af',    // blue-800
   },
 };
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace('#', '');
+  return {
+    r: parseInt(h.substring(0, 2), 16),
+    g: parseInt(h.substring(2, 4), 16),
+    b: parseInt(h.substring(4, 6), 16),
+  };
+}
+
+/**
+ * Apply a visual effect to the base image buffer (1080x1080 JPEG).
+ * Effects modify the image itself before any text overlay or logo is composited.
+ */
+async function applyImageEffect(
+  imageBuffer: Buffer,
+  effect: ImageEffect,
+  brand: Brand,
+  width: number,
+  height: number,
+): Promise<Buffer> {
+  if (effect === 'none') return imageBuffer;
+
+  const colors = BRAND_STYLES[brand] || BRAND_STYLES.affectly;
+
+  switch (effect) {
+    case 'duotone': {
+      // Grayscale → tint with brand primary color (Spotify-style monotone)
+      const { r, g, b } = hexToRgb(colors.primary);
+      return sharp(imageBuffer)
+        .grayscale()
+        .tint({ r, g, b })
+        .jpeg({ quality: 95 })
+        .toBuffer();
+    }
+
+    case 'color-blend': {
+      // Overlay brand color at 35% opacity using multiply blend mode
+      const { r, g, b } = hexToRgb(colors.primary);
+      const colorOverlay = Buffer.from(
+        `<svg width="${width}" height="${height}">
+          <rect width="${width}" height="${height}" fill="rgba(${r},${g},${b},0.35)"/>
+        </svg>`
+      );
+      return sharp(imageBuffer)
+        .composite([{ input: colorOverlay, blend: 'multiply' }])
+        .jpeg({ quality: 95 })
+        .toBuffer();
+    }
+
+    case 'vignette': {
+      // Dark radial vignette — draws focus to center
+      const cx = width / 2;
+      const cy = height / 2;
+      const r = Math.max(width, height) * 0.55;
+      const vignetteSvg = Buffer.from(
+        `<svg width="${width}" height="${height}">
+          <defs>
+            <radialGradient id="vig" cx="50%" cy="50%" r="50%">
+              <stop offset="40%" stop-color="rgba(0,0,0,0)" />
+              <stop offset="100%" stop-color="rgba(0,0,0,0.65)" />
+            </radialGradient>
+          </defs>
+          <rect width="${width}" height="${height}" fill="url(#vig)"/>
+        </svg>`
+      );
+      return sharp(imageBuffer)
+        .composite([{ input: vignetteSvg, blend: 'over' }])
+        .jpeg({ quality: 95 })
+        .toBuffer();
+    }
+
+    case 'high-contrast': {
+      // Boost saturation + brightness for punchy, vivid look
+      return sharp(imageBuffer)
+        .modulate({ brightness: 1.08, saturation: 1.4 })
+        .sharpen({ sigma: 1.2 })
+        .jpeg({ quality: 95 })
+        .toBuffer();
+    }
+
+    default:
+      return imageBuffer;
+  }
+}
 
 function buildOverlaySvg(
   width: number,

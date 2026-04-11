@@ -14,6 +14,16 @@ import { generateCaption, extractHookText, resetCaptionHistory, sanitizeCaption,
 
 type Brand = string;
 type ContentType = 'quote' | 'tip' | 'carousel' | 'community' | 'promo';
+type ImageEffect = 'none' | 'duotone' | 'color-blend' | 'vignette' | 'high-contrast';
+
+const IMAGE_EFFECTS: ImageEffect[] = ['none', 'duotone', 'color-blend', 'vignette', 'high-contrast'];
+const IMAGE_EFFECT_LABELS: Record<ImageEffect, string> = {
+  none: 'Original',
+  duotone: 'Duotone',
+  'color-blend': 'Color Blend',
+  vignette: 'Vignette',
+  'high-contrast': 'High Contrast',
+};
 
 function getHashtagsForPost(brand: Brand): string {
   const tags = hashtagSets[brand as keyof typeof hashtagSets];
@@ -161,6 +171,8 @@ export function BatchGallery() {
   const batchCountRef = useRef(10);
   const [batchContentType, setBatchContentType] = useState<ContentType | 'mixed'>('mixed');
   const batchContentTypeRef = useRef<ContentType | 'mixed'>('mixed');
+  const [batchEffect, setBatchEffect] = useState<ImageEffect | 'random'>('random');
+  const batchEffectRef = useRef<ImageEffect | 'random'>('random');
 
   const generateBatch = useCallback(async () => {
     const currentBatchCount = batchCountRef.current;
@@ -333,6 +345,10 @@ export function BatchGallery() {
 
             // Process image with overlay via /api/logo (returns raw image bytes)
             const cleanHook = sanitizeHook(post.hookText || '');
+            const currentEffect = batchEffectRef.current;
+            const postEffect: ImageEffect = currentEffect === 'random'
+              ? IMAGE_EFFECTS[Math.floor(Math.random() * IMAGE_EFFECTS.length)]
+              : currentEffect;
             const body: Record<string, unknown> = {
               imageUrl: img.largeImageURL,
               brand: post.brand,
@@ -340,6 +356,7 @@ export function BatchGallery() {
               textPosition: 'center',
               fontSize: 80,
               overlayStyle: 'editorial',
+              imageEffect: postEffect,
             };
             const processResponse = await fetch('/api/logo', {
               method: 'POST',
@@ -444,6 +461,7 @@ export function BatchGallery() {
       if (post.imageUrl) {
         body.imageUrl = post.imageUrl;
         body.brand = post.brand;
+        body.imageEffect = batchEffectRef.current === 'random' ? 'none' : batchEffectRef.current;
         if (post.hookText) {
           body.overlayText = post.hookText;
           body.textPosition = 'center';
@@ -525,6 +543,21 @@ export function BatchGallery() {
             <option value="quote">Quote</option>
             <option value="tip">Tips / How-to</option>
             <option value="community">Community</option>
+          </select>
+
+          {/* Image effect */}
+          <select
+            value={batchEffect}
+            onChange={(e) => { setBatchEffect(e.target.value as ImageEffect | 'random'); batchEffectRef.current = e.target.value as ImageEffect | 'random'; }}
+            disabled={isGenerating}
+            className="h-9 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm px-3 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
+          >
+            <option value="random">Random Effects</option>
+            <option value="none">Original</option>
+            <option value="duotone">Duotone</option>
+            <option value="color-blend">Color Blend</option>
+            <option value="vignette">Vignette</option>
+            <option value="high-contrast">High Contrast</option>
           </select>
 
           {/* Post count radio buttons */}

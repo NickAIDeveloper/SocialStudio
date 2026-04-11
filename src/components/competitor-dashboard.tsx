@@ -384,21 +384,10 @@ export function CompetitorDashboard() {
 
       {/* AI Competitive Insights */}
       <div className="rounded-xl border border-purple-500/20 bg-zinc-900/60 p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-purple-500" />
-            AI Competitive Intelligence
-          </h3>
-          <button
-            onClick={() => void fetchAiInsights()}
-            disabled={aiLoading}
-            className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium disabled:opacity-50 flex items-center gap-1.5"
-          >
-            {aiLoading ? (
-              <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Analyzing...</>
-            ) : 'Generate AI Analysis'}
-          </button>
-        </div>
+        <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-purple-500" />
+          AI Competitive Intelligence
+        </h3>
 
         {aiError && (
           <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
@@ -407,7 +396,7 @@ export function CompetitorDashboard() {
         )}
 
         {aiInsights.length === 0 && !aiLoading && !aiError && (
-          <p className="text-sm text-zinc-400">Click &ldquo;Generate AI Analysis&rdquo; for AI-powered competitive insights.</p>
+          <p className="text-sm text-zinc-400">Hit &ldquo;Scan &amp; Analyze&rdquo; to generate AI-powered competitive insights.</p>
         )}
 
         {aiInsights.length > 0 && (
@@ -432,29 +421,22 @@ export function CompetitorDashboard() {
         )}
       </div>
 
-      {/* Action bar */}
+      {/* Action bar — 2 buttons max */}
       <div className="flex flex-wrap gap-3">
         <button
           onClick={() => void handleAutoFind()}
           disabled={scanning}
-          className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-purple-500/20"
+          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-500 hover:to-teal-400 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2 shadow-lg transition-all"
         >
           {scanning ? (
-            <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Scanning...</>
-          ) : competitors.length === 0 ? 'Find & Scan 10 Competitors' : 'Refresh All Data'}
+            <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {scanMessage || 'Scanning...'}</>
+          ) : competitors.length === 0 ? 'Find & Analyze Competitors' : 'Scan & Analyze'}
         </button>
         <button
           onClick={() => { setShowAdd(prev => !prev); setSuggestions([]); }}
-          className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-sm font-medium flex items-center gap-1.5"
+          className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium border border-zinc-700 flex items-center gap-1.5"
         >
-          <span className="text-lg leading-none">+</span> Add Handle
-        </button>
-        <button
-          onClick={() => { setShowAdd(false); void handleSuggest(); }}
-          disabled={suggestLoading}
-          className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium border border-zinc-700 disabled:opacity-50"
-        >
-          {suggestLoading ? 'Finding...' : 'Suggest More'}
+          <span className="text-lg leading-none">+</span> Add
         </button>
       </div>
 
@@ -546,7 +528,7 @@ export function CompetitorDashboard() {
         ) : competitors.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-white mb-2">No competitors tracked yet</p>
-            <p className="text-sm text-zinc-400">Click "Find & Scan 10 Competitors" to auto-discover competitors for {selectedBrand?.name ?? 'your brand'}</p>
+            <p className="text-sm text-zinc-400">Click &ldquo;Find &amp; Analyze Competitors&rdquo; to auto-discover competitors for {selectedBrand?.name ?? 'your brand'}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -561,52 +543,60 @@ export function CompetitorDashboard() {
 
       {/* Quick insights based on available data */}
       {sortedByFollowers.length >= 2 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-5">
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-3">Market Position</h3>
-            <div className="text-center space-y-2">
-              <p className="text-4xl font-bold text-amber-400">
-                #{sortedByFollowers.length + 1}
-              </p>
-              <p className="text-sm text-zinc-400">
-                Your position by followers among {sortedByFollowers.length} competitors
-              </p>
-              <p className="text-xs text-zinc-500">
-                Leader: @{sortedByFollowers[0].handle} ({formatNum(sortedByFollowers[0].followerCount ?? 0)})
-              </p>
-            </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-4">
+            <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Market Position</h3>
+            <p className="text-3xl font-bold text-amber-400">
+              #{sortedByFollowers.length + 1}
+            </p>
+            <p className="text-xs text-zinc-500 mt-1">
+              Leader: @{sortedByFollowers[0].handle}
+            </p>
           </div>
 
-          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-5">
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-3">Average Competitor Size</h3>
-            <div className="text-center space-y-2">
-              <p className="text-4xl font-bold text-blue-400">
-                {formatNum(Math.round(sortedByFollowers.reduce((s, c) => s + (c.followerCount ?? 0), 0) / sortedByFollowers.length))}
-              </p>
-              <p className="text-sm text-zinc-400">avg followers across competitors</p>
-              <p className="text-xs text-zinc-500">
-                Range: {formatNum(sortedByFollowers[sortedByFollowers.length - 1].followerCount ?? 0)} — {formatNum(sortedByFollowers[0].followerCount ?? 0)}
-              </p>
-            </div>
+          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-4">
+            <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Avg Competitor Size</h3>
+            <p className="text-3xl font-bold text-blue-400">
+              {formatNum(Math.round(sortedByFollowers.reduce((s, c) => s + (c.followerCount ?? 0), 0) / sortedByFollowers.length))}
+            </p>
+            <p className="text-xs text-zinc-500 mt-1">
+              {formatNum(sortedByFollowers[sortedByFollowers.length - 1].followerCount ?? 0)} — {formatNum(sortedByFollowers[0].followerCount ?? 0)}
+            </p>
           </div>
 
-          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-5">
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-3">Avg Posts</h3>
-            <div className="text-center space-y-2">
-              {(() => {
-                const withPosts = competitors.filter(c => c.postCount && c.postCount > 0);
-                const avg = withPosts.length > 0 ? Math.round(withPosts.reduce((s, c) => s + (c.postCount ?? 0), 0) / withPosts.length) : 0;
-                return (
-                  <>
-                    <p className="text-4xl font-bold text-teal-400">{avg > 0 ? avg : '—'}</p>
-                    <p className="text-sm text-zinc-400">avg posts per competitor</p>
-                    <p className="text-xs text-zinc-500">
-                      {withPosts.length} of {competitors.length} accounts have post data
-                    </p>
-                  </>
-                );
-              })()}
-            </div>
+          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-4">
+            <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Avg Posts</h3>
+            {(() => {
+              const withPosts = competitors.filter(c => c.postCount && c.postCount > 0);
+              const avg = withPosts.length > 0 ? Math.round(withPosts.reduce((s, c) => s + (c.postCount ?? 0), 0) / withPosts.length) : 0;
+              return (
+                <>
+                  <p className="text-3xl font-bold text-teal-400">{avg > 0 ? avg : '—'}</p>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    {withPosts.length}/{competitors.length} have data
+                  </p>
+                </>
+              );
+            })()}
+          </div>
+
+          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-4">
+            <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Best F/F Ratio</h3>
+            {(() => {
+              const withRatio = competitors
+                .filter(c => (c.followerCount ?? 0) > 0 && (c.followingCount ?? 0) > 0)
+                .map(c => ({ handle: c.handle, ratio: (c.followerCount ?? 0) / (c.followingCount ?? 1) }))
+                .sort((a, b) => b.ratio - a.ratio);
+              const best = withRatio[0];
+              return best ? (
+                <>
+                  <p className="text-3xl font-bold text-green-400">{best.ratio.toFixed(1)}</p>
+                  <p className="text-xs text-zinc-500 mt-1">@{best.handle}</p>
+                </>
+              ) : (
+                <p className="text-3xl font-bold text-zinc-600">—</p>
+              );
+            })()}
           </div>
         </div>
       )}

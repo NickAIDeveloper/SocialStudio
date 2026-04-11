@@ -32,6 +32,7 @@ type Brand = string;
 type ContentType = 'quote' | 'tip' | 'carousel' | 'community' | 'promo';
 type TextPosition = 'top' | 'center' | 'bottom';
 type OverlayStyle = 'editorial' | 'bold-card' | 'gradient-bar' | 'full-tint';
+type ImageEffect = 'none' | 'duotone' | 'color-blend' | 'vignette' | 'high-contrast';
 
 interface GeneratedPost {
   dbId?: string; // Database UUID after persistence
@@ -74,6 +75,14 @@ const OVERLAY_STYLE_META: Record<OverlayStyle, { label: string; desc: string }> 
   'bold-card': { label: 'Bold Card', desc: 'Headspace-style: brand gradient card overlay' },
   'gradient-bar': { label: 'Gradient', desc: 'Strava-style: strong gradient + bold text' },
   'full-tint': { label: 'Brand Tint', desc: 'Wysa-style: full brand color wash + serif' },
+};
+
+const IMAGE_EFFECT_META: Record<ImageEffect, { label: string; desc: string }> = {
+  none: { label: 'Original', desc: 'No effect applied to base image' },
+  duotone: { label: 'Duotone', desc: 'Remap to brand colors (Spotify-style)' },
+  'color-blend': { label: 'Color Blend', desc: 'Brand tint via multiply blend mode' },
+  vignette: { label: 'Vignette', desc: 'Dark edges draw focus to center' },
+  'high-contrast': { label: 'High Contrast', desc: 'Punchy saturation + sharpened' },
 };
 
 
@@ -158,6 +167,7 @@ export function PostGenerator() {
   const [textPosition, setTextPosition] = useState<TextPosition>('center');
   const fontSize = 80;
   const [overlayStyle, setOverlayStyle] = useState<OverlayStyle>('editorial');
+  const [imageEffect, setImageEffect] = useState<ImageEffect>('none');
 
   // Buffer scheduling state
   const [bufferOrgs, setBufferOrgs] = useState<BufferOrganization[]>([]);
@@ -405,6 +415,7 @@ export function PostGenerator() {
           const body: Record<string, unknown> = {
             imageUrl: leadImage.largeImageURL,
             brand,
+            imageEffect,
           };
           if (hook) {
             body.overlayText = hook;
@@ -434,7 +445,7 @@ export function PostGenerator() {
     } finally {
       randomGeneratingRef.current = false;
     }
-  }, [brand, contentType, textPosition, fontSize, overlayStyle]);
+  }, [brand, contentType, textPosition, fontSize, overlayStyle, imageEffect]);
 
   const processImage = useCallback(async (image: ImageResult) => {
     setIsProcessing(true);
@@ -442,6 +453,7 @@ export function PostGenerator() {
       const body: Record<string, unknown> = {
         imageUrl: image.largeImageURL,
         brand,
+        imageEffect,
       };
       if (overlayEnabled && overlayText.trim()) {
         body.overlayText = overlayText;
@@ -464,7 +476,7 @@ export function PostGenerator() {
       setIsProcessing(false);
     }
     return null;
-  }, [brand, overlayEnabled, overlayText, textPosition, overlayStyle, fontSize]);
+  }, [brand, overlayEnabled, overlayText, textPosition, overlayStyle, fontSize, imageEffect]);
 
   const handleImageSelect = useCallback(async (image: ImageResult) => {
     if (isCarousel) {
@@ -568,6 +580,7 @@ export function PostGenerator() {
       if (sourceImageUrl) {
         body.imageUrl = sourceImageUrl;
         body.brand = brand;
+        body.imageEffect = imageEffect;
         if (overlayEnabled && overlayText.trim()) {
           body.overlayText = overlayText;
           body.textPosition = textPosition;
@@ -699,6 +712,7 @@ export function PostGenerator() {
               const body: Record<string, unknown> = {
                 imageUrl: slide.largeImageURL,
                 brand: randomBrand,
+                imageEffect,
               };
               if (hook) {
                 body.overlayText = hook;
@@ -733,6 +747,7 @@ export function PostGenerator() {
           const body: Record<string, unknown> = {
             imageUrl: randomImg.largeImageURL,
             brand: randomBrand,
+            imageEffect,
           };
           if (hook) {
             body.overlayText = hook;
@@ -788,7 +803,7 @@ export function PostGenerator() {
     return () => {
       if (reprocessTimerRef.current) clearTimeout(reprocessTimerRef.current);
     };
-  }, [brand, overlayEnabled, overlayText, textPosition, overlayStyle, fontSize]);
+  }, [brand, overlayEnabled, overlayText, textPosition, overlayStyle, fontSize, imageEffect]);
 
   const templates = contentTemplates[brand as keyof typeof contentTemplates] || contentTemplates[Object.keys(contentTemplates)[0] as keyof typeof contentTemplates];
   const suggestions = suggestedQueries[brand as keyof typeof suggestedQueries] || [];
@@ -1009,6 +1024,28 @@ export function PostGenerator() {
               </div>
             </div>
           )}
+
+          {/* Image Effect selector */}
+          <div className="space-y-2">
+            <label className="text-xs text-white">Image Effect</label>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+              {(Object.entries(IMAGE_EFFECT_META) as [ImageEffect, { label: string; desc: string }][]).map(([key, meta]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setImageEffect(key)}
+                  className={`text-center p-2 rounded-lg border transition-all duration-200 ${
+                    imageEffect === key
+                      ? 'border-teal-500/60 bg-teal-500/10'
+                      : 'border-zinc-800/50 bg-zinc-800/30 hover:border-zinc-600'
+                  }`}
+                >
+                  <p className={`text-[11px] font-medium ${imageEffect === key ? 'text-teal-300' : 'text-white'}`}>{meta.label}</p>
+                  <p className="text-[9px] text-zinc-400 mt-0.5 leading-snug hidden sm:block">{meta.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Image Search */}

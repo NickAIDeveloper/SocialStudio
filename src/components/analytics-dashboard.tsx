@@ -618,32 +618,23 @@ export default function AnalyticsDashboard() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
+      {/* Header — single action button */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-white">Analytics</h2>
-        <div className="flex items-center gap-2">
-          <button
-            disabled={syncing}
-            onClick={handleSync}
-            className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-500 disabled:opacity-50 flex items-center gap-1.5"
-          >
-            {syncing ? (
-              <>
-                <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Syncing...
-              </>
-            ) : (
-              'Sync Instagram Data'
-            )}
-          </button>
-          <button
-            disabled={refreshing}
-            onClick={() => fetchInsights(true)}
-            className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-medium hover:bg-teal-500 disabled:opacity-50"
-          >
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </button>
-        </div>
+        <button
+          disabled={syncing || refreshing || aiLoading}
+          onClick={handleSync}
+          className="px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2 shadow-lg transition-all"
+        >
+          {syncing || refreshing || aiLoading ? (
+            <>
+              <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              {syncing ? 'Syncing data...' : refreshing ? 'Refreshing...' : 'Analyzing...'}
+            </>
+          ) : (
+            'Sync & Analyze'
+          )}
+        </button>
       </div>
 
       {/* Account selector */}
@@ -679,21 +670,10 @@ export default function AnalyticsDashboard() {
 
       {/* AI-Powered Insights */}
       <div className="rounded-xl border border-purple-500/20 bg-zinc-900/60 p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-purple-500" />
-            AI Insights
-          </h3>
-          <button
-            onClick={() => void fetchAiInsights()}
-            disabled={aiLoading}
-            className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium disabled:opacity-50 flex items-center gap-1.5"
-          >
-            {aiLoading ? (
-              <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Analyzing...</>
-            ) : 'Generate AI Insights'}
-          </button>
-        </div>
+        <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-purple-500" />
+          AI Insights
+        </h3>
 
         {aiError && (
           <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
@@ -702,7 +682,7 @@ export default function AnalyticsDashboard() {
         )}
 
         {aiInsights.length === 0 && !aiLoading && !aiError && (
-          <p className="text-sm text-zinc-400">Click &ldquo;Generate AI Insights&rdquo; to get personalized recommendations powered by AI.</p>
+          <p className="text-sm text-zinc-400">Hit &ldquo;Sync &amp; Analyze&rdquo; to generate AI-powered recommendations.</p>
         )}
 
         {aiInsights.length > 0 && (
@@ -745,18 +725,32 @@ export default function AnalyticsDashboard() {
                       <p className="text-xs text-zinc-400">@{profile.handle}</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-5 gap-3">
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-white">{profile.followers.toLocaleString()}</p>
-                      <p className="text-xs text-zinc-400 mt-1">Followers</p>
+                      <p className="text-xl font-bold text-white">{profile.followers.toLocaleString()}</p>
+                      <p className="text-[10px] text-zinc-400 mt-1">Followers</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-white">{profile.following.toLocaleString()}</p>
-                      <p className="text-xs text-zinc-400 mt-1">Following</p>
+                      <p className="text-xl font-bold text-white">{profile.following.toLocaleString()}</p>
+                      <p className="text-[10px] text-zinc-400 mt-1">Following</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-white">{profile.postCount.toLocaleString()}</p>
-                      <p className="text-xs text-zinc-400 mt-1">Posts</p>
+                      <p className="text-xl font-bold text-white">{profile.postCount.toLocaleString()}</p>
+                      <p className="text-[10px] text-zinc-400 mt-1">Posts</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-teal-400">
+                        {profile.following > 0 ? (profile.followers / profile.following).toFixed(1) : '—'}
+                      </p>
+                      <p className="text-[10px] text-zinc-400 mt-1">F/F Ratio</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-teal-400">
+                        {profile.followers > 0 && profile.postCount > 0
+                          ? `${((profile.postCount / Math.max(1, Math.floor(profile.postCount / 30))) * 100 / profile.followers).toFixed(2)}%`
+                          : '—'}
+                      </p>
+                      <p className="text-[10px] text-zinc-400 mt-1">Est. Eng Rate</p>
                     </div>
                   </div>
                 </div>

@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Single image mode
-    const { imageUrl, brand, overlayText, textPosition, textColor, fontSize, overlayStyle } = body;
+    const { imageUrl, brand, overlayText, textPosition, textColor, fontSize, overlayStyle, imageEffect } = body;
 
     if (!imageUrl || !brand) {
       return NextResponse.json(
@@ -58,10 +58,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Always use base image processing (logo + tint). Hook text is rendered
-    // as a client-side CSS overlay in the preview since SVG text rendering
-    // is not reliable on serverless platforms.
-    const processedImage = await createInstagramImage(imageUrl, brand, logoUrl);
+    // Base image processing: resize + optional effect + logo composite.
+    // Hook text is rendered as a client-side CSS overlay in the preview.
+    const processedImage = await createInstagramImage(imageUrl, brand, logoUrl, imageEffect || 'none');
 
     return new NextResponse(new Uint8Array(processedImage), {
       headers: {
