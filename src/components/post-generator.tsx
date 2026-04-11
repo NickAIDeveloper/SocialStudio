@@ -1214,7 +1214,7 @@ export function PostGenerator() {
                           </p>
                           {/* Accent line below text for editorial */}
                           {overlayStyle === 'editorial' && (
-                            <div className="w-16 h-0.5 bg-teal-400 rounded-full mt-8" />
+                            <div className="w-16 h-0.5 bg-teal-400 rounded-full mt-16" />
                           )}
                         </div>
                       </>
