@@ -568,10 +568,10 @@ export async function createInstagramImageWithText(
   // Target: text should occupy roughly the same visual proportion as the CSS preview
   const charCount = overlayText.length;
   let scaledFontSize: number;
-  if (charCount <= 20) scaledFontSize = Math.min(fontSize, 72);
-  else if (charCount <= 35) scaledFontSize = Math.min(fontSize, 60);
-  else if (charCount <= 50) scaledFontSize = Math.min(fontSize, 50);
-  else scaledFontSize = Math.min(fontSize, 42);
+  if (charCount <= 20) scaledFontSize = Math.min(fontSize, 110);
+  else if (charCount <= 35) scaledFontSize = Math.min(fontSize, 90);
+  else if (charCount <= 50) scaledFontSize = Math.min(fontSize, 72);
+  else scaledFontSize = Math.min(fontSize, 58);
 
   // Create text image using sharp's text input (Pango rendering)
   const textImage = await sharp({
@@ -607,7 +607,7 @@ export async function createInstagramImageWithText(
     .toBuffer();
 
   // Teal accent line below the text (matches CSS preview)
-  const lineWidth = 80;
+  const lineWidth = 120;
   const lineTop = textTop + textH + 16;
   const lineLeft = Math.floor((width - lineWidth) / 2);
   const accentSvg = `<svg width="${lineWidth}" height="4" xmlns="http://www.w3.org/2000/svg">
