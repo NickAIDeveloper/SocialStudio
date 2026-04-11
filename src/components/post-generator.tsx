@@ -1193,7 +1193,7 @@ export function PostGenerator() {
                           <div className="absolute inset-0 bg-teal-900/70" />
                         )}
 
-                        {/* Text container */}
+                        {/* Text container — centered in image */}
                         <div className={`absolute inset-x-0 ${TEXT_POSITION_CLASSES[textPosition]} p-6 flex flex-col items-center`}>
 
                           {/* Bold card background */}
@@ -1212,11 +1212,11 @@ export function PostGenerator() {
                           >
                             {overlayText}
                           </p>
-                          {/* Accent line below text for editorial */}
-                          {overlayStyle === 'editorial' && (
-                            <div className="w-16 h-0.5 bg-teal-400 rounded-full mt-16" />
-                          )}
                         </div>
+                        {/* Accent line — fixed at 65% from top, well above logo */}
+                        {overlayStyle === 'editorial' && (
+                          <div className="absolute left-1/2 -translate-x-1/2 w-12 h-0.5 bg-teal-400 rounded-full" style={{ top: '65%' }} />
+                        )}
                       </>
                     )}
                     {isProcessing && (
