@@ -220,14 +220,21 @@ export function CompetitorDashboard() {
       const ig = syncData.results?.instagram;
       const scraped = ig?.accountsSynced ?? 0;
 
-      await fetchCompetitors();
-      setScanMessage(`Profiles synced (${scraped}). Now deep scanning for post data...`);
+      // Re-fetch competitors after sync so we have the latest list (including newly added)
+      const freshRes = await fetch(`/api/competitors${selectedBrandId ? `?brandId=${selectedBrandId}` : ''}`);
+      const freshData = freshRes.ok ? await freshRes.json() : null;
+      const freshComps: Array<{ handle: string; followerCount?: number }> = freshData?.competitors ?? competitors;
+      if (freshData?.competitors) setCompetitors(freshData.competitors);
 
-      // Deep scan each competitor for actual post engagement data
-      const compHandles = competitors.map(c => c.handle);
-      for (let i = 0; i < compHandles.length; i++) {
-        const h = compHandles[i];
-        setScanMessage(`Deep scanning @${h} (${i + 1}/${compHandles.length})...`);
+      // Deep scan top 5 competitors by follower count for post engagement data
+      const top5 = [...freshComps]
+        .sort((a, b) => (b.followerCount ?? 0) - (a.followerCount ?? 0))
+        .slice(0, 5);
+      setScanMessage(`Profiles synced (${scraped}). Deep scanning top ${top5.length} competitors...`);
+
+      for (let i = 0; i < top5.length; i++) {
+        const h = top5[i].handle;
+        setScanMessage(`Deep scanning @${h} (${i + 1}/${top5.length})...`);
         try {
           const res = await fetch('/api/competitors/scrape', {
             method: 'POST',
@@ -242,7 +249,7 @@ export function CompetitorDashboard() {
       }
 
       await fetchCompetitors();
-      setScanMessage(`Done! Scanned ${scraped} profiles + ${compHandles.length} deep scans. Generating AI analysis...`);
+      setScanMessage(`Done! ${scraped} profiles + ${top5.length} deep scans. Generating AI analysis...`);
       void fetchAiInsights();
       void fetchComputedInsights();
     } catch (err) {
