@@ -1184,7 +1184,7 @@ export function PostGenerator() {
                       <>
                         {/* Full-image tint layer */}
                         {overlayStyle === 'editorial' && (
-                          <div className="absolute inset-0 bg-black/50" />
+                          <div className="absolute inset-0 bg-black/10" />
                         )}
                         {overlayStyle === 'gradient-bar' && (
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
@@ -1202,19 +1202,19 @@ export function PostGenerator() {
                           )}
 
                           <p
-                            className={`relative text-center leading-tight text-white drop-shadow-lg ${
-                              overlayStyle === 'editorial' ? 'font-serif tracking-wide' :
-                              overlayStyle === 'bold-card' ? 'font-bold px-4' :
-                              overlayStyle === 'gradient-bar' ? 'font-extrabold tracking-tight' :
-                              'font-serif'
+                            className={`relative text-center leading-tight text-white ${
+                              overlayStyle === 'editorial' ? 'font-serif font-bold tracking-wide drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]' :
+                              overlayStyle === 'bold-card' ? 'font-bold px-4 drop-shadow-lg' :
+                              overlayStyle === 'gradient-bar' ? 'font-extrabold tracking-tight drop-shadow-lg' :
+                              'font-serif drop-shadow-lg'
                             }`}
-                            style={{ fontSize: `${fontSize / 4}px` }}
+                            style={{ fontSize: `clamp(24px, 7vw, 40px)` }}
                           >
                             {overlayText}
                           </p>
                           {/* Accent line below text for editorial */}
                           {overlayStyle === 'editorial' && (
-                            <div className="w-16 h-0.5 bg-teal-400 rounded-full mt-3" />
+                            <div className="w-16 h-0.5 bg-teal-400 rounded-full mt-8" />
                           )}
                         </div>
                       </>
