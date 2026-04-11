@@ -355,7 +355,7 @@ function buildCompetitiveScorecard(
 
   const scorecards = competitorAccounts.map(acc => {
     const cposts = byHandle[acc.handle] ?? [];
-    const hasData = cposts.length > 0 || acc.followerCount > 0;
+    const hasData = cposts.length > 0;
     const avgEng = cposts.length > 0
       ? cposts.reduce((s, p) => s + getEngagement(p), 0) / cposts.length
       : 0;

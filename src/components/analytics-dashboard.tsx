@@ -497,7 +497,8 @@ export default function AnalyticsDashboard() {
       }
 
       const method = forceRefresh ? 'POST' : 'GET';
-      const res = await fetch('/api/insights?type=analytics', { method });
+      const brandParam = selectedBrand ? `&brandId=${selectedBrand}` : '';
+      const res = await fetch(`/api/insights?type=analytics${brandParam}`, { method });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -515,7 +516,7 @@ export default function AnalyticsDashboard() {
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [selectedBrand]);
 
   useEffect(() => {
     fetchInsights(false);

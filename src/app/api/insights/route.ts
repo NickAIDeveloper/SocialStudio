@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq, and, desc } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
+  brands,
   posts,
   postAnalytics,
   scrapedPosts,
@@ -81,12 +82,21 @@ function mapScrapedToCompetitor(
 // Compute functions
 // ---------------------------------------------------------------------------
 
-async function computeAnalytics(userId: string): Promise<CachedPayload> {
-  // 1. Fetch Buffer-scheduled posts with analytics
+async function computeAnalytics(userId: string, brandId?: string | null): Promise<CachedPayload> {
+  // Resolve brand handle for filtering scraped data
+  let brandHandle: string | null = null;
+  if (brandId) {
+    const [brand] = await db.select().from(brands).where(and(eq(brands.userId, userId), eq(brands.id, brandId))).limit(1);
+    brandHandle = brand?.instagramHandle ?? null;
+  }
+
+  // 1. Fetch Buffer-scheduled posts with analytics (filtered by brand)
+  const postConditions = [eq(posts.userId, userId)];
+  if (brandId) postConditions.push(eq(posts.brandId, brandId));
   const userPosts = await db
     .select()
     .from(posts)
-    .where(eq(posts.userId, userId))
+    .where(and(...postConditions))
     .orderBy(desc(posts.createdAt))
     .limit(200);
 
@@ -106,7 +116,13 @@ async function computeAnalytics(userId: string): Promise<CachedPayload> {
     mapRowToPostData(row, analyticsMap.get(row.id)),
   );
 
-  // 2. Fetch scraped Instagram posts (own accounts only — not competitors)
+  // 2. Fetch scraped Instagram posts (own accounts only — filtered by brand handle)
+  const scrapedConditions = [
+    eq(scrapedPosts.userId, userId),
+    eq(scrapedAccounts.isCompetitor, false),
+  ];
+  if (brandHandle) scrapedConditions.push(eq(scrapedAccounts.handle, brandHandle));
+
   const ownScrapedRows = await db
     .select({
       post: scrapedPosts,
@@ -114,12 +130,7 @@ async function computeAnalytics(userId: string): Promise<CachedPayload> {
     })
     .from(scrapedPosts)
     .innerJoin(scrapedAccounts, eq(scrapedPosts.accountId, scrapedAccounts.id))
-    .where(
-      and(
-        eq(scrapedPosts.userId, userId),
-        eq(scrapedAccounts.isCompetitor, false),
-      ),
-    )
+    .where(and(...scrapedConditions))
     .orderBy(desc(scrapedPosts.scrapedAt))
     .limit(200);
 
@@ -144,11 +155,13 @@ async function computeAnalytics(userId: string): Promise<CachedPayload> {
     ? [...scrapedPostData, ...bufferPostData.filter(bp => bp.likes > 0 || bp.comments > 0)]
     : postData;
 
-  // 4. Get follower count for engagement rate benchmarking
+  // 4. Get follower count for engagement rate benchmarking (filtered by brand)
+  const ownAccountConditions = [eq(scrapedAccounts.userId, userId), eq(scrapedAccounts.isCompetitor, false)];
+  if (brandHandle) ownAccountConditions.push(eq(scrapedAccounts.handle, brandHandle));
   const ownAccounts = await db
     .select()
     .from(scrapedAccounts)
-    .where(and(eq(scrapedAccounts.userId, userId), eq(scrapedAccounts.isCompetitor, false)));
+    .where(and(...ownAccountConditions));
   const followerCount = ownAccounts.reduce((max, a) => Math.max(max, a.followerCount ?? 0), 0);
 
   // 5. Calculate dynamic niche avg from competitor data
@@ -342,9 +355,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Compute fresh
+    const brandId = searchParams.get('brandId');
     const result =
       type === 'analytics'
-        ? await computeAnalytics(userId)
+        ? await computeAnalytics(userId, brandId)
         : await computeCompetitors(userId);
 
     return NextResponse.json(result);
@@ -373,9 +387,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const brandId = searchParams.get('brandId');
     const result =
       type === 'analytics'
-        ? await computeAnalytics(userId)
+        ? await computeAnalytics(userId, brandId)
         : await computeCompetitors(userId);
 
     return NextResponse.json(result);
