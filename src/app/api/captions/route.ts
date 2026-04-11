@@ -357,21 +357,65 @@ Return ONLY valid JSON:
         cleaned = cleaned.replace(/\s+\d+\.?\s*$/, '');  // strip trailing "1." or "1"
         cleaned = cleaned.replace(/,?\s*hashtags?.*$/i, '');  // strip hashtags leak
         cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
-        // Max 45 chars
-        if (cleaned.length > 45) {
-          const space = cleaned.lastIndexOf(' ', 45);
-          cleaned = space > 10 ? cleaned.substring(0, space) : cleaned.substring(0, 45);
+        // Max 60 chars
+        if (cleaned.length > 60) {
+          const space = cleaned.lastIndexOf(' ', 60);
+          cleaned = space > 10 ? cleaned.substring(0, space) : cleaned.substring(0, 60);
         }
       }
       return cleaned;
     };
 
     // Final sanitization pass using universal sanitizers
+    let finalCaption = sanitizeCaption(String(parsed.caption ?? ''));
+    let finalHook = sanitizeHook(String(parsed.hookText ?? ''));
+    const finalHashtags = sanitizeHashtags(String(parsed.hashtags ?? ''));
+
+    // ── Polish pass — grammar, spelling, and structure check ──────────
+    try {
+      const polishResult = await cerebrasChatCompletion(
+        [
+          {
+            role: 'system',
+            content: `You are a proofreader. Fix spelling, grammar, and awkward phrasing. Keep the same tone and meaning. Do NOT add new content, hashtags, or change the style. Return ONLY valid JSON with the corrected text. If the text is already correct, return it unchanged.`,
+          },
+          {
+            role: 'user',
+            content: `Proofread and fix any errors in this Instagram caption and hook text. Keep them natural and engaging.
+
+CAPTION:
+${finalCaption}
+
+HOOK (short overlay text for image, must stay under 60 chars):
+${finalHook}
+
+Return ONLY: {"caption":"corrected caption","hookText":"corrected hook"}`,
+          },
+        ],
+        { temperature: 0.1, maxTokens: 400 },
+      );
+
+      const polishCleaned = polishResult.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const polishMatch = polishCleaned.match(/\{[\s\S]*\}/);
+      if (polishMatch) {
+        const polished = JSON.parse(polishMatch[0]);
+        if (polished.caption && polished.caption.length > 10) {
+          finalCaption = sanitizeCaption(polished.caption);
+        }
+        if (polished.hookText && polished.hookText.length > 3) {
+          finalHook = sanitizeHook(polished.hookText);
+        }
+      }
+    } catch (polishErr) {
+      // Polish is best-effort — use unpolished content if it fails
+      console.error('[Captions] Polish pass failed (non-critical):', polishErr instanceof Error ? polishErr.message : polishErr);
+    }
+
     return NextResponse.json({
       success: true,
-      caption: sanitizeCaption(String(parsed.caption ?? '')),
-      hashtags: sanitizeHashtags(String(parsed.hashtags ?? '')),
-      hookText: sanitizeHook(String(parsed.hookText ?? '')),
+      caption: finalCaption,
+      hashtags: finalHashtags,
+      hookText: finalHook,
       source: 'cerebras',
     });
   } catch (error) {
