@@ -1,0 +1,252 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { eq, and } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { brands, scrapedPosts, posts } from '@/lib/db/schema';
+import { getUserId } from '@/lib/auth-helpers';
+import { seedFromInsight, mergePerfectSeed } from '@/lib/smart-posts';
+import { createInstagramImageWithText } from '@/lib/image-processing';
+import type { InsightCard } from '@/lib/health-score';
+import type { Brand } from '@/lib/domain-types';
+
+// Allow longer runtime — image compositing + LLM caption + image search.
+export const maxDuration = 60;
+
+const DAY_INDEX: Record<string, number> = {
+  sunday: 0, sun: 0,
+  monday: 1, mon: 1,
+  tuesday: 2, tue: 2, tues: 2,
+  wednesday: 3, wed: 3,
+  thursday: 4, thu: 4, thur: 4, thurs: 4,
+  friday: 5, fri: 5,
+  saturday: 6, sat: 6,
+};
+
+// Returns the next future occurrence of `dayName` at `hour:00` as an ISO string.
+// If today matches and the hour is still ahead, uses today; otherwise rolls
+// forward to the next matching weekday (always at least 1 hour in the future).
+function nextOccurrenceIso(dayName: string, hour: number): string | null {
+  const dayIdx = DAY_INDEX[dayName.trim().toLowerCase()];
+  if (dayIdx === undefined) return null;
+  const safeHour = Math.max(0, Math.min(23, Math.floor(hour)));
+  const now = new Date();
+  const target = new Date(now);
+  target.setHours(safeHour, 0, 0, 0);
+  let delta = (dayIdx - now.getDay() + 7) % 7;
+  if (delta === 0 && target.getTime() - now.getTime() < 60 * 60 * 1000) {
+    delta = 7; // today's slot already passed or too close — jump one week
+  }
+  target.setDate(target.getDate() + delta);
+  return target.toISOString();
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const userId = await getUserId();
+    const body = await request.json();
+    const { insightId, brandId } = body as { insightId?: string; brandId?: string };
+
+    if (!brandId) {
+      return NextResponse.json({ error: 'brandId required — pick a brand first.' }, { status: 400 });
+    }
+
+    // Verify brand ownership
+    const [brand] = await db
+      .select()
+      .from(brands)
+      .where(and(eq(brands.userId, userId), eq(brands.id, brandId)))
+      .limit(1);
+    if (!brand) {
+      return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
+    }
+
+    // No-fabrication guard: refuse if no real data at all
+    const [anyScraped] = await db
+      .select({ id: scrapedPosts.id })
+      .from(scrapedPosts)
+      .where(eq(scrapedPosts.userId, userId))
+      .limit(1);
+    const [anyPost] = await db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.userId, userId))
+      .limit(1);
+    if (!anyScraped && !anyPost) {
+      return NextResponse.json(
+        {
+          error: 'no_data',
+          message:
+            'We need real data before we can recommend anything. Head to Analytics and scrape your Instagram first.',
+        },
+        { status: 422 },
+      );
+    }
+
+    // Brand-scoped insight load. The shared insightsCache row is keyed only by
+    // (userId, type), so two brands fight for the same slot and whoever
+    // refreshed last wins. To avoid that cross-brand leak, we call the
+    // insights API with ?brandId=X internally — which runs the brand-filtered
+    // compute path — instead of trusting the cache to match the current brand.
+    const origin = request.nextUrl.origin;
+    const cookie = request.headers.get('cookie') ?? '';
+    const insightsRes = await fetch(
+      `${origin}/api/insights?type=analytics&brandId=${encodeURIComponent(brandId)}`,
+      { headers: { cookie } },
+    );
+    if (!insightsRes.ok) {
+      return NextResponse.json(
+        { error: 'no_insights', message: 'Run Analytics first so we have insights to work with.' },
+        { status: 422 },
+      );
+    }
+    const insightsPayload = (await insightsRes.json()) as { insights?: InsightCard[] };
+    const allInsights = insightsPayload.insights ?? [];
+    if (allInsights.length === 0) {
+      return NextResponse.json(
+        {
+          error: 'no_insights',
+          message: 'No insights for this brand yet — scrape its Instagram from Analytics first.',
+        },
+        { status: 422 },
+      );
+    }
+
+    // Two modes:
+    //   (a) insightId provided — generate from a single card (legacy path)
+    //   (b) no insightId — compose ONE "perfect post" from ALL actionable insights
+    let seed;
+    let contributions: Record<string, string> = {};
+    if (insightId) {
+      const card = allInsights.find((c) => c.id === insightId);
+      if (!card) {
+        return NextResponse.json({ error: 'insight_not_found' }, { status: 404 });
+      }
+      seed = seedFromInsight(card, brandId);
+      if (!seed) {
+        return NextResponse.json(
+          { error: 'not_actionable', message: 'This insight is diagnostic only.' },
+          { status: 400 },
+        );
+      }
+      contributions = { [card.type]: seed.reasoning };
+    } else {
+      const merged = mergePerfectSeed(allInsights, brandId);
+      if (!merged) {
+        return NextResponse.json(
+          {
+            error: 'no_actionable_insights',
+            message: 'No actionable insights yet — run Analytics to build up data first.',
+          },
+          { status: 422 },
+        );
+      }
+      seed = merged.seed;
+      contributions = merged.contributions;
+    }
+
+    // 1. Caption
+    const captionRes = await fetch(`${origin}/api/captions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({
+        brandSlug: brand.slug,
+        contentType: seed.contentType,
+        avoidTopics: seed.avoidTopics,
+        hookPattern: seed.hookPattern ?? '',
+        captionLengthHint: seed.captionLengthHint,
+        captionPatternHint: seed.captionPatternHint,
+        toneHint: seed.toneHint,
+        variationSeed: Math.floor(Math.random() * 100000),
+      }),
+    });
+    if (!captionRes.ok) {
+      const err = (await captionRes.json().catch(() => ({}))) as { error?: string; message?: string };
+      return NextResponse.json(
+        { error: 'caption_failed', message: err.message ?? err.error ?? 'Caption generation failed' },
+        { status: 502 },
+      );
+    }
+    const captionPayload = (await captionRes.json()) as {
+      caption?: string;
+      hashtags?: string;
+      hookText?: string;
+    };
+
+    // 2. Stock image
+    const topicQuery =
+      seed.topicHint ?? brand.description?.split(/\s+/).slice(0, 3).join(' ') ?? brand.name;
+    const imagesRes = await fetch(
+      `${origin}/api/images?source=all&q=${encodeURIComponent(topicQuery)}`,
+      { headers: { cookie } },
+    );
+    if (!imagesRes.ok) {
+      return NextResponse.json(
+        {
+          error: 'image_search_failed',
+          message: "Couldn't fetch a stock image. Connect a stock source in Settings.",
+        },
+        { status: 502 },
+      );
+    }
+    const imagesPayload = (await imagesRes.json()) as {
+      images?: Array<{ largeImageURL?: string; url?: string }>;
+    };
+    const firstImage = imagesPayload.images?.[0];
+    const sourceImageUrl = firstImage?.largeImageURL ?? firstImage?.url;
+    if (!sourceImageUrl) {
+      return NextResponse.json(
+        {
+          error: 'no_images',
+          message:
+            'No stock image found for this topic. Connect Pixabay, Unsplash, or Pexels in Settings.',
+        },
+        { status: 422 },
+      );
+    }
+
+    // 3. Render overlay image
+    const hookText = captionPayload.hookText ?? seed.hookPattern ?? 'Save this';
+    const renderBrand: Brand =
+      brand.slug === 'affectly' || brand.slug === 'pacebrain' ? (brand.slug as Brand) : 'affectly';
+    const imageBuffer = await createInstagramImageWithText(
+      sourceImageUrl,
+      renderBrand,
+      hookText.slice(0, 60),
+      seed.textPosition,
+      '#FFFFFF',
+      64,
+      seed.overlayStyle,
+      brand.logoUrl ?? null,
+    );
+    const imageDataUrl = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+
+    // Resolve the suggested day+hour into a concrete future ISO timestamp so
+    // the UI can schedule with mode:'customScheduled' instead of generic
+    // queue placement. This is what makes "Tuesday 19:00" actually post at
+    // Tuesday 19:00 rather than whenever Buffer's queue happens to fire.
+    const scheduledAt = seed.suggestedPostTime
+      ? nextOccurrenceIso(seed.suggestedPostTime.day, seed.suggestedPostTime.hour)
+      : null;
+
+    return NextResponse.json({
+      imageDataUrl,
+      sourceImageUrl,
+      caption: captionPayload.caption ?? '',
+      hashtags: captionPayload.hashtags ?? '',
+      hookText: hookText.slice(0, 60),
+      seed,
+      suggestedPostTime: seed.suggestedPostTime,
+      scheduledAt,
+      sourceInsightId: insightId ?? null,
+      contributions,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    console.error('[SmartPosts/generate] Error:', error);
+    return NextResponse.json(
+      { error: 'Failed to generate smart post', message: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 },
+    );
+  }
+}

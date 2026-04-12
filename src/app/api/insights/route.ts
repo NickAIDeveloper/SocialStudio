@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
   brands,
@@ -8,6 +8,7 @@ import {
   scrapedPosts,
   scrapedAccounts,
   insightsCache,
+  healthScoreSnapshots,
 } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
 import { generateAnalyticsInsights } from '@/lib/insights-engine';
@@ -198,6 +199,30 @@ async function computeAnalytics(userId: string, brandId?: string | null): Promis
   const { insights, healthScore } = generateAnalyticsInsights(allPostData, nicheAvg, followerCount);
   const summary = getHealthSummary(healthScore, insights);
   const computedAt = new Date().toISOString();
+
+  // Snapshot the health score for the weekly-delta badge on Smart Posts.
+  // One snapshot per (userId, brandId, day). brandId can be null for "All".
+  try {
+    const dateKey = new Date().toISOString().slice(0, 10);
+    const brandFilter = brandId
+      ? eq(healthScoreSnapshots.brandId, brandId)
+      : isNull(healthScoreSnapshots.brandId);
+    await db
+      .delete(healthScoreSnapshots)
+      .where(and(
+        eq(healthScoreSnapshots.userId, userId),
+        brandFilter,
+        eq(healthScoreSnapshots.dateKey, dateKey),
+      ));
+    await db.insert(healthScoreSnapshots).values({
+      userId,
+      brandId: brandId ?? null,
+      dateKey,
+      healthScore,
+    });
+  } catch (err) {
+    console.error('[Insights] Snapshot write failed (non-critical):', err instanceof Error ? err.message : err);
+  }
 
   // Cache result (upsert)
   await db

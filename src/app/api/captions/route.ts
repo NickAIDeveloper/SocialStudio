@@ -14,6 +14,16 @@ export async function POST(request: NextRequest) {
 
     const avoidTopics: string[] = body.avoidTopics || [];
     const variationSeed = body.variationSeed || Math.floor(Math.random() * 1000);
+    const hookPattern: string = typeof body.hookPattern === 'string' ? body.hookPattern.slice(0, 120) : '';
+    // Learning-driven directives from Smart Posts merge layer. All optional —
+    // when omitted the caption generator behaves as before.
+    const captionLengthHint: 'short' | 'medium' | 'long' | undefined =
+      body.captionLengthHint === 'short' || body.captionLengthHint === 'medium' || body.captionLengthHint === 'long'
+        ? body.captionLengthHint
+        : undefined;
+    const captionPatternHint: { type?: string; label?: string } | undefined =
+      body.captionPatternHint && typeof body.captionPatternHint === 'object' ? body.captionPatternHint : undefined;
+    const toneHint: string | undefined = typeof body.toneHint === 'string' ? body.toneHint : undefined;
 
     if (!brandSlug || !contentType) {
       return NextResponse.json({ error: 'brandSlug and contentType required' }, { status: 400 });
@@ -246,6 +256,7 @@ ${insightContext}
 ${brandVoiceContext}
 
 VARIATION SEED: ${variationSeed}. ${avoidTopics.length > 0 ? `AVOID these already-used themes: ${avoidTopics.slice(0, 5).join(', ')}.` : ''} Write from a completely fresh angle.
+${hookPattern ? `\nWINNING HOOK PATTERN (this brand's past top-performer): "${hookPattern}"\nYour hookText MUST echo the rhythm/structure of that winning hook — same emotional register, same sentence shape, same curiosity trigger. Do NOT copy it verbatim; riff on it with a fresh angle.\n` : ''}${captionLengthHint ? `\nTARGET CAPTION LENGTH: ${captionLengthHint === 'short' ? 'SHORT (40-80 words). Punchy, dense, no fluff.' : captionLengthHint === 'long' ? 'LONG (120-200 words). Expand with texture, examples, or narrative while staying scannable.' : 'MEDIUM (80-120 words). Balanced depth.'} This is driven by what has historically performed best for this account.\n` : ''}${captionPatternHint?.label ? `\nCAPTION PATTERN: Structure this caption using the "${captionPatternHint.label}" pattern — this pattern statistically outperforms on this account. ${captionPatternHint.type === 'lists' ? 'Use a numbered or bulleted list of concrete tips.' : captionPatternHint.type === 'questions' ? 'Open with a provocative question and weave more questions throughout.' : captionPatternHint.type === 'emotional' ? 'Lead with a raw emotional confession or feeling.' : captionPatternHint.type === 'stats' ? 'Anchor the hook around a concrete number or comparison (real numbers only — no fabrication).' : captionPatternHint.type === 'story' ? 'Use a micro-story arc: setup → turn → lesson.' : ''}\n` : ''}${toneHint === 'community' ? `\nTONE NUDGE: Engagement has been dipping — lean into COMMUNITY / relatable mode. Be vulnerable, specific, and invite a response in the CTA.\n` : ''}
 
 SCROLL-STOPPING HOOK RULES (this is the most important part):
 - The hookText appears as large text overlaid on the image. It MUST be 3-6 words max.

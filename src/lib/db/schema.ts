@@ -234,6 +234,23 @@ export const scrapedPosts = pgTable(
   (t) => [uniqueIndex('scraped_post_user_shortcode_idx').on(t.userId, t.shortcode)]
 );
 
+// ── Health Score Snapshots ────────────────────────────────────────────────────
+// Daily snapshots used for the weekly-delta badge on Smart Posts.
+// brandId is nullable: null = "All brands" aggregate. Uniqueness is enforced
+// at insert time (check-then-insert) rather than via a unique index, because
+// Postgres treats NULL values as distinct and would allow duplicates per day.
+
+export const healthScoreSnapshots = pgTable('health_score_snapshots', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').references(() => brands.id, { onDelete: 'cascade' }),
+  dateKey: varchar('date_key', { length: 10 }).notNull(), // YYYY-MM-DD
+  healthScore: integer('health_score').notNull(),
+  recordedAt: timestamp('recorded_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
 // ── Insights Cache ────────────────────────────────────────────────────────────
 
 export const insightsCache = pgTable(
