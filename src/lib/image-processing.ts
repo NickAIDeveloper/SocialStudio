@@ -556,79 +556,85 @@ export async function createInstagramImageWithText(
     .jpeg({ quality: 95 })
     .toBuffer();
 
-  // Render text using sharp's native text input (Pango-based, works on Vercel)
+  // Render text using SVG (librsvg) — proven reliable on Vercel's runtime.
+  // NOTE: we deliberately avoid sharp's Pango text input here because
+  // `font: 'serif ...'` doesn't resolve consistently on Vercel's minimal
+  // fontconfig stack and produced a broken tiny-text strip in production.
   const colors = BRAND_STYLES[brand] || BRAND_STYLES.affectly;
 
-  // Very light overlay — image stays natural, text shadow does the heavy lifting
-  const tintSvg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${width}" height="${height}" fill="rgba(0,0,0,0.10)"/>
-  </svg>`;
-
-  // Font sizes + narrow container → text wraps to 2-3 lines like IG reference
+  // Font sizing matches the CSS preview's character-count tiers
   const charCount = overlayText.length;
   let scaledFontSize: number;
-  if (charCount <= 20) scaledFontSize = 120;
-  else if (charCount <= 35) scaledFontSize = 100;
-  else if (charCount <= 50) scaledFontSize = 80;
-  else scaledFontSize = 62;
+  let maxCharsPerLine: number;
+  if (charCount <= 20) {
+    scaledFontSize = 120;
+    maxCharsPerLine = 13;
+  } else if (charCount <= 35) {
+    scaledFontSize = 100;
+    maxCharsPerLine = 16;
+  } else if (charCount <= 50) {
+    scaledFontSize = 80;
+    maxCharsPerLine = 21;
+  } else {
+    scaledFontSize = 62;
+    maxCharsPerLine = 27;
+  }
 
-  // Create text image using sharp's text input (Pango rendering)
-  const textImage = await sharp({
-    text: {
-      text: `<span foreground="white"><b>${escapeXml(overlayText)}</b></span>`,
-      rgba: true,
-      width: width - 160,
-      align: 'center',
-      font: `serif ${scaledFontSize}`,
-      dpi: 72,
-    },
-  })
-    .png()
-    .toBuffer();
-
-  // Get text dimensions for positioning
-  const textMeta = await sharp(textImage).metadata();
-  const textW = textMeta.width || 400;
-  const textH = textMeta.height || 100;
+  const lines = wrapText(overlayText, maxCharsPerLine);
+  const lineHeight = Math.round(scaledFontSize * 1.15);
+  const textBlockH = lines.length * lineHeight;
 
   // --- LAYOUT (matches Instagram reference post) ---
-  // Text: centered vertically in full image
-  // Accent line: 50px below text, clamped so it stays above logo
-  // Logo: composited later at ~y=788 by compositeLogoOnImage
+  // Text: centered vertically, clamped to sit above the accent+logo stack.
+  // Logo is composited later at ~y=788 by compositeLogoOnImage (1080x1080).
   const logoTopApprox = height - Math.round(width * 0.15) - Math.round(height * 0.12);
-
-  // Center text in full image, clamped so accent line + logo fit below
-  const accentGap = 50; // gap between text bottom and accent line
-  const logoGap = 120; // gap between accent line and logo top
+  const accentGap = 50;
+  const logoGap = 120;
   const maxTextBottom = logoTopApprox - logoGap - accentGap;
-  const textTopCentered = Math.floor((height - textH) / 2);
-  const textTopClamped = maxTextBottom - textH;
-  const textTop = Math.max(40, Math.min(textTopCentered, textTopClamped));
+  const textBottomCentered = Math.floor((height + textBlockH) / 2);
+  const textBottom = Math.max(
+    textBlockH + 40,
+    Math.min(textBottomCentered, maxTextBottom)
+  );
+  const baselineFirst = textBottom - textBlockH + scaledFontSize;
+  const accentY = Math.min(textBottom + accentGap, logoTopApprox - logoGap);
 
-  // Accent line below text, well above logo
-  const accentY = Math.min(textTop + textH + accentGap, logoTopApprox - logoGap);
-  const textLeft = Math.max(0, Math.floor((width - textW) / 2));
-
-  // Text shadow for readability
-  const shadowImage = await sharp(textImage)
-    .modulate({ brightness: 0 })
-    .ensureAlpha(0.5)
-    .toBuffer();
-
-  // Teal accent line
+  // Very light overlay + text with dark shadow for legibility on any photo
   const lineWidth = 120;
-  const lineLeft = Math.floor((width - lineWidth) / 2);
-  const accentSvg = `<svg width="${lineWidth}" height="4" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${lineWidth}" height="4" rx="2" fill="${colors.accent}"/>
-  </svg>`;
+  const accentX1 = Math.floor((width - lineWidth) / 2);
+  const accentX2 = accentX1 + lineWidth;
+
+  const textTspans = lines
+    .map(
+      (line, i) =>
+        `<tspan x="${width / 2}" dy="${i === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`
+    )
+    .join('\n      ');
+
+  // Two text layers: soft dark shadow (offset + blurred) then white text on top.
+  const overlaySvg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+      <feOffset dx="0" dy="3" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.7"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="${width}" height="${height}" fill="rgba(0,0,0,0.10)"/>
+  <text x="${width / 2}" y="${baselineFirst}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${scaledFontSize}" fill="#FFFFFF" filter="url(#textShadow)" letter-spacing="0.5">
+      ${textTspans}
+  </text>
+  <line x1="${accentX1}" y1="${accentY}" x2="${accentX2}" y2="${accentY}" stroke="${colors.accent}" stroke-width="4" stroke-linecap="round"/>
+</svg>`;
 
   const imageWithText = await sharp(squareImage)
-    .composite([
-      { input: Buffer.from(tintSvg), top: 0, left: 0 },
-      { input: shadowImage, top: textTop + 3, left: textLeft + 3, blend: 'over' },
-      { input: textImage, top: textTop, left: textLeft, blend: 'over' },
-      { input: Buffer.from(accentSvg), top: accentY, left: lineLeft, blend: 'over' },
-    ])
+    .composite([{ input: Buffer.from(overlaySvg), top: 0, left: 0 }])
     .jpeg({ quality: 95 })
     .toBuffer();
 
