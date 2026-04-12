@@ -5,6 +5,7 @@ import { brands, scrapedPosts, posts } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
 import { seedFromInsight, mergePerfectSeed } from '@/lib/smart-posts';
 import { createInstagramImageWithText } from '@/lib/image-processing';
+import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
 import type { InsightCard } from '@/lib/health-score';
 import type { Brand } from '@/lib/domain-types';
 
@@ -20,6 +21,63 @@ const DAY_INDEX: Record<string, number> = {
   friday: 5, fri: 5,
   saturday: 6, sat: 6,
 };
+
+// Asks a small LLM call to translate the generated caption into a concrete
+// 3–5 word stock-photo search query. The caption is the source of truth for
+// what the post is actually about — far more accurate than guessing from a
+// top-post hook fragment. Returns `fallback` on any error/timeout so the
+// pipeline never blocks on image-query derivation.
+async function deriveImageQuery(args: {
+  brandName: string;
+  brandDescription: string;
+  hookText: string;
+  caption: string;
+  contentType: string;
+  fallback: string;
+}): Promise<string> {
+  if (!isCerebrasAvailable()) return args.fallback;
+  try {
+    const captionExcerpt = args.caption.split('\n').filter(Boolean).slice(0, 3).join(' ').slice(0, 400);
+    const prompt = `You pick stock-photo search queries for Instagram posts. Given the post below, return the BEST 3–5 word search query to find a photo that visually matches the SUBJECT of the post.
+
+BRAND: ${args.brandName}${args.brandDescription ? ` — ${args.brandDescription.slice(0, 200)}` : ''}
+HOOK: ${args.hookText}
+CAPTION: ${captionExcerpt}
+POST FRAMEWORK: ${args.contentType}
+
+Rules:
+- Return ONLY the search query, 3–5 words, lowercase, no quotes, no punctuation.
+- The query must describe a CONCRETE visual subject (people, objects, activities, settings) — not abstract concepts.
+- Use the brand's vertical to disambiguate. If the caption is about training/pace/running, use "runner training outdoors" style. If it's about learning/focus/memory, use "student studying laptop" style. If emotions/mental health, use "person reflecting calm".
+- AVOID vague nature queries (frost, twigs, clouds) unless the caption is literally about weather/nature.
+
+Reply with ONLY the query, nothing else.`;
+
+    const content = await cerebrasChatCompletion(
+      [
+        { role: 'system', content: 'You are a visual editor. You pick stock-photo queries that precisely match post subjects. Reply with ONLY the query.' },
+        { role: 'user', content: prompt },
+      ],
+      { temperature: 0.3, maxTokens: 30 },
+    );
+    const cleaned = content
+      .replace(/["'`]/g, '')
+      .replace(/[.!?,;:]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .slice(0, 6)
+      .join(' ');
+    // Sanity: reject anything too short or still full of prompt artifacts.
+    if (cleaned.length < 6 || cleaned.length > 80) return args.fallback;
+    if (/query|reply|only|search|caption|hook/.test(cleaned)) return args.fallback;
+    return cleaned;
+  } catch (err) {
+    console.error('[SmartPosts/generate] Image query derivation failed:', err instanceof Error ? err.message : err);
+    return args.fallback;
+  }
+}
 
 // Returns the next future occurrence of `dayName` at `hour:00` as an ISO string.
 // If today matches and the hour is still ahead, uses today; otherwise rolls
@@ -171,9 +229,22 @@ export async function POST(request: NextRequest) {
       hookText?: string;
     };
 
-    // 2. Stock image
-    const topicQuery =
+    // 2. Stock image — derive a *subject-accurate* search query from the
+    // generated caption itself. The old approach used the first 3 words of
+    // the top-post hook (e.g. "thecyborgrunner on February"), which has no
+    // visual signal and dragged in random nature photos. We now ask a small
+    // LLM call to translate the caption + brand + hook into a 3–5 word
+    // stock-photo query. Falls back to the old seed-based query on failure.
+    const fallbackQuery =
       seed.topicHint ?? brand.description?.split(/\s+/).slice(0, 3).join(' ') ?? brand.name;
+    const topicQuery = await deriveImageQuery({
+      brandName: brand.name,
+      brandDescription: brand.description ?? '',
+      hookText: captionPayload.hookText ?? '',
+      caption: captionPayload.caption ?? '',
+      contentType: seed.contentType,
+      fallback: fallbackQuery,
+    });
     const imagesRes = await fetch(
       `${origin}/api/images?source=all&q=${encodeURIComponent(topicQuery)}`,
       { headers: { cookie } },
