@@ -38,20 +38,27 @@ async function deriveImageQuery(args: {
   if (!isCerebrasAvailable()) return args.fallback;
   try {
     const captionExcerpt = args.caption.split('\n').filter(Boolean).slice(0, 3).join(' ').slice(0, 400);
-    const prompt = `You pick stock-photo search queries for Instagram posts. Given the post below, return the BEST 3–5 word search query to find a photo that visually matches the SUBJECT of the post.
+    const prompt = `Pick the best stock-photo search query for this Instagram post.
 
 BRAND: ${args.brandName}${args.brandDescription ? ` — ${args.brandDescription.slice(0, 200)}` : ''}
 HOOK: ${args.hookText}
 CAPTION: ${captionExcerpt}
-POST FRAMEWORK: ${args.contentType}
 
-Rules:
-- Return ONLY the search query, 3–5 words, lowercase, no quotes, no punctuation.
-- The query must describe a CONCRETE visual subject (people, objects, activities, settings) — not abstract concepts.
-- Use the brand's vertical to disambiguate. If the caption is about training/pace/running, use "runner training outdoors" style. If it's about learning/focus/memory, use "student studying laptop" style. If emotions/mental health, use "person reflecting calm".
-- AVOID vague nature queries (frost, twigs, clouds) unless the caption is literally about weather/nature.
+Your job: extract the most CONCRETE VISUAL SUBJECT from the caption above (not the brand, not the hook — the caption) and turn it into a 3–5 word stock-photo query.
 
-Reply with ONLY the query, nothing else.`;
+Process:
+1. Identify the literal activity, scene, or object the caption is about (e.g. "studying in bed at night", "running on a treadmill", "writing in a journal", "hiking alone at dawn", "taking notes in a cafe").
+2. Turn that into 3–5 concrete words a stock-photo search would return well (people + activity + setting).
+
+HARD BANS — these stock cliches always come back generic and ruin the post:
+- silhouette / person looking at sunset / person looking at water / person on mountain
+- abstract nature (frost, twigs, waves, clouds, leaves) unless the caption is literally about that
+- hands holding a phone, hands typing, generic "lifestyle" stock
+- "contemplation", "reflection", "journey" as query words
+
+Good queries match a SCENE. Bad queries match a MOOD.
+
+Return ONLY the query: 3–5 words, lowercase, no quotes, no punctuation.`;
 
     const content = await cerebrasChatCompletion(
       [
@@ -72,6 +79,11 @@ Reply with ONLY the query, nothing else.`;
     // Sanity: reject anything too short or still full of prompt artifacts.
     if (cleaned.length < 6 || cleaned.length > 80) return args.fallback;
     if (/query|reply|only|search|caption|hook/.test(cleaned)) return args.fallback;
+    // Reject cliche queries that return generic atmospheric stock photos.
+    // If the LLM slips back into these despite the prompt, fall back.
+    if (/silhouette|sunset|contemplation|reflection|journey\b/.test(cleaned)) {
+      return args.fallback;
+    }
     return cleaned;
   } catch (err) {
     console.error('[SmartPosts/generate] Image query derivation failed:', err instanceof Error ? err.message : err);
