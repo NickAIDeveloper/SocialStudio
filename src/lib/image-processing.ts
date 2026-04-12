@@ -19,6 +19,10 @@ async function fetchImageBuffer(imageUrl: string): Promise<Buffer> {
 }
 
 const LOGOS_DIR = path.join(process.cwd(), 'public', 'logos');
+const FONTS_DIR = path.join(process.cwd(), 'public', 'fonts');
+const SERIF_FONT_PATH = path.join(FONTS_DIR, 'PlayfairDisplay-Black.ttf');
+// Pango identifies the font by its internal family name, not the filename.
+const SERIF_FONT_FAMILY = 'Playfair Display';
 
 // In-memory cache for downloaded logo buffers (keyed by URL)
 const LOGO_CACHE_MAX = 50;
@@ -556,10 +560,10 @@ export async function createInstagramImageWithText(
     .jpeg({ quality: 95 })
     .toBuffer();
 
-  // Render text using SVG (librsvg) — proven reliable on Vercel's runtime.
-  // NOTE: we deliberately avoid sharp's Pango text input here because
-  // `font: 'serif ...'` doesn't resolve consistently on Vercel's minimal
-  // fontconfig stack and produced a broken tiny-text strip in production.
+  // Render text using sharp's Pango text input with an EXPLICIT fontfile.
+  // This bundles Playfair Display Black and bypasses fontconfig entirely, so it
+  // renders identically on local dev and on Vercel's minimal runtime (where
+  // generic "serif" and "Georgia" can't be resolved by Pango or librsvg).
   const colors = BRAND_STYLES[brand] || BRAND_STYLES.affectly;
 
   // Font sizing matches the CSS preview's character-count tiers
@@ -580,61 +584,72 @@ export async function createInstagramImageWithText(
     maxCharsPerLine = 27;
   }
 
+  // Pre-wrap manually so line breaks are deterministic across environments.
   const lines = wrapText(overlayText, maxCharsPerLine);
-  const lineHeight = Math.round(scaledFontSize * 1.15);
-  const textBlockH = lines.length * lineHeight;
+  const pangoText = `<span foreground="white"><b>${lines
+    .map((l) => escapeXml(l))
+    .join('\n')}</b></span>`;
+
+  const textImage = await sharp({
+    text: {
+      text: pangoText,
+      rgba: true,
+      width: width - 160,
+      align: 'center',
+      font: `${SERIF_FONT_FAMILY} Black ${scaledFontSize}`,
+      fontfile: SERIF_FONT_PATH,
+      dpi: 72,
+    },
+  })
+    .png()
+    .toBuffer();
+
+  const textMeta = await sharp(textImage).metadata();
+  const textW = textMeta.width || 400;
+  const textH = textMeta.height || 100;
+
+  // Soft black shadow layer behind the text (builds the CSS drop-shadow look).
+  const shadowImage = await sharp({
+    text: {
+      text: `<span foreground="black">${lines.map((l) => escapeXml(l)).join('\n')}</span>`,
+      rgba: true,
+      width: width - 160,
+      align: 'center',
+      font: `${SERIF_FONT_FAMILY} Black ${scaledFontSize}`,
+      fontfile: SERIF_FONT_PATH,
+      dpi: 72,
+    },
+  })
+    .blur(4)
+    .png()
+    .toBuffer();
 
   // --- LAYOUT (matches Instagram reference post) ---
-  // Text: centered vertically, clamped to sit above the accent+logo stack.
   // Logo is composited later at ~y=788 by compositeLogoOnImage (1080x1080).
   const logoTopApprox = height - Math.round(width * 0.15) - Math.round(height * 0.12);
   const accentGap = 50;
   const logoGap = 120;
   const maxTextBottom = logoTopApprox - logoGap - accentGap;
-  const textBottomCentered = Math.floor((height + textBlockH) / 2);
-  const textBottom = Math.max(
-    textBlockH + 40,
-    Math.min(textBottomCentered, maxTextBottom)
-  );
-  const baselineFirst = textBottom - textBlockH + scaledFontSize;
-  const accentY = Math.min(textBottom + accentGap, logoTopApprox - logoGap);
+  const textTopCentered = Math.floor((height - textH) / 2);
+  const textTopClamped = maxTextBottom - textH;
+  const textTop = Math.max(40, Math.min(textTopCentered, textTopClamped));
+  const accentY = Math.min(textTop + textH + accentGap, logoTopApprox - logoGap);
+  const textLeft = Math.max(0, Math.floor((width - textW) / 2));
 
-  // Very light overlay + text with dark shadow for legibility on any photo
+  // Light tint + teal accent line rendered as SVG (no text → librsvg can't fail here).
   const lineWidth = 120;
-  const accentX1 = Math.floor((width - lineWidth) / 2);
-  const accentX2 = accentX1 + lineWidth;
-
-  const textTspans = lines
-    .map(
-      (line, i) =>
-        `<tspan x="${width / 2}" dy="${i === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`
-    )
-    .join('\n      ');
-
-  // Two text layers: soft dark shadow (offset + blurred) then white text on top.
+  const lineLeft = Math.floor((width - lineWidth) / 2);
   const overlaySvg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
-      <feOffset dx="0" dy="3" result="offsetblur"/>
-      <feComponentTransfer>
-        <feFuncA type="linear" slope="0.7"/>
-      </feComponentTransfer>
-      <feMerge>
-        <feMergeNode/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
   <rect width="${width}" height="${height}" fill="rgba(0,0,0,0.10)"/>
-  <text x="${width / 2}" y="${baselineFirst}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${scaledFontSize}" fill="#FFFFFF" filter="url(#textShadow)" letter-spacing="0.5">
-      ${textTspans}
-  </text>
-  <line x1="${accentX1}" y1="${accentY}" x2="${accentX2}" y2="${accentY}" stroke="${colors.accent}" stroke-width="4" stroke-linecap="round"/>
+  <rect x="${lineLeft}" y="${accentY}" width="${lineWidth}" height="4" rx="2" fill="${colors.accent}"/>
 </svg>`;
 
   const imageWithText = await sharp(squareImage)
-    .composite([{ input: Buffer.from(overlaySvg), top: 0, left: 0 }])
+    .composite([
+      { input: Buffer.from(overlaySvg), top: 0, left: 0 },
+      { input: shadowImage, top: textTop + 3, left: textLeft, blend: 'over' },
+      { input: textImage, top: textTop, left: textLeft, blend: 'over' },
+    ])
     .jpeg({ quality: 95 })
     .toBuffer();
 
