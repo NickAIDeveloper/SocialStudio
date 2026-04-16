@@ -251,6 +251,60 @@ export const healthScoreSnapshots = pgTable('health_score_snapshots', {
   recordedAt: timestamp('recorded_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
+// ── Meta (Facebook/Instagram Marketing API) ───────────────────────────────────
+// Stores the long-lived user access token per user (from OAuth), plus the list
+// of ad accounts / pages / IG accounts the user has access to (fetched once on
+// connect). The token is encrypted at rest via `encrypt()` from lib/encryption.
+
+export const metaAccounts = pgTable(
+  'meta_accounts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    // The Facebook user ID of the person who authorized us (NOT our user.id).
+    fbUserId: varchar('fb_user_id', { length: 64 }).notNull(),
+    fbUserName: varchar('fb_user_name', { length: 255 }),
+    // Encrypted long-lived user access token (~60 day lifetime).
+    accessToken: text('access_token').notNull(),
+    tokenExpiresAt: timestamp('token_expires_at', { mode: 'date' }),
+    scopes: text('scopes'), // comma-separated list of granted scopes
+    // Cached list of assets the user has access to. Structure:
+    //   { adAccounts: [{id, name, currency, ...}], pages: [...], igAccounts: [...] }
+    assets: jsonb('assets'),
+    // Which asset the user has currently selected for the Insights dashboard.
+    selectedAdAccountId: varchar('selected_ad_account_id', { length: 64 }),
+    connectedAt: timestamp('connected_at', { mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('meta_accounts_user_id_idx').on(t.userId)]
+);
+
+// Cache for /insights responses — keyed by (userId, adAccountId, cacheKey)
+// where cacheKey encodes the query shape (datePreset + level + breakdowns).
+export const metaInsightsCache = pgTable(
+  'meta_insights_cache',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    adAccountId: varchar('ad_account_id', { length: 64 }).notNull(),
+    cacheKey: varchar('cache_key', { length: 255 }).notNull(),
+    data: jsonb('data').notNull(),
+    fetchedAt: timestamp('fetched_at', { mode: 'date' }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
+  },
+  (t) => [
+    uniqueIndex('meta_insights_cache_unique_idx').on(
+      t.userId,
+      t.adAccountId,
+      t.cacheKey
+    ),
+  ]
+);
+
 // ── Insights Cache ────────────────────────────────────────────────────────────
 
 export const insightsCache = pgTable(
@@ -284,3 +338,8 @@ export type InsertScrapedAccount = typeof scrapedAccounts.$inferInsert;
 export type SelectScrapedAccount = typeof scrapedAccounts.$inferSelect;
 export type InsertScrapedPost = typeof scrapedPosts.$inferInsert;
 export type SelectScrapedPost = typeof scrapedPosts.$inferSelect;
+
+export type InsertMetaAccount = typeof metaAccounts.$inferInsert;
+export type SelectMetaAccount = typeof metaAccounts.$inferSelect;
+export type InsertMetaInsightsCache = typeof metaInsightsCache.$inferInsert;
+export type SelectMetaInsightsCache = typeof metaInsightsCache.$inferSelect;
