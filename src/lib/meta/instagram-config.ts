@@ -33,13 +33,17 @@ export function buildInstagramRedirectUri(origin: string): string {
 }
 
 export function getInstagramConfig(redirectUri: string): InstagramOAuthConfig {
-  // Same Meta app as the FB flow — one app, two auth paths.
-  const appId = process.env.META_APP_ID ?? process.env.FB_APP_ID;
-  const appSecret = process.env.META_APP_SECRET ?? process.env.FB_APP_SECRET;
+  // Instagram Login for Business requires the *Instagram* app ID + secret,
+  // NOT the Facebook/Meta app credentials. Same Meta project, but the IG
+  // product has its own app ID (shown as "Instagram app ID" in the Meta
+  // console) and its own secret. Using the FB app ID here yields
+  // "Invalid platform app" at /oauth/authorize.
+  const appId = process.env.META_IG_APP_ID;
+  const appSecret = process.env.META_IG_APP_SECRET;
 
   if (!appId || !appSecret) {
     throw new Error(
-      'Instagram OAuth not configured. Set META_APP_ID and META_APP_SECRET.'
+      'Instagram OAuth not configured. Set META_IG_APP_ID and META_IG_APP_SECRET (from the Meta console → Instagram API Setup tab).'
     );
   }
   return { appId, appSecret, redirectUri, scopes: IG_SCOPES };
