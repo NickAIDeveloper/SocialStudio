@@ -1,19 +1,19 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { randomBytes } from 'crypto';
 import { getUserId } from '@/lib/auth-helpers';
 import { buildAuthDialogUrl, type BuildAuthUrlParams } from '@/lib/meta/client';
-import { getMetaConfig } from '@/lib/meta/config';
+import { buildRedirectUri, getMetaConfig } from '@/lib/meta/config';
 
 // GET /api/meta/oauth/start
 // Generates a CSRF state token, stashes it in an httpOnly cookie, and
 // redirects the user to Facebook's OAuth dialog.
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     // Auth check — user must be logged in to link a Meta account to their user row.
     await getUserId();
 
-    const cfg = getMetaConfig();
+    const cfg = getMetaConfig(buildRedirectUri(req.nextUrl.origin));
     const state = randomBytes(32).toString('hex');
 
     const cookieStore = await cookies();

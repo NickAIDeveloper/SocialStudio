@@ -27,14 +27,21 @@ export const META_SCOPES = [
   'business_management',
 ];
 
-export function getMetaConfig(): MetaOAuthConfig {
-  const appId = process.env.META_APP_ID;
-  const appSecret = process.env.META_APP_SECRET;
-  const redirectUri = process.env.META_OAUTH_REDIRECT_URI;
+// Builds the Meta OAuth callback URL from a request origin. Deriving it from
+// the incoming request lets the same code work in dev/preview/prod without an
+// env var per environment — and guarantees the start and callback routes
+// produce the exact same URL (Facebook validates it character-for-character).
+export function buildRedirectUri(origin: string): string {
+  return `${origin}/api/meta/oauth/callback`;
+}
 
-  if (!appId || !appSecret || !redirectUri) {
+export function getMetaConfig(redirectUri: string): MetaOAuthConfig {
+  const appId = process.env.META_APP_ID ?? process.env.FB_APP_ID;
+  const appSecret = process.env.META_APP_SECRET ?? process.env.FB_APP_SECRET;
+
+  if (!appId || !appSecret) {
     throw new Error(
-      'Meta OAuth not configured. Set META_APP_ID, META_APP_SECRET, and META_OAUTH_REDIRECT_URI.'
+      'Meta OAuth not configured. Set META_APP_ID and META_APP_SECRET (or FB_APP_ID / FB_APP_SECRET).'
     );
   }
   return { appId, appSecret, redirectUri, scopes: META_SCOPES };
@@ -42,8 +49,7 @@ export function getMetaConfig(): MetaOAuthConfig {
 
 export function isMetaConfigured(): boolean {
   return Boolean(
-    process.env.META_APP_ID &&
-      process.env.META_APP_SECRET &&
-      process.env.META_OAUTH_REDIRECT_URI
+    (process.env.META_APP_ID || process.env.FB_APP_ID) &&
+      (process.env.META_APP_SECRET || process.env.FB_APP_SECRET)
   );
 }

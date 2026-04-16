@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { metaAccounts } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
 import { encrypt } from '@/lib/encryption';
-import { getMetaConfig } from '@/lib/meta/config';
+import { buildRedirectUri, getMetaConfig } from '@/lib/meta/config';
 import {
   exchangeCodeForShortLivedToken,
   exchangeForLongLivedToken,
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const userId = await getUserId();
-    const cfg = getMetaConfig();
+    const cfg = getMetaConfig(buildRedirectUri(req.nextUrl.origin));
 
     // Step 1: code → short-lived user token
     const shortLived = await exchangeCodeForShortLivedToken({
