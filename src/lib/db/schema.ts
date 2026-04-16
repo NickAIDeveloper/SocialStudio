@@ -281,6 +281,39 @@ export const metaAccounts = pgTable(
   (t) => [uniqueIndex('meta_accounts_user_id_idx').on(t.userId)]
 );
 
+// ── Instagram (direct IG Login for Business) ──────────────────────────────────
+// Separate from meta_accounts because Instagram Login for Business is a
+// distinct auth path with its own endpoints (graph.instagram.com, not
+// graph.facebook.com) and its own scope taxonomy (instagram_business_*).
+//
+// Unlike metaAccounts (one row per user — a single FB profile), a user can
+// link multiple IG Business/Creator accounts, so we key on (userId, igUserId).
+
+export const instagramAccounts = pgTable(
+  'instagram_accounts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    // IG-scoped user ID returned by /me (distinct from any FB user ID).
+    igUserId: varchar('ig_user_id', { length: 64 }).notNull(),
+    igUsername: varchar('ig_username', { length: 255 }),
+    // 'BUSINESS' or 'CREATOR' — the API rejects personal accounts outright,
+    // but we record this so the UI can flag unusual cases.
+    igAccountType: varchar('ig_account_type', { length: 32 }),
+    name: varchar('name', { length: 255 }),
+    profilePictureUrl: text('profile_picture_url'),
+    // Encrypted long-lived IG user token (~60 day lifetime, refreshable).
+    accessToken: text('access_token').notNull(),
+    tokenExpiresAt: timestamp('token_expires_at', { mode: 'date' }),
+    scopes: text('scopes'), // comma-separated granted scopes
+    connectedAt: timestamp('connected_at', { mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('instagram_accounts_user_ig_user_idx').on(t.userId, t.igUserId)]
+);
+
 // Cache for /insights responses — keyed by (userId, adAccountId, cacheKey)
 // where cacheKey encodes the query shape (datePreset + level + breakdowns).
 export const metaInsightsCache = pgTable(
@@ -343,3 +376,6 @@ export type InsertMetaAccount = typeof metaAccounts.$inferInsert;
 export type SelectMetaAccount = typeof metaAccounts.$inferSelect;
 export type InsertMetaInsightsCache = typeof metaInsightsCache.$inferInsert;
 export type SelectMetaInsightsCache = typeof metaInsightsCache.$inferSelect;
+
+export type InsertInstagramAccount = typeof instagramAccounts.$inferInsert;
+export type SelectInstagramAccount = typeof instagramAccounts.$inferSelect;

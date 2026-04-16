@@ -239,7 +239,353 @@ export function MetaHub() {
         <PagesPanel pages={account.assets.pages} />
       )}
 
+      <InstagramSection />
+
       <FutureFeaturesPanel connected={!!account} />
+    </div>
+  );
+}
+
+// ── Instagram section (direct IG Login for Business) ────────────────────────
+// Separate flow from the Facebook OAuth above. Doesn't require FB Pages;
+// a Business or Creator IG account can connect directly.
+
+interface IgAccount {
+  id: string;
+  igUserId: string;
+  igUsername: string | null;
+  igAccountType: string | null;
+  name: string | null;
+  profilePictureUrl: string | null;
+  tokenExpiresAt: string | null;
+  connectedAt: string;
+}
+
+interface IgInsightValue {
+  value: number | Record<string, number>;
+  end_time?: string;
+}
+interface IgInsightRow {
+  name: string;
+  period: string;
+  values: IgInsightValue[];
+  total_value?: { value: number };
+  title?: string;
+}
+interface IgMediaItem {
+  id: string;
+  caption?: string;
+  media_type: string;
+  media_product_type?: string;
+  media_url?: string;
+  thumbnail_url?: string;
+  permalink?: string;
+  timestamp?: string;
+  like_count?: number;
+  comments_count?: number;
+  insights: IgInsightRow[];
+}
+interface IgInsightsBundle {
+  profile: {
+    username: string;
+    account_type: string;
+    name?: string;
+    profile_picture_url?: string;
+    followers_count?: number;
+    follows_count?: number;
+    media_count?: number;
+  };
+  accountInsights: IgInsightRow[];
+  media: IgMediaItem[];
+}
+
+function InstagramSection() {
+  const searchParams = useSearchParams();
+  const [accounts, setAccounts] = useState<IgAccount[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedIg, setSelectedIg] = useState<string | null>(null);
+  const [bundle, setBundle] = useState<IgInsightsBundle | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [igMessage, setIgMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    null
+  );
+
+  const fetchAccounts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/meta/instagram/accounts', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setAccounts(json.data ?? []);
+      if (json.data?.length && !selectedIg) setSelectedIg(json.data[0].igUserId);
+    } catch (err) {
+      setIgMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to load IG accounts',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedIg]);
+
+  const fetchInsights = useCallback(async (igUserId: string) => {
+    setInsightsLoading(true);
+    setBundle(null);
+    try {
+      const res = await fetch(
+        `/api/meta/instagram/insights?igUserId=${encodeURIComponent(igUserId)}`,
+        { cache: 'no-store' }
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      setBundle(json.data);
+    } catch (err) {
+      setIgMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to load insights',
+      });
+    } finally {
+      setInsightsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const connected = searchParams.get('igConnected');
+    const err = searchParams.get('igError');
+    if (connected) setIgMessage({ type: 'success', text: `Connected @${connected}` });
+    else if (err) setIgMessage({ type: 'error', text: err });
+    fetchAccounts();
+  }, [fetchAccounts, searchParams]);
+
+  useEffect(() => {
+    if (selectedIg) fetchInsights(selectedIg);
+  }, [selectedIg, fetchInsights]);
+
+  async function handleDisconnectIg(igUserId: string) {
+    if (!confirm('Disconnect this Instagram account?')) return;
+    try {
+      const res = await fetch(
+        `/api/meta/instagram/accounts?igUserId=${encodeURIComponent(igUserId)}`,
+        { method: 'DELETE' }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setAccounts((prev) => prev.filter((a) => a.igUserId !== igUserId));
+      if (selectedIg === igUserId) {
+        setSelectedIg(null);
+        setBundle(null);
+      }
+    } catch (err) {
+      setIgMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Disconnect failed',
+      });
+    }
+  }
+
+  if (loading) return null;
+
+  return (
+    <div className="glass-card rounded-xl border border-white/5 p-6 space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white">Instagram accounts</h3>
+          <p className="text-sm text-white/70 mt-1">
+            Direct Instagram Login for Business — no Facebook Page required. Works with
+            Business or Creator IG accounts only.
+          </p>
+        </div>
+        <a
+          href="/api/meta/instagram/oauth/start"
+          className="shrink-0 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#E1306C] to-[#F77737] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+        >
+          Connect Instagram
+        </a>
+      </div>
+
+      {igMessage && (
+        <div
+          className={
+            igMessage.type === 'success'
+              ? 'rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300'
+              : 'rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400'
+          }
+        >
+          {igMessage.text}
+        </div>
+      )}
+
+      {accounts.length === 0 ? (
+        <p className="text-sm text-white/60">
+          No Instagram accounts connected yet. Click <strong>Connect Instagram</strong> above —
+          you&apos;ll authenticate with the IG account itself (not Facebook) and we&apos;ll
+          pull in insights for this user.
+        </p>
+      ) : (
+        <ul className="space-y-1.5">
+          {accounts.map((a) => (
+            <li
+              key={a.igUserId}
+              className={`flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer ${
+                selectedIg === a.igUserId
+                  ? 'border-fuchsia-400/40 bg-fuchsia-400/10'
+                  : 'border-white/5 bg-black/20 hover:border-white/15'
+              }`}
+              onClick={() => setSelectedIg(a.igUserId)}
+            >
+              <div className="flex items-center gap-3">
+                {a.profilePictureUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={a.profilePictureUrl}
+                    alt=""
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="h-8 w-8 rounded-full bg-white/10" />
+                )}
+                <div>
+                  <div className="text-sm font-medium text-white">@{a.igUsername}</div>
+                  <div className="text-xs text-white/50">
+                    {a.igAccountType}
+                    {a.name ? ` · ${a.name}` : ''}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDisconnectIg(a.igUserId);
+                }}
+                className="rounded-lg border border-white/10 px-2 py-1 text-xs text-white hover:bg-white/5"
+              >
+                Disconnect
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {selectedIg && (
+        <IgInsightsPanel loading={insightsLoading} bundle={bundle} />
+      )}
+    </div>
+  );
+}
+
+function IgInsightsPanel({
+  loading,
+  bundle,
+}: {
+  loading: boolean;
+  bundle: IgInsightsBundle | null;
+}) {
+  if (loading) return <div className="text-sm text-white/60">Loading Instagram insights…</div>;
+  if (!bundle) return null;
+
+  const { profile, accountInsights, media } = bundle;
+  const totalFor = (name: string) =>
+    accountInsights.find((r) => r.name === name)?.total_value?.value;
+
+  return (
+    <div className="space-y-4 pt-2 border-t border-white/10">
+      <div className="flex items-center gap-4">
+        {profile.profile_picture_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={profile.profile_picture_url}
+            alt=""
+            className="h-12 w-12 rounded-full object-cover"
+          />
+        )}
+        <div>
+          <div className="text-base font-semibold text-white">
+            @{profile.username}{' '}
+            <span className="text-xs text-white/50">({profile.account_type})</span>
+          </div>
+          <div className="text-xs text-white/60">
+            {profile.followers_count?.toLocaleString() ?? '—'} followers ·{' '}
+            {profile.media_count?.toLocaleString() ?? '—'} posts
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Metric label="Reach (28d)" value={formatNumber(totalFor('reach'))} />
+        <Metric label="Views (28d)" value={formatNumber(totalFor('views'))} />
+        <Metric label="Accounts engaged" value={formatNumber(totalFor('accounts_engaged'))} />
+        <Metric label="Interactions" value={formatNumber(totalFor('total_interactions'))} />
+        <Metric label="Likes" value={formatNumber(totalFor('likes'))} />
+        <Metric label="Comments" value={formatNumber(totalFor('comments'))} />
+        <Metric label="Saves" value={formatNumber(totalFor('saves'))} />
+        <Metric label="Shares" value={formatNumber(totalFor('shares'))} />
+      </div>
+
+      {media.length > 0 && (
+        <div>
+          <h4 className="text-sm font-semibold text-white mb-2">Recent posts</h4>
+          <div className="overflow-x-auto -mx-2">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wider text-white/50 border-b border-white/10">
+                  <th className="px-2 py-2 font-medium">Post</th>
+                  <th className="px-2 py-2 font-medium">Type</th>
+                  <th className="px-2 py-2 font-medium text-right">Reach</th>
+                  <th className="px-2 py-2 font-medium text-right">Views</th>
+                  <th className="px-2 py-2 font-medium text-right">Likes</th>
+                  <th className="px-2 py-2 font-medium text-right">Comments</th>
+                  <th className="px-2 py-2 font-medium text-right">Saves</th>
+                  <th className="px-2 py-2 font-medium text-right">Shares</th>
+                </tr>
+              </thead>
+              <tbody>
+                {media.map((m) => {
+                  const metric = (name: string) =>
+                    m.insights.find((r) => r.name === name)?.values?.[0]?.value;
+                  return (
+                    <tr key={m.id} className="border-b border-white/5 text-white/90 hover:bg-white/5">
+                      <td className="px-2 py-2 max-w-[260px]">
+                        <a
+                          href={m.permalink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sky-400 hover:underline line-clamp-1"
+                        >
+                          {m.caption?.slice(0, 60) || '(no caption)'}
+                        </a>
+                        {m.timestamp && (
+                          <div className="text-[11px] text-white/40">
+                            {new Date(m.timestamp).toLocaleDateString()}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-2 py-2 text-xs text-white/70">
+                        {m.media_product_type ?? m.media_type}
+                      </td>
+                      <td className="px-2 py-2 text-right tabular-nums">
+                        {formatNumber(metric('reach'))}
+                      </td>
+                      <td className="px-2 py-2 text-right tabular-nums">
+                        {formatNumber(metric('views'))}
+                      </td>
+                      <td className="px-2 py-2 text-right tabular-nums">
+                        {formatNumber(m.like_count ?? metric('likes'))}
+                      </td>
+                      <td className="px-2 py-2 text-right tabular-nums">
+                        {formatNumber(m.comments_count ?? metric('comments'))}
+                      </td>
+                      <td className="px-2 py-2 text-right tabular-nums">
+                        {formatNumber(metric('saves'))}
+                      </td>
+                      <td className="px-2 py-2 text-right tabular-nums">
+                        {formatNumber(metric('shares'))}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
