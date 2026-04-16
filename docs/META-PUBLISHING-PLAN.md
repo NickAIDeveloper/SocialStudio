@@ -4,129 +4,105 @@ Target: get the GoViraleza Meta app published + through App Review so real
 users can authorize Facebook at `/meta` and read ads insights.
 
 - **App:** GoViraleza (App ID `2118925715617016`)
-- **Deployed domain:** `https://goviraleza.com` (redirects to `www.`)
+- **Deployed domain:** `https://goviraleza.com`
 - **Dev console:** https://developers.facebook.com/apps/2118925715617016/
-- **Current status:** Unpublished
-
----
-
-## How to resume
-
-A Playwright browser session was already logged in as the app owner last session. That session may or may not still be alive — if not, ask the user to re-log in with this sequence:
-
-1. Navigate to `https://developers.facebook.com/apps/2118925715617016/`
-2. User logs in themselves (don't type credentials)
-3. User says "I'm in"
-
-All the field refs in this doc are stale once the page reloads — always call `browser_snapshot` first to get fresh refs before clicking.
+- **Current status:** Unpublished (Dev Mode — only testers can authorize)
 
 ---
 
 ## Done — do not redo
 
 - [x] Meta integration code complete (schema, OAuth routes, client, hub UI)
-- [x] Pushed to `origin/develop` (commits `c8779cc`, `48c0a22`, `3937eb4`)
-- [x] Neon DB tables verified: `meta_accounts`, `meta_insights_cache` (with unique indexes)
-- [x] Created `src/app/data-deletion/page.tsx`
-- [x] Fixed `src/middleware.ts` to allow public access to `/data-deletion`
-- [x] Audited Meta Basic Settings — pre-filled fields: name (GoViraleza), app icon, contact email (origae.dev@gmail.com), category (Utility & productivity), DPO info
-- [x] Typed (NOT SAVED) into empty Basic Settings fields:
-  - App Domains: `goviraleza.com`
+- [x] Merged `develop` → `main` (Vercel prod deploy live)
+- [x] Verified `/data-deletion` is publicly accessible on prod (HTTP 200, no login redirect)
+- [x] **Basic Settings saved in Meta console:**
+  - App domain: `goviraleza.com`
   - Privacy policy URL: `https://goviraleza.com/privacy`
   - Terms of Service URL: `https://goviraleza.com/terms`
-  - User data deletion URL: `https://goviraleza.com/data-deletion`
-- [x] Save failed — Meta rejected because `/data-deletion` was redirecting to `/login` (middleware block). Fix committed but needs user to deploy to prod.
+  - Data deletion URL: `https://goviraleza.com/data-deletion`
+- [x] **Facebook Login for Business configured:**
+  - Valid OAuth Redirect URI: `https://goviraleza.com/api/meta/oauth/callback`
+  - Client OAuth login: Yes / Web OAuth login: Yes / Enforce HTTPS: Yes / Strict mode: Yes
+- [x] **Eliminated `META_OAUTH_REDIRECT_URI` env var dependency** (commit `c606bdc`). OAuth routes now derive the redirect URI from `req.nextUrl.origin`, so the same code works on localhost, preview, and prod with zero per-env configuration. Also accepts `FB_APP_ID` / `FB_APP_SECRET` as aliases.
+
+## Current Meta app status (as observed)
+
+Marketing API use case already has **"Ready for testing"** status for:
+- `ads_management`
+- `ads_read`
+- `business_management`
+- `pages_read_engagement`
+- `Ads Management Standard Access` (feature)
+
+Meaning: once you add yourself as a tester, you can authorize the app in Dev Mode and those scopes will grant immediately — no App Review needed for testing.
 
 ---
 
-## Immediate next step (start here)
+## Immediate next step
 
-### 1. Verify `/data-deletion` is publicly accessible
+### 1. Wait for Vercel to deploy commit `c606bdc`
+
+That commit removes the redirect-URI env-var requirement. Once live, the OAuth flow works end-to-end without touching Vercel env settings.
 
 ```bash
-curl -sL -o /dev/null -w "%{http_code} %{url_effective}\n" https://goviraleza.com/data-deletion
+# Watch for the deploy
+curl -sI https://goviraleza.com/api/meta/oauth/start | head -3
+# Before deploy: 500 (env var missing)
+# After deploy:  302 or 401 (depending on auth state)
 ```
 
-Expected: `200 https://www.goviraleza.com/data-deletion`
+### 2. Add yourself as an App Tester
 
-If it still redirects to `/login`, the middleware fix hasn't deployed yet — stop and ask the user to deploy `develop` → production on Vercel.
+Navigate to `https://developers.facebook.com/apps/2118925715617016/roles/roles/` and add your personal Facebook account under **Testers** or **Developers**. Only users in this list can authorize the app while it's in Dev Mode.
 
-### 2. Save Meta Basic Settings
+### 3. Run the E2E smoke test
 
-1. `browser_navigate` to `https://developers.facebook.com/apps/2118925715617016/settings/basic/`
-2. `browser_snapshot` — check the 4 fields (App Domains, Privacy, Terms, Data Deletion URL). They may still be typed from last session, OR may have reset.
-3. If reset, re-fill:
-   - App Domains: `goviraleza.com` (tag combobox — type + Enter)
-   - Privacy policy URL: `https://goviraleza.com/privacy`
-   - Terms of Service URL: `https://goviraleza.com/terms`
-   - User data deletion URL: `https://goviraleza.com/data-deletion`
-4. Click **Save changes**.
-5. Confirm green success banner appears. If red error, screenshot + diagnose.
+1. Log in to `https://goviraleza.com`
+2. Open `/meta` from the sidebar
+3. Click **Connect Facebook**
+4. Authorize the scopes on the OAuth consent screen
+5. Confirm you land back on `/meta?connected=1`
+6. Confirm the ad account dropdown populates
+7. Select an ad account and confirm insights load (level=account, date=last_30d)
+
+If step 3 fails with `redirect_uri_mismatch`: the Vercel deploy is stale. Re-check `git log origin/main -n1` matches `c606bdc` or later AND that Vercel has rebuilt.
+
+If step 5 fails with `Meta OAuth not configured`: the `FB_APP_ID`/`FB_APP_SECRET` (or `META_APP_ID`/`META_APP_SECRET`) env vars aren't set on Vercel prod. Set them: the values are in `.env.local`.
 
 ---
 
-## Remaining work
+## Remaining work (in priority order)
 
-### 3. Facebook Login for Business — add OAuth redirect URI
+### 4. Add an Instagram / Page insights use case (for IG scopes)
 
-Left nav → **Facebook Login for Business** → **Settings**.
+Current Marketing API use case does NOT cover:
+- `instagram_basic`
+- `instagram_manage_insights`
+- `pages_show_list`
 
-- Add valid OAuth redirect URI: `https://goviraleza.com/api/meta/oauth/callback`
-- Ensure **Client OAuth Login** and **Web OAuth Login** are enabled
-- Leave **Enforce HTTPS** on
-- Save
+Steps: `Use cases` → **Add use cases** → pick one matching those scopes (look for "Access engagement data on Pages and Instagram accounts" or similar). Customize it to include the missing scopes.
 
-**Precondition:** confirm user has updated Vercel env var
-`META_OAUTH_REDIRECT_URI=https://goviraleza.com/api/meta/oauth/callback`
-on production env. If still `http://localhost:3000/...`, the code will generate a mismatched redirect and Facebook will reject the OAuth request.
+If you don't need IG insights yet, you can remove those scopes from `src/lib/meta/config.ts` `META_SCOPES` to narrow the OAuth request — Facebook will show a cleaner consent screen and App Review will ask fewer questions.
 
-### 4. Clean up use cases
+### 5. Remove unused use cases
 
-Left nav → **Use cases**.
+`Use cases` → for each of "Create & manage app ads with Meta Ads Manager" and "Access the Threads API" → click Customize → look for a delete/remove option inside. If the UI doesn't let you remove, leaving them with zero customized permissions is fine — they don't affect the consent dialog.
 
-- **Remove:** "Access the Threads API" — not used by our app
-- **Remove:** "Create & manage app ads with Meta Ads Manager" — we don't manage app install ads
-- **Customize:** "Create & manage ads with Marketing API" — this is the one we need. Permissions it should grant: `ads_read`, `ads_management` (for future), `business_management`.
-- **Add:** an Instagram/Page insights use case covering `pages_show_list`, `pages_read_engagement`, `instagram_basic`, `instagram_manage_insights`. Name will be similar to "Access engagement data on Pages and Instagram accounts." The exact use case name changes per Meta's UI — scan the "Add use cases" catalog and pick the one matching those scopes.
+### 6. App Review preparation (only needed to go Live)
 
-If a single use case doesn't cover all four Insta/Page scopes, add two.
-
-### 5. Test end-to-end (before App Review)
-
-With the app in Dev Mode, only users added under **App roles > Roles** (Admin/Developer/Tester) can actually authorize. Add the user's Facebook account as a tester if not already.
-
-Test flow:
-
-1. Visit `https://goviraleza.com/meta`
-2. Click **Connect Facebook**
-3. Authorize all requested scopes
-4. Confirm redirect lands back on `/meta?connected=1`
-5. Verify ad accounts dropdown populates
-6. Verify insights load with at least `level=account`, `datePreset=last_30d`, `breakdown=none`
-7. Try `level=campaign` and `breakdown=age` — confirm table renders
-
-If any step fails, debug before proceeding to App Review.
-
-### 6. Prepare App Review materials
-
-Meta requires these before submit. Each permission needs separate justification + screencast.
-
-- **Business Verification** — upload a business registration doc. Can take days for Meta to review. Start early.
-- **"Become a Tech Provider"** banner on the app dashboard — click through the flow. Required before submitting.
-- **Per-scope written justification** — for each of `ads_read`, `business_management`, `pages_show_list`, `pages_read_engagement`, `instagram_basic`, `instagram_manage_insights`: describe exactly *how* and *where* in the app the scope is used. Reference the `/meta` page.
-- **Per-scope screencast** — film a real user flow showing each permission in action. 30-90 seconds each. Show the OAuth consent screen requesting the scope, then the feature that uses it working.
-- **Data Handling Questionnaire** — fill in Meta's form about retention, encryption at rest, encryption in transit. Answer truthfully:
-  - Token: AES-256 encrypted at rest via `lib/encryption.ts`
+Required before submitting:
+- **Business Verification** — upload business registration doc (takes days)
+- **Become a Tech Provider** — click the banner on the dashboard
+- Per-scope written justification (describe WHERE + HOW each scope is used in the `/meta` page)
+- Per-scope screencasts (30-90s each) showing the feature using the permission
+- Data Handling Questionnaire:
+  - Token: AES-256 encrypted at rest via `src/lib/encryption.ts`
   - HTTPS in transit
-  - Retained until user disconnects; then hard-deleted (documented on `/data-deletion`)
+  - Retained until user disconnects; hard-deleted per `/data-deletion` policy
 
-### 7. Submit App Review
+### 7. Submit App Review, then Go Live
 
-Only after 1-6 are green. Expect 3-7 day review turnaround. Rejections are verbose and fixable — don't worry if the first submission gets rejected for a missing detail.
-
-### 8. Go Live
-
-After App Review approves the scopes, flip the app to Live Mode (**Publish** in left nav).
+After approval, `Publish` → flip to Live Mode.
 
 ---
 
@@ -134,21 +110,18 @@ After App Review approves the scopes, flip the app to Live Mode (**Publish** in 
 
 ### Env vars needed in Vercel production
 
-- `FB_APP_ID=2118925715617016`
-- `FB_APP_SECRET=<secret from Meta dashboard>` (read from `.env.local` — it's already there)
-- `META_OAUTH_REDIRECT_URI=https://goviraleza.com/api/meta/oauth/callback`
-- `META_APP_ID=2118925715617016` (legacy — same as FB_APP_ID)
+- `META_APP_ID=2118925715617016` (or `FB_APP_ID` — either works now)
+- `META_APP_SECRET=<secret>` (or `FB_APP_SECRET` — either works now)
+- `META_OAUTH_REDIRECT_URI` — **no longer needed** (derived from request origin)
 
-### Codebase files (in priority order)
+### Codebase files
 
-- `src/middleware.ts` — controls what's public; already has `data-deletion` now
-- `src/lib/meta/client.ts` — Graph API wrapper
-- `src/lib/meta/config.ts` — scopes list
+- `src/lib/meta/config.ts` — env reads + redirect URI builder
 - `src/app/api/meta/oauth/{start,callback}/route.ts` — OAuth flow
 - `src/app/api/meta/{account,insights}/route.ts` — authed API routes
 - `src/components/meta-hub.tsx` — the /meta UI
 - `src/app/data-deletion/page.tsx` — data deletion instructions
-- `docs/META-SETUP.md` — original dev setup doc
+- `src/middleware.ts` — `/data-deletion`, `/privacy`, `/terms` are public
 
 ### Database (Neon)
 
@@ -160,7 +133,7 @@ After App Review approves the scopes, flip the app to Live Mode (**Publish** in 
 - Dashboard: `/apps/2118925715617016/dashboard/`
 - Basic settings: `/apps/2118925715617016/settings/basic/`
 - Use cases: `/apps/2118925715617016/use_cases/`
-- Facebook Login settings: `/apps/2118925715617016/fb-login/settings/`
+- Facebook Login for Business settings: `/apps/2118925715617016/business-login/settings/`
 - App roles (add testers): `/apps/2118925715617016/roles/roles/`
 - Go live: `/apps/2118925715617016/go_live/`
 
@@ -168,23 +141,7 @@ After App Review approves the scopes, flip the app to Live Mode (**Publish** in 
 
 ## Common failure modes
 
-- **Meta rejects URL with "should represent a valid URL"** — the URL resolves to an auth-gated page. Check middleware allowlist includes the path. Deploy. Retry.
-- **OAuth redirect_uri_mismatch** — Valid OAuth Redirect URIs in Facebook Login > Settings does not exactly match the URL the code constructs. Must match character-for-character including protocol + trailing slash.
-- **"App not active"** — app is in Dev Mode and authorizer is not listed as Admin/Developer/Tester in App roles.
-- **Scope missing from consent screen** — scope not attached to any use case, OR use case not customized to include it, OR scope requires App Review approval first.
-- **Threads fields still in Basic Settings** — removing the Threads use case does NOT remove the Threads app ID/secret. That's fine for our purposes; leave them.
-
----
-
-## Task list mapping (in Claude tasks)
-
-Open tasks at handoff (use TaskList to see current state):
-
-- #6 Fill App Settings > Basic (blocked on deploy)
-- #7 Configure Facebook Login product
-- #8 Add / customize use cases (remove Threads + Ads Manager, customize Marketing API, add IG/Page insights)
-- #10 Audit App Review requirements
-- #12 Fix META_OAUTH_REDIRECT_URI (moved to user — Vercel env)
-- #13 Deploy /data-deletion, then save Basic Settings
-
-Once #6 is saved, mark #13 complete.
+- **`redirect_uri_mismatch`** — the URL the start route builds doesn't match any of the "Valid OAuth Redirect URIs" registered in Facebook Login for Business. With the new origin-derived code, this only happens if you're testing on an origin not registered with Facebook (e.g., a Vercel preview URL). To test previews, either register `*.vercel.app` subdomains in the FB console, or test only on the production domain.
+- **"App not active"** — app is in Dev Mode and the user authorizing is not listed as Admin/Developer/Tester in App roles.
+- **Scope missing from consent screen** — scope not "Ready for testing" in any customized use case, OR the scope requires App Review approval before it can be granted.
+- **Meta rejects a URL during save** — the URL resolves to an auth-gated page. Check `src/middleware.ts` allowlist includes the path, redeploy, then retry.
