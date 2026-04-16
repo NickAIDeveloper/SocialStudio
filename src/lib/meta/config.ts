@@ -28,11 +28,22 @@ export const META_SCOPES = [
   'business_management',
 ];
 
-// Builds the Meta OAuth callback URL from a request origin. Deriving it from
-// the incoming request lets the same code work in dev/preview/prod without an
-// env var per environment — and guarantees the start and callback routes
-// produce the exact same URL (Facebook validates it character-for-character).
+// Builds the Meta OAuth callback URL.
+//
+// Facebook validates redirect URIs character-for-character against the app's
+// whitelist, so any drift (www vs. non-www, trailing slash, preview subdomain)
+// produces "URL Blocked". To avoid that:
+//   1. If META_OAUTH_REDIRECT_URI is set, use it verbatim. This is what prod
+//      should do — pin to one canonical URL and whitelist only that one.
+//   2. Otherwise fall back to the request origin, which keeps dev and preview
+//      working without per-env config.
+//
+// Both /oauth/start and /oauth/callback must call this with the same request,
+// so they produce identical strings (Facebook requires an exact match between
+// the redirect_uri sent at auth-dialog time and at token-exchange time).
 export function buildRedirectUri(origin: string): string {
+  const pinned = process.env.META_OAUTH_REDIRECT_URI;
+  if (pinned && pinned.length > 0) return pinned;
   return `${origin}/api/meta/oauth/callback`;
 }
 
