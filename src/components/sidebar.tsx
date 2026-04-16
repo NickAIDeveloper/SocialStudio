@@ -14,6 +14,7 @@ import {
   Calendar,
   BarChart3,
   Users,
+  Megaphone,
   Settings,
   PanelLeftClose,
   PanelLeft,
@@ -29,6 +30,7 @@ const navItems = [
   { href: '/smart-posts', label: 'Smart Posts', icon: Sparkles },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/competitors', label: 'Competitors', icon: Users },
+  { href: '/meta', label: 'Meta', icon: Megaphone },
   { href: '/settings', label: 'Settings', icon: Settings },
   { href: '/profile', label: 'Profile', icon: User },
 ];
