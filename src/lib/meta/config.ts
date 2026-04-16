@@ -8,22 +8,23 @@ export interface MetaOAuthConfig {
   scopes: string[];
 }
 
-// Phase 1 scopes. Everything here is analytics / read-only — narrowest possible
-// App Review story. If you later add ads-management UI, extend with
-// 'ads_management' and re-submit for review.
+// Phase 1 scopes. Everything here is analytics / read-only.
 //
-// ads_read            — required for /insights on ad accounts
-// pages_show_list     — list Pages the user manages (needed to discover IG accounts)
-// pages_read_engagement — read posts + insights on Pages the user manages
-// instagram_basic     — locate the IG Business account linked to a Page
-// instagram_manage_insights — per-post IG insights (saves, reach, follows-from-post)
-// business_management — needed when the assets live under a Business Manager
+// Only scopes that are "Ready for testing" in the Meta app's customized use
+// cases can be granted in Dev Mode without App Review. The Marketing API use
+// case on the GoViraleza app already has these four ready:
+//   ads_read              — required for /insights on ad accounts
+//   ads_management        — read (and later: write) ad campaigns
+//   pages_read_engagement — read posts + insights on Pages the user manages
+//   business_management   — needed when assets live under a Business Manager
+//
+// Instagram scopes (instagram_basic, instagram_manage_insights) and
+// pages_show_list require adding an additional use case in the Meta console
+// before they can be tested. Add them back here once that use case exists.
 export const META_SCOPES = [
   'ads_read',
-  'pages_show_list',
+  'ads_management',
   'pages_read_engagement',
-  'instagram_basic',
-  'instagram_manage_insights',
   'business_management',
 ];
 
