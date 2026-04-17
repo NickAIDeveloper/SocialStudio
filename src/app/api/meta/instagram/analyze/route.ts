@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
   try {
     await getUserId();
     if (!isCerebrasAvailable()) {
-      return NextResponse.json({ error: 'AI not configured (CEREBUS env var missing)' }, { status: 503 });
+      return NextResponse.json({ error: 'AI not configured (CEREBRAS env var missing)' }, { status: 503 });
     }
     const body = (await req.json()) as AnalyzeBody;
     const { mode, posts, medians, postId } = body;
@@ -100,7 +100,9 @@ Return JSON only.`,
         ],
         { temperature: 0.4, maxTokens: 400 },
       );
-      return NextResponse.json({ data: { top, analysis: safeParseJson(verdictRaw) } });
+      const parsed = parseLlmJson(verdictRaw);
+      if (!parsed.ok) return llmParseErrorResponse('hero', parsed.raw);
+      return NextResponse.json({ data: { top, analysis: parsed.data } });
     }
 
     if (mode === 'patterns') {
@@ -124,7 +126,9 @@ Find 3 patterns that explain the wins. Return JSON only.`,
         ],
         { temperature: 0.4, maxTokens: 600 },
       );
-      return NextResponse.json({ data: { patterns: safeParseJson(raw) } });
+      const parsed = parseLlmJson(raw);
+      if (!parsed.ok) return llmParseErrorResponse('patterns', parsed.raw);
+      return NextResponse.json({ data: { patterns: parsed.data } });
     }
 
     if (mode === 'autopsy') {
@@ -151,7 +155,9 @@ Return JSON only.`,
         ],
         { temperature: 0.3, maxTokens: 500 },
       );
-      return NextResponse.json({ data: { postId: target.id, analysis: safeParseJson(raw) } });
+      const parsed = parseLlmJson(raw);
+      if (!parsed.ok) return llmParseErrorResponse('autopsy', parsed.raw);
+      return NextResponse.json({ data: { postId: target.id, analysis: parsed.data } });
     }
 
     return NextResponse.json({ error: `Unknown mode: ${mode}` }, { status: 400 });
@@ -164,17 +170,34 @@ Return JSON only.`,
   }
 }
 
+type ParseResult = { ok: true; data: unknown } | { ok: false; raw: string };
+
 // Cerebras sometimes wraps JSON in ```json blocks or adds trailing commentary.
-// Strip non-JSON prefixes/suffixes before parsing and return null on failure
-// so the client can gracefully degrade to "analysis unavailable".
-function safeParseJson(raw: string): unknown {
+// Strip non-JSON prefixes/suffixes before parsing. Return a discriminated
+// result so callers can surface a real error to the client instead of
+// silently degrading to empty cards — the old null-return path hid bugs.
+function parseLlmJson(raw: string): ParseResult {
   const trimmed = raw.trim();
   const first = trimmed.indexOf('{');
   const last = trimmed.lastIndexOf('}');
-  if (first === -1 || last === -1 || last <= first) return null;
+  if (first === -1 || last === -1 || last <= first) return { ok: false, raw };
   try {
-    return JSON.parse(trimmed.slice(first, last + 1));
+    return { ok: true, data: JSON.parse(trimmed.slice(first, last + 1)) };
   } catch {
-    return null;
+    return { ok: false, raw };
   }
+}
+
+function llmParseErrorResponse(mode: string, raw: string) {
+  console.error(
+    `[Analyze/${mode}] LLM returned non-JSON output (first 500 chars):`,
+    raw.slice(0, 500),
+  );
+  return NextResponse.json(
+    {
+      error: 'ai_parse_failed',
+      message: 'AI returned an unexpected response. Please try again.',
+    },
+    { status: 502 },
+  );
 }
