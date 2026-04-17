@@ -109,11 +109,37 @@ function nextOccurrenceIso(dayName: string, hour: number): string | null {
   return target.toISOString();
 }
 
+interface MetaOverrides {
+  // Free-form topic/vibe prompt from HeroCard's "Make more like this".
+  preset?: string;
+  // Best format from /meta format performance strip.
+  format?: 'REEL' | 'CAROUSEL' | 'IMAGE';
+  // Best slot from the engagement heatmap.
+  day?: string;
+  hour?: number;
+  // Winning caption pattern label from the patterns miner.
+  pattern?: string;
+}
+
+// Map Instagram format → internal ContentType the caption pipeline understands.
+// Mirror normalizeContentType in lib/smart-posts.ts — REEL→tip, CAROUSEL→carousel,
+// IMAGE→quote — so the seed stays consistent whichever input set it.
+function contentTypeFromFormat(format: MetaOverrides['format']) {
+  if (format === 'REEL') return 'tip' as const;
+  if (format === 'CAROUSEL') return 'carousel' as const;
+  if (format === 'IMAGE') return 'quote' as const;
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const userId = await getUserId();
     const body = await request.json();
-    const { insightId, brandId } = body as { insightId?: string; brandId?: string };
+    const { insightId, brandId, metaOverrides } = body as {
+      insightId?: string;
+      brandId?: string;
+      metaOverrides?: MetaOverrides;
+    };
 
     if (!brandId) {
       return NextResponse.json({ error: 'brandId required — pick a brand first.' }, { status: 400 });
@@ -211,6 +237,40 @@ export async function POST(request: NextRequest) {
       }
       seed = merged.seed;
       contributions = merged.contributions;
+    }
+
+    // Apply Meta-analytics overrides (Phase 3). These arrive from the /meta
+    // page's "Apply all learnings" / "Make more like this" CTAs. Each override
+    // wins over the insights-derived seed for its field, and we annotate
+    // `contributions` so the UI can show the user which learning came from
+    // Meta vs brand insights.
+    if (metaOverrides) {
+      const ct = contentTypeFromFormat(metaOverrides.format);
+      if (ct) {
+        seed = { ...seed, contentType: ct };
+        contributions['meta-format'] = `Meta format → ${metaOverrides.format}`;
+      }
+      if (metaOverrides.day && typeof metaOverrides.hour === 'number') {
+        const hour = Math.max(0, Math.min(23, Math.floor(metaOverrides.hour)));
+        seed = { ...seed, suggestedPostTime: { day: metaOverrides.day, hour } };
+        contributions['meta-timing'] =
+          `Meta best slot → ${metaOverrides.day} ${String(hour).padStart(2, '0')}:00`;
+      }
+      if (metaOverrides.pattern) {
+        seed = {
+          ...seed,
+          captionPatternHint: { type: 'meta', label: metaOverrides.pattern.slice(0, 80) },
+        };
+        contributions['meta-pattern'] =
+          `Meta caption pattern → ${metaOverrides.pattern.slice(0, 60)}`;
+      }
+      if (metaOverrides.preset) {
+        const preset = metaOverrides.preset.slice(0, 240);
+        // Topic hint drives the stock-image search fallback. Don't clobber an
+        // existing topicHint from top-post — only fill if empty.
+        if (!seed.topicHint) seed = { ...seed, topicHint: preset };
+        contributions['meta-preset'] = `Meta seed → "${preset.slice(0, 80)}"`;
+      }
     }
 
     // 1. Caption

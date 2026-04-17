@@ -1,6 +1,11 @@
+import { Suspense } from 'react';
 import { SmartPostsDashboard } from '@/components/smart-posts-dashboard';
 import { BrandRequiredGate } from '@/components/brand-required-gate';
 
+// SmartPostsDashboard reads ?preset / ?metaFormat / ?metaDay / ?metaHour /
+// ?metaPattern via useSearchParams() (linked from the /meta page's "Apply
+// all learnings" and HeroCard "Make more like this" CTAs). Suspense is
+// required so Next can still statically shell the surrounding header.
 export default function SmartPostsPage() {
   return (
     <>
@@ -11,7 +16,9 @@ export default function SmartPostsPage() {
         </p>
       </div>
       <BrandRequiredGate feature="get smart recommendations">
-        <SmartPostsDashboard />
+        <Suspense fallback={<div className="text-sm text-white/70">Loading…</div>}>
+          <SmartPostsDashboard />
+        </Suspense>
       </BrandRequiredGate>
     </>
   );

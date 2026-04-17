@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   Sparkles,
   RefreshCw,
@@ -48,7 +49,39 @@ const VERDICT_STYLES: Record<InsightCard['verdict'], string> = {
   negative: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
 };
 
+interface MetaOverrides {
+  preset?: string;
+  format?: 'REEL' | 'CAROUSEL' | 'IMAGE';
+  day?: string;
+  hour?: number;
+  pattern?: string;
+}
+
+// Pull structured overrides off the URL. /meta page's "Make more like this"
+// and "Apply all learnings" CTAs link here with query params. Returns
+// `undefined` (not an empty object) when nothing is present so we can skip
+// sending the field to the API.
+function readMetaOverrides(sp: URLSearchParams): MetaOverrides | undefined {
+  const preset = sp.get('preset') ?? undefined;
+  const rawFormat = sp.get('metaFormat')?.toUpperCase();
+  const format =
+    rawFormat === 'REEL' || rawFormat === 'CAROUSEL' || rawFormat === 'IMAGE'
+      ? rawFormat
+      : undefined;
+  const day = sp.get('metaDay') ?? undefined;
+  const hourRaw = sp.get('metaHour');
+  const hour = hourRaw != null && /^\d+$/.test(hourRaw) ? parseInt(hourRaw, 10) : undefined;
+  const pattern = sp.get('metaPattern') ?? undefined;
+  if (!preset && !format && !day && hour === undefined && !pattern) return undefined;
+  return { preset, format, day, hour, pattern };
+}
+
 export function SmartPostsDashboard() {
+  const searchParams = useSearchParams();
+  const metaOverrides = useMemo(
+    () => readMetaOverrides(new URLSearchParams(searchParams.toString())),
+    [searchParams],
+  );
   const [brandList, setBrandList] = useState<BrandRow[]>([]);
   const [brandId, setBrandId] = useState<string>('');
   const [insights, setInsights] = useState<InsightCard[]>([]);
@@ -191,7 +224,7 @@ export function SmartPostsDashboard() {
       const res = await fetch('/api/smart-posts/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brandId }),
+        body: JSON.stringify({ brandId, metaOverrides }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -383,6 +416,8 @@ export function SmartPostsDashboard() {
                 </div>
               )}
 
+              {metaOverrides && <MetaSeedBanner overrides={metaOverrides} />}
+
               {!post && (
                 <button
                   onClick={() => void handleGenerate()}
@@ -395,7 +430,8 @@ export function SmartPostsDashboard() {
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-4 w-4" /> Generate Perfect Post
+                      <Sparkles className="h-4 w-4" />{' '}
+                      {metaOverrides ? 'Generate with Analytics seed' : 'Generate Perfect Post'}
                     </>
                   )}
                 </button>
@@ -544,6 +580,48 @@ function DeltaBadge({ delta }: { delta: number }) {
       {up ? '+' : ''}
       {delta} vs last week
     </span>
+  );
+}
+
+// Surfaces the URL-supplied overrides so the user can see WHAT from /meta is
+// being used as a seed. Visible only when at least one override is present.
+function MetaSeedBanner({ overrides }: { overrides: MetaOverrides }) {
+  const chips: Array<{ label: string; value: string }> = [];
+  if (overrides.format) chips.push({ label: 'Format', value: overrides.format });
+  if (overrides.day && overrides.hour !== undefined) {
+    chips.push({
+      label: 'Best slot',
+      value: `${overrides.day} ${String(overrides.hour).padStart(2, '0')}:00`,
+    });
+  }
+  if (overrides.pattern)
+    chips.push({ label: 'Pattern', value: overrides.pattern.slice(0, 50) });
+  if (overrides.preset)
+    chips.push({ label: 'Seed', value: overrides.preset.slice(0, 60) });
+
+  return (
+    <div className="mt-4 rounded-lg border border-fuchsia-400/30 bg-fuchsia-500/10 p-3">
+      <div className="flex items-center gap-2">
+        <Sparkles className="h-3.5 w-3.5 text-fuchsia-300" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-fuchsia-200">
+          Seeded from Analytics
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-white/80">
+        These Meta learnings will be merged into your brand insights when you
+        generate.
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {chips.map((c) => (
+          <span
+            key={c.label}
+            className="rounded-full border border-fuchsia-400/30 bg-black/30 px-2 py-0.5 text-[11px] text-fuchsia-100"
+          >
+            <span className="opacity-60">{c.label}:</span> {c.value}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
