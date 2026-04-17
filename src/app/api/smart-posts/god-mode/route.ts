@@ -1,0 +1,202 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getUserId } from '@/lib/auth-helpers';
+import { generateFromSeed, sanitizeMetaOverrides } from '@/lib/smart-posts/generate';
+import { buildDeepProfile } from '@/lib/meta/deep-profile';
+import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
+import type { DeepProfile } from '@/lib/meta/deep-profile.types';
+
+// Allow longer runtime — deep profile fetch + LLM design + image compositing.
+export const maxDuration = 60;
+
+const SYSTEM_PROMPT =
+  'You are designing a single Instagram post to maximize engagement for one specific account. ' +
+  "You will be given the account's full performance profile in JSON. " +
+  'Reply with JSON only, no commentary, no markdown fences. No em dashes. No arrows. No AI tells.';
+
+type ParseResult = { ok: true; data: unknown } | { ok: false; raw: string };
+
+// Cerebras sometimes wraps JSON in ```json blocks or adds trailing commentary.
+// Strip non-JSON prefixes/suffixes before parsing. Return a discriminated
+// result so callers can surface a real error to the client.
+function parseLlmJson(raw: string): ParseResult {
+  const trimmed = raw.trim();
+  const first = trimmed.indexOf('{');
+  const last = trimmed.lastIndexOf('}');
+  if (first === -1 || last === -1 || last <= first) return { ok: false, raw };
+  try {
+    return { ok: true, data: JSON.parse(trimmed.slice(first, last + 1)) };
+  } catch {
+    return { ok: false, raw };
+  }
+}
+
+function llmParseErrorResponse(mode: string, raw: string) {
+  console.error(
+    `[SmartPosts/god-mode/${mode}] LLM returned non-JSON output (first 500 chars):`,
+    raw.slice(0, 500),
+  );
+  return NextResponse.json(
+    {
+      error: 'ai_parse_failed',
+      message: 'AI returned an unexpected response. Please try again.',
+    },
+    { status: 502 },
+  );
+}
+
+// Trim large arrays out of the deep profile before stringifying for the LLM.
+// The heatmap (7x24 number-or-null) and exampleCaptions are noisy in tokens
+// without changing the design decision. bestSlots is the more useful summary.
+function compactProfileForPrompt(profile: DeepProfile) {
+  return {
+    handle: profile.handle,
+    followerCount: profile.followerCount,
+    sampleSize: profile.sampleSize,
+    medians: profile.medians,
+    formatPerformance: profile.formatPerformance,
+    hookPatterns: profile.hookPatterns.map((h) => ({
+      pattern: h.pattern,
+      avgReach: h.avgReach,
+      occurrences: h.occurrences,
+    })),
+    captionLengthSweetSpot: profile.captionLengthSweetSpot,
+    timing: { bestSlots: profile.timing.bestSlots },
+    topicSignals: profile.topicSignals,
+    audience: profile.audience ?? null,
+  };
+}
+
+function buildUserPrompt(profile: DeepProfile): string {
+  const compact = compactProfileForPrompt(profile);
+  return [
+    "Below is the account's full performance profile. Use the actual numbers.",
+    '',
+    'PROFILE_JSON:',
+    JSON.stringify(compact, null, 2),
+    '',
+    'Design ONE Instagram post that has the best chance of beating this account\'s median reach.',
+    'Reply with this exact JSON shape, and nothing else:',
+    '{',
+    '  "overrides": {',
+    '    "format": "REEL" | "CAROUSEL" | "IMAGE",',
+    '    "day": "Monday".."Sunday",',
+    '    "hour": 0-23,',
+    '    "pattern": "<short caption hook pattern, max 60 chars>",',
+    '    "preset": "<short topic or angle seed, max 200 chars>"',
+    '  },',
+    '  "rationale": "<4 to 6 plain English sentences citing specific numbers from the profile, e.g. \'Carousels reach 2.3x your median\' instead of \'carousels work well\'>"',
+    '}',
+  ].join('\n');
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const userId = await getUserId();
+    const body = await req.json();
+    const { brandId, igUserId } = body as { brandId?: string; igUserId?: string };
+
+    if (!brandId) {
+      return NextResponse.json(
+        { error: 'brandId_required', message: 'brandId required, pick a brand first.' },
+        { status: 400 },
+      );
+    }
+    if (!igUserId) {
+      return NextResponse.json(
+        { error: 'igUserId_required', message: 'igUserId required, pick an Instagram account first.' },
+        { status: 400 },
+      );
+    }
+
+    if (!isCerebrasAvailable()) {
+      return NextResponse.json(
+        { error: 'ai_unconfigured', message: 'AI is not configured on this server.' },
+        { status: 503 },
+      );
+    }
+
+    let profile: DeepProfile;
+    try {
+      profile = await buildDeepProfile({ userId, igUserId });
+    } catch (e) {
+      if (e instanceof Error && /not connected/i.test(e.message)) {
+        return NextResponse.json(
+          {
+            error: 'ig_account_not_owned',
+            message: 'This Instagram account is not connected to your user.',
+          },
+          { status: 403 },
+        );
+      }
+      throw e;
+    }
+
+    if (profile.sampleSize < 5) {
+      return NextResponse.json(
+        {
+          error: 'not_enough_data',
+          message:
+            'We need at least 5 recent posts on this account before god-mode can design one. Post a few more and try again.',
+        },
+        { status: 422 },
+      );
+    }
+
+    const raw = await cerebrasChatCompletion(
+      [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: buildUserPrompt(profile) },
+      ],
+      { temperature: 0.4, maxTokens: 600 },
+    );
+
+    const parsed = parseLlmJson(raw);
+    if (!parsed.ok) return llmParseErrorResponse('parse', parsed.raw);
+
+    const llmSeed = parsed.data as { overrides?: unknown; rationale?: unknown };
+    const sanitized = sanitizeMetaOverrides(llmSeed.overrides);
+    if (!sanitized || Object.keys(sanitized).length === 0) {
+      return llmParseErrorResponse('overrides', raw);
+    }
+
+    const rationale =
+      typeof llmSeed.rationale === 'string' ? llmSeed.rationale.trim() : '';
+    if (!rationale) return llmParseErrorResponse('rationale', raw);
+
+    const origin = req.nextUrl.origin;
+    const cookie = req.headers.get('cookie') ?? '';
+
+    const outcome = await generateFromSeed({
+      brandId,
+      metaOverrides: sanitized,
+      userId,
+      origin,
+      cookie,
+    });
+
+    if (!outcome.ok) {
+      return NextResponse.json(
+        { error: outcome.err.error, message: outcome.err.message },
+        { status: outcome.err.status },
+      );
+    }
+
+    return NextResponse.json({
+      ...outcome.data,
+      godModeRationale: rationale,
+      deepProfile: profile,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    console.error('[SmartPosts/god-mode] Error:', error);
+    return NextResponse.json(
+      {
+        error: 'god_mode_failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 },
+    );
+  }
+}

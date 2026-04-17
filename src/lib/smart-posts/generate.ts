@@ -93,7 +93,7 @@ function nextOccurrenceIso(dayName: string, hour: number): string | null {
   return target.toISOString();
 }
 
-interface MetaOverrides {
+export interface MetaOverrides {
   preset?: string;
   format?: 'REEL' | 'CAROUSEL' | 'IMAGE';
   day?: string;
@@ -101,7 +101,7 @@ interface MetaOverrides {
   pattern?: string;
 }
 
-function sanitizeMetaOverrides(raw: unknown): MetaOverrides | null {
+export function sanitizeMetaOverrides(raw: unknown): MetaOverrides | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
   const out: MetaOverrides = {};
