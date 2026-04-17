@@ -86,7 +86,7 @@ export function seedFromInsight(card: InsightCard, brandId: string): GenerationS
       return {
         ...base,
         contentType: normalizeContentType(best.type),
-        reasoning: `Your ${best.type} posts average ${Math.round(best.avgEngagement)} engagement across ${best.count} posts — generating another.`,
+        reasoning: `Your ${best.type} posts average ${Math.round(best.avgEngagement)} engagement across ${best.count} posts, so we generated another one.`,
       };
     }
 
@@ -105,7 +105,7 @@ export function seedFromInsight(card: InsightCard, brandId: string): GenerationS
       return {
         ...base,
         suggestedPostTime: { day: bestDay, hour },
-        reasoning: `${bestDay} ${bestTime} is your best slot — generating content to schedule there.`,
+        reasoning: `${bestDay} ${bestTime} is your strongest posting window, so we scheduled it there.`,
       };
     }
 
@@ -118,8 +118,8 @@ export function seedFromInsight(card: InsightCard, brandId: string): GenerationS
         contentType: normalizeContentType(post.contentType),
         hookPattern: firstLine || undefined,
         reasoning: firstLine
-          ? `Inspired by your top post's opening: "${firstLine}"`
-          : 'Replicating the elements of your top-performing post.',
+          ? `We echoed the opening line from your top post: "${firstLine}".`
+          : 'We replicated the elements of your top performing post.',
       };
     }
 
@@ -133,7 +133,7 @@ export function seedFromInsight(card: InsightCard, brandId: string): GenerationS
       return {
         ...base,
         captionLengthHint,
-        reasoning: `${bestRange || 'Medium'} captions perform best for you.`,
+        reasoning: `${bestRange || 'Medium'} captions perform best for your account, so we wrote one that length.`,
       };
     }
 
@@ -147,7 +147,7 @@ export function seedFromInsight(card: InsightCard, brandId: string): GenerationS
       return {
         ...base,
         captionPatternHint: { type: top.type, label: top.label },
-        reasoning: `Using your winning caption pattern: ${top.label}`,
+        reasoning: `We used your winning caption pattern (${top.label}) to structure the copy.`,
       };
     }
 
@@ -157,7 +157,7 @@ export function seedFromInsight(card: InsightCard, brandId: string): GenerationS
       return {
         ...base,
         contentType: 'community',
-        reasoning: 'Engagement is dipping — generating a relatable community post to reconnect.',
+        reasoning: 'Engagement is dipping, so we generated a relatable community post to reconnect.',
       };
     }
 
@@ -167,8 +167,8 @@ export function seedFromInsight(card: InsightCard, brandId: string): GenerationS
         ...base,
         avoidTopics: drop.slice(0, 5),
         reasoning: drop.length
-          ? `Avoiding underperforming tags: ${drop.slice(0, 3).join(', ')}`
-          : 'Rebalancing hashtag strategy.',
+          ? `We steered clear of underperforming tags like ${drop.slice(0, 3).join(', ')}.`
+          : 'We rebalanced your hashtag strategy to drop low performers.',
       };
     }
 
@@ -178,7 +178,7 @@ export function seedFromInsight(card: InsightCard, brandId: string): GenerationS
       return {
         ...base,
         avoidTopics: snippet ? [snippet] : [],
-        reasoning: 'Avoiding themes from your lowest-performing post.',
+        reasoning: 'We avoided themes from your lowest performing post.',
       };
     }
 
@@ -238,7 +238,8 @@ export function mergePerfectSeed(
     const partial = seedFromInsight(bct, brandId);
     if (partial) {
       seed.contentType = partial.contentType;
-      contributions['best-content-type'] = `Content type → ${partial.contentType}`;
+      contributions['best-content-type'] =
+        `We picked a ${partial.contentType} post because that format performs best for your account.`;
     }
   }
 
@@ -249,7 +250,7 @@ export function mergePerfectSeed(
     if (partial?.captionLengthHint) {
       seed.captionLengthHint = partial.captionLengthHint;
       contributions['caption-length'] =
-        `Caption length → ${partial.captionLengthHint}`;
+        `We wrote a ${partial.captionLengthHint} caption because that length drives the most engagement for you.`;
     }
   }
 
@@ -260,7 +261,7 @@ export function mergePerfectSeed(
     if (partial?.captionPatternHint) {
       seed.captionPatternHint = partial.captionPatternHint;
       contributions['caption-patterns'] =
-        `Caption pattern → ${partial.captionPatternHint.label}`;
+        `We structured the caption as "${partial.captionPatternHint.label}" because that pattern wins for you.`;
     }
   }
 
@@ -272,8 +273,9 @@ export function mergePerfectSeed(
       seed.hookPattern = partial.hookPattern;
       const firstWords = partial.hookPattern.split(/\s+/).slice(0, 3).join(' ');
       if (firstWords) seed.topicHint = firstWords;
+      const snippet = `${partial.hookPattern.slice(0, 60)}${partial.hookPattern.length > 60 ? '...' : ''}`;
       contributions['top-post'] =
-        `Hook echo → "${partial.hookPattern.slice(0, 60)}${partial.hookPattern.length > 60 ? '…' : ''}"`;
+        `We echoed the opener from your top post: "${snippet}".`;
     }
   }
 
@@ -283,8 +285,9 @@ export function mergePerfectSeed(
     const partial = seedFromInsight(ot, brandId);
     if (partial?.suggestedPostTime) {
       seed.suggestedPostTime = partial.suggestedPostTime;
+      const hh = String(partial.suggestedPostTime.hour).padStart(2, '0');
       contributions['optimal-timing'] =
-        `Schedule time → ${partial.suggestedPostTime.day} ${String(partial.suggestedPostTime.hour).padStart(2, '0')}:00`;
+        `We scheduled it for ${partial.suggestedPostTime.day} at ${hh}:00, your strongest posting window.`;
     }
   }
 
@@ -295,7 +298,7 @@ export function mergePerfectSeed(
     if (partial && partial.avoidTopics.length > 0) {
       partial.avoidTopics.forEach((t) => avoid.add(t));
       contributions['hashtag-health'] =
-        `Avoid hashtags → ${partial.avoidTopics.slice(0, 3).join(', ')}`;
+        `We steered clear of underperforming hashtags like ${partial.avoidTopics.slice(0, 3).join(', ')}.`;
     }
   }
 
@@ -305,7 +308,8 @@ export function mergePerfectSeed(
     const partial = seedFromInsight(wp, brandId);
     if (partial && partial.avoidTopics.length > 0) {
       partial.avoidTopics.forEach((t) => avoid.add(t));
-      contributions['worst-post'] = `Avoid theme → "${partial.avoidTopics[0]}"`;
+      contributions['worst-post'] =
+        `We avoided themes like "${partial.avoidTopics[0]}" because similar posts underperformed.`;
     }
   }
 
@@ -315,7 +319,8 @@ export function mergePerfectSeed(
     const partial = seedFromInsight(mom, brandId);
     if (partial) {
       seed.toneHint = 'community';
-      contributions['momentum'] = `Tone nudge → community (engagement dipping)`;
+      contributions['momentum'] =
+        `We leaned into a community tone because your engagement has been dipping recently.`;
     }
   }
 

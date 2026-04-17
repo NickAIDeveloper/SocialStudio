@@ -8,6 +8,7 @@ import { SourceToggle } from './source-toggle';
 import { BrandSelector } from './brand-selector';
 import { IgAccountPicker } from './ig-account-picker';
 import { InstagramSection } from '@/components/performance/meta-sections/instagram-section';
+import { DeepProfileSection } from './deep-profile-section';
 
 // AnalyticsDashboard is a large client component (999 lines, many recharts imports).
 // Dynamic import avoids pulling it into the initial bundle when source === 'meta'.
@@ -71,6 +72,14 @@ export function PerformancePage({ defaults }: PerformancePageProps) {
       {/* ── Meta branch ───────────────────────────────────────────────────── */}
       {source === 'meta' && (
         <div className="space-y-6">
+          {/* DeepProfileSection renders AI-ready metrics first when an account is selected. */}
+          {ig ? (
+            <DeepProfileSection igUserId={ig} />
+          ) : (
+            <p className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5 text-sm text-zinc-500">
+              Pick an Instagram account above to see the deep profile.
+            </p>
+          )}
           {/* InstagramSection self-fetches accounts and insights end-to-end.
               It contains HeroCard, FormatStrip, Heatmap, CaptionPatterns, and
               PostAutopsy internally — no props needed. The ig picker in the top
