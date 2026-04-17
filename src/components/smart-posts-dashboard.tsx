@@ -17,6 +17,12 @@ import {
 } from 'lucide-react';
 import type { InsightCard } from '@/lib/health-score';
 import { isActionable } from '@/lib/smart-posts';
+import { useHubState } from '@/lib/url-state';
+import { useIgAccounts } from '@/lib/ig-accounts';
+import { IgAccountPicker } from '@/components/performance/ig-account-picker';
+import { SourceToggle } from '@/components/performance/source-toggle';
+import { WhyThisWorks } from '@/components/smart-posts/why-this-works';
+import type { DeepProfile } from '@/lib/meta/deep-profile.types';
 
 interface BrandRow {
   id: string;
@@ -35,6 +41,10 @@ interface PerfectPost {
   // Maps insight type → human-readable string describing exactly what that
   // insight contributed. Insights NOT in this map were not used this run.
   contributions: Record<string, string>;
+  // Present only on the god-mode response path. Task 11 uses these to drive
+  // the full <WhyThisWorks /> panel; for now they render as bulleted text.
+  godModeRationale?: string;
+  deepProfile?: DeepProfile;
 }
 
 interface HistoryPayload {
@@ -77,13 +87,37 @@ function readMetaOverrides(sp: URLSearchParams): MetaOverrides | undefined {
 }
 
 export function SmartPostsDashboard() {
+  // Legacy /meta deep-link overrides still read directly off the URL. The
+  // new `useHubState` owns source/brand/ig, but metaOverrides is a one-off
+  // seed mechanism that predates hub state.
   const searchParams = useSearchParams();
   const metaOverrides = useMemo(
     () => readMetaOverrides(new URLSearchParams(searchParams.toString())),
     [searchParams],
   );
+
+  const { accounts, loading: accountsLoading } = useIgAccounts();
+  const hasIgAccounts = accounts.length > 0;
+
+  // Default source: meta when at least one IG account is connected, otherwise
+  // scrape. While accounts are still loading we fall back to scrape so the UI
+  // renders immediately; once loaded, useHubState will honor URL/localStorage
+  // if the user had previously chosen a different source.
+  const resolvedSourceDefault = !accountsLoading && hasIgAccounts ? 'meta' : 'scrape';
+  const { source, brand, ig, setSource, setBrand, setIg } = useHubState({
+    defaults: { source: resolvedSourceDefault },
+  });
+
+  // If Meta is not connected, never let source stick as 'meta' — force scrape
+  // on the client. This handles the edge where URL/localStorage holds 'meta'
+  // but the user has since disconnected every IG account.
+  useEffect(() => {
+    if (!accountsLoading && !hasIgAccounts && source === 'meta') {
+      setSource('scrape');
+    }
+  }, [accountsLoading, hasIgAccounts, source, setSource]);
+
   const [brandList, setBrandList] = useState<BrandRow[]>([]);
-  const [brandId, setBrandId] = useState<string>('');
   const [insights, setInsights] = useState<InsightCard[]>([]);
   const [healthScore, setHealthScore] = useState<number | null>(null);
   const [history, setHistory] = useState<HistoryPayload | null>(null);
@@ -99,16 +133,25 @@ export function SmartPostsDashboard() {
   const [scheduling, setScheduling] = useState(false);
   const [scheduleOk, setScheduleOk] = useState(false);
 
+  // Brand list fetch — still owned here so the dashboard can render a select
+  // and so handleSchedule can look up the brand slug. The selected value is
+  // authoritatively the `brand` from useHubState. When nothing is selected yet
+  // we pick the first row so the existing insight + generate flow works.
   useEffect(() => {
     fetch('/api/brands')
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { brands?: BrandRow[] } | null) => {
         const rows = data?.brands ?? [];
         setBrandList(rows);
-        if (rows[0]) setBrandId(rows[0].id);
+        if (!brand && rows[0]) setBrand(rows[0].id);
       })
       .catch(() => {});
+    // Run exactly once on mount. We intentionally don't react to `brand`
+    // changes here — that would re-fetch on every selection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const brandId = brand ?? '';
 
   const loadHistory = useCallback(async (bid: string) => {
     if (!bid) return setHistory(null);
@@ -213,7 +256,17 @@ export function SmartPostsDashboard() {
     [insights],
   );
 
-  const canGenerate = brandId && actionable.length > 0 && !generating;
+  // Resolve the handle for the currently-selected IG account. Used in the
+  // god-mode button label. Falls back to the igUserId when the account has
+  // no stored username (rare, but possible for freshly-connected accounts).
+  const selectedIgHandle = useMemo(() => {
+    if (!ig) return null;
+    const match = accounts.find((a) => a.igUserId === ig);
+    return match?.igUsername ?? ig;
+  }, [ig, accounts]);
+
+  const canGenerate = Boolean(brandId) && actionable.length > 0 && !generating;
+  const godModeReady = source === 'meta' && Boolean(ig);
 
   const handleGenerate = async () => {
     if (!brandId) return;
@@ -221,21 +274,26 @@ export function SmartPostsDashboard() {
     setGenError(null);
     setScheduleOk(false);
     try {
-      const res = await fetch('/api/smart-posts/generate', {
+      const useGodMode = godModeReady;
+      const url = useGodMode ? '/api/smart-posts/god-mode' : '/api/smart-posts/generate';
+      const body = useGodMode
+        ? { brandId, igUserId: ig }
+        : { brandId, metaOverrides };
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brandId, metaOverrides }),
+        body: JSON.stringify(body),
       });
-      const body = await res.json().catch(() => ({}));
+      const respBody = await res.json().catch(() => ({}));
       if (!res.ok) {
         setGenError(
-          (body as { message?: string; error?: string }).message
-            ?? (body as { error?: string }).error
+          (respBody as { message?: string; error?: string }).message
+            ?? (respBody as { error?: string }).error
             ?? 'Generation failed',
         );
         return;
       }
-      setPost(body as PerfectPost);
+      setPost(respBody as PerfectPost);
     } catch (err) {
       setGenError(err instanceof Error ? err.message : 'Network error');
     } finally {
@@ -257,8 +315,8 @@ export function SmartPostsDashboard() {
         organizations?: Array<{ channels: Array<{ id: string; name: string }> }>;
       };
       const channels = (chData.organizations ?? []).flatMap((o) => o.channels ?? []);
-      const brand = brandList.find((b) => b.id === brandId);
-      const brandSlug = brand?.slug ?? 'affectly';
+      const brandRow = brandList.find((b) => b.id === brandId);
+      const brandSlug = brandRow?.slug ?? 'affectly';
       const match = channels.find((c) => c.name.toLowerCase().includes(brandSlug));
       const channelId = match?.id ?? channels[0]?.id;
       if (!channelId) {
@@ -310,6 +368,20 @@ export function SmartPostsDashboard() {
     document.body.removeChild(link);
   };
 
+  // Primary Generate button label. We want user-facing copy to be friendly
+  // and specific: god-mode names the handle we're optimizing for; scrape
+  // keeps the long-standing "Generate Perfect Post" label so returning
+  // users recognize the flow.
+  const generateLabel = (() => {
+    if (generating) return 'Composing your perfect post';
+    if (godModeReady) {
+      const handleLabel = selectedIgHandle ?? ig ?? '';
+      return `Generate god-mode post for @${handleLabel}`;
+    }
+    if (metaOverrides) return 'Generate with Analytics seed';
+    return 'Generate Perfect Post';
+  })();
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -318,7 +390,7 @@ export function SmartPostsDashboard() {
           <label className="text-sm text-white">Brand</label>
           <select
             value={brandId}
-            onChange={(e) => setBrandId(e.target.value)}
+            onChange={(e) => setBrand(e.target.value || null)}
             className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-white focus:border-teal-500 focus:outline-none"
           >
             {brandList.length === 0 && <option value="">No brands</option>}
@@ -329,6 +401,11 @@ export function SmartPostsDashboard() {
             ))}
           </select>
         </div>
+
+        {/* IG picker only shows in meta mode; in scrape mode we don't need it. */}
+        {source === 'meta' && hasIgAccounts && (
+          <IgAccountPicker value={ig} onChange={setIg} />
+        )}
 
         <div className="flex items-center gap-4 text-sm">
           {healthScore !== null && (
@@ -342,17 +419,25 @@ export function SmartPostsDashboard() {
           <span className="text-white">{actionable.length} learnings</span>
         </div>
 
+        {/* Source toggle: only render when the user has at least one IG
+            account connected. Without Meta there's nothing to toggle to. */}
+        {hasIgAccounts && (
+          <div className="ml-auto">
+            <SourceToggle value={source} onChange={setSource} />
+          </div>
+        )}
+
         {/* Refresh only makes sense once there's data to re-derive from.
             For a brand with zero insights (e.g. a brand-new account that
             hasn't scraped its IG yet), steer the user to Analytics instead
             of offering a button that would sync nothing and analyze
-            nothing. */}
+            nothing. The ml-auto falls to whichever control renders last. */}
         {(actionable.length > 0 || refreshing || loadingInsights) ? (
           <button
             onClick={() => void loadInsights(true)}
             disabled={refreshing || loadingInsights}
             title="Rescrape Instagram + Buffer engagement, then recompute learnings"
-            className="ml-auto inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+            className={`${hasIgAccounts ? '' : 'ml-auto '}inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60`}
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshStage === 'syncing'
@@ -364,7 +449,7 @@ export function SmartPostsDashboard() {
         ) : (
           <Link
             href="/analytics"
-            className="ml-auto inline-flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-teal-500"
+            className={`${hasIgAccounts ? '' : 'ml-auto '}inline-flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-teal-500`}
           >
             Scrape in Analytics →
           </Link>
@@ -425,15 +510,11 @@ export function SmartPostsDashboard() {
                   className="mt-5 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-60"
                 >
                   {generating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> Composing your perfect post
-                    </>
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />{' '}
-                      {metaOverrides ? 'Generate with Analytics seed' : 'Generate Perfect Post'}
-                    </>
+                    <Sparkles className="h-4 w-4" />
                   )}
+                  {generateLabel}
                 </button>
               )}
 
@@ -457,6 +538,16 @@ export function SmartPostsDashboard() {
                         {post.suggestedPostTime.hour}:00
                       </p>
                     )}
+
+                    {/* Why This Works — Task 11 replaces this stub with a
+                        styled panel. Renders between the caption and the
+                        action buttons. */}
+                    <WhyThisWorks
+                      rationale={post.godModeRationale}
+                      contributions={post.contributions}
+                      deepProfile={post.deepProfile}
+                    />
+
                     <div className="flex flex-wrap gap-2 pt-2">
                       <button
                         onClick={() => void handleGenerate()}
