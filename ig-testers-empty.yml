@@ -1,0 +1,274 @@
+- generic:
+  - generic:
+    - generic:
+      - iframe
+    - generic:
+      - iframe
+    - generic:
+      - iframe
+    - generic:
+      - iframe
+    - generic [ref=e1]:
+      - generic [ref=e59]:
+        - generic [ref=e60]:
+          - link "Meta logo" [ref=e62] [cursor=pointer]:
+            - /url: /?no_redirect=true
+            - img "Meta logo" [ref=e64]
+          - tablist [ref=e73]:
+            - link "My Apps" [ref=e74] [cursor=pointer]:
+              - /url: /apps/
+              - generic [ref=e77]: My Apps
+            - link "Required actions" [ref=e78] [cursor=pointer]:
+              - /url: /required-actions/
+              - generic [ref=e81]: Required actions
+            - tab "Docs" [ref=e82] [cursor=pointer]:
+              - generic [ref=e85]: Docs
+            - tab "Tools" [ref=e87] [cursor=pointer]:
+              - generic [ref=e90]: Tools
+            - tab "Support" [ref=e92] [cursor=pointer]:
+              - generic [ref=e95]: Support
+        - generic [ref=e97]:
+          - generic [ref=e98]:
+            - generic [ref=e104]: Search input
+            - textbox "Search input" [ref=e115]:
+              - /placeholder: Search...
+          - link [ref=e118] [cursor=pointer]:
+            - /url: "#"
+          - link "Facebook" [ref=e123] [cursor=pointer]:
+            - /url: "#"
+            - img "Facebook" [ref=e128]
+      - generic [ref=e8]:
+        - generic [ref=e129]:
+          - generic [ref=e132]:
+            - generic [ref=e135]:
+              - generic [ref=e141]: Searchable selector for all apps
+              - combobox "Searchable selector for all apps GoViraleza" [ref=e146] [cursor=pointer]:
+                - generic [ref=e156]: GoViraleza
+            - navigation [ref=e159]:
+              - list [ref=e160]:
+                - listitem [ref=e161]:
+                  - button "Dashboard" [ref=e163] [cursor=pointer]
+                  - generic:
+                    - listitem:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Dashboard
+                - listitem [ref=e169]:
+                  - button "Required actions" [ref=e171] [cursor=pointer]
+                  - generic:
+                    - listitem:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Required actions
+                - listitem [ref=e177]:
+                  - button "Use cases" [ref=e179] [cursor=pointer]
+                  - generic:
+                    - listitem:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Use cases
+                - listitem [ref=e185]:
+                  - generic [ref=e186]:
+                    - button "Facebook Login for Business" [ref=e188] [cursor=pointer]
+                    - generic:
+                      - listitem:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: Facebook Login for Business
+                          - button "Toggle group" [ref=e194] [cursor=pointer]:
+                            - generic [ref=e197]: Toggle group
+                  - list [ref=e200]:
+                    - generic [ref=e201]:
+                      - button "Settings" [ref=e203] [cursor=pointer]
+                      - generic:
+                        - listitem:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Settings
+                    - generic [ref=e208]:
+                      - button "Quickstart" [ref=e210] [cursor=pointer]
+                      - generic:
+                        - listitem:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Quickstart
+                    - generic [ref=e215]:
+                      - button "Configurations" [ref=e217] [cursor=pointer]
+                      - generic:
+                        - listitem:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Configurations
+                    - generic [ref=e222]:
+                      - button "Templates" [ref=e224] [cursor=pointer]
+                      - generic:
+                        - listitem:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Templates
+                - listitem [ref=e229]:
+                  - button "Testing" [ref=e231] [cursor=pointer]
+                  - generic:
+                    - listitem:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Testing
+                - listitem [ref=e237]:
+                  - button "Publish" [ref=e239] [cursor=pointer]:
+                    - generic [ref=e242]:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Unpublished
+                          - status: App Publish Status
+                  - generic:
+                    - listitem:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Publish
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: Unpublished
+                            - status: App Publish Status
+          - generic [ref=e245]:
+            - navigation [ref=e246]:
+              - list [ref=e247]:
+                - listitem [ref=e248]:
+                  - generic [ref=e249]:
+                    - button "App settings" [ref=e251] [cursor=pointer]
+                    - generic:
+                      - listitem:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: App settings
+                          - button "Toggle group" [ref=e257] [cursor=pointer]:
+                            - generic [ref=e260]: Toggle group
+                  - list [ref=e263]:
+                    - generic [ref=e264]:
+                      - button "Basic" [ref=e266] [cursor=pointer]
+                      - generic:
+                        - listitem:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Basic
+                    - generic [ref=e271]:
+                      - button "Advanced" [ref=e273] [cursor=pointer]
+                      - generic:
+                        - listitem:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Advanced
+                - listitem [ref=e278]:
+                  - generic [ref=e279]:
+                    - button "App roles" [expanded] [ref=e281] [cursor=pointer]
+                    - generic:
+                      - listitem:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: App roles
+                          - button "Toggle group" [ref=e287] [cursor=pointer]:
+                            - generic [ref=e290]: Toggle group
+                  - list [ref=e294]:
+                    - generic [ref=e295]:
+                      - button "Roles" [ref=e297] [cursor=pointer]
+                      - generic:
+                        - listitem:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Roles
+                    - generic [ref=e302]:
+                      - button "Test users" [ref=e304] [cursor=pointer]
+                      - generic:
+                        - listitem:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Test users
+                - listitem [ref=e309]:
+                  - button "Alert Inbox" [ref=e311] [cursor=pointer]:
+                    - generic [ref=e314]:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: "1"
+                          - status: 1 unread alerts
+                  - generic:
+                    - listitem:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Alert Inbox
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: "1"
+                            - status: 1 unread alerts
+            - separator [ref=e317]
+            - generic [ref=e318]:
+              - button "Activity Log" [ref=e319] [cursor=pointer]:
+                - generic [ref=e322]: Activity Log
+              - button "Help" [ref=e326] [cursor=pointer]:
+                - generic [ref=e329]: Help
+              - button "Open/close side nav" [ref=e334] [cursor=pointer]:
+                - generic [ref=e337]: Open/close side nav
+        - generic [ref=e344]:
+          - generic [ref=e345]:
+            - heading "App roles" [level=2] [ref=e346]
+            - generic [ref=e347]: App roles allow you to control which people have permission to edit and view your app.
+          - generic [ref=e352]:
+            - generic [ref=e353]:
+              - tablist [ref=e356]:
+                - tab "All roles" [ref=e357] [cursor=pointer]:
+                  - generic [ref=e360]: All roles
+                - tab "Administrators" [ref=e361] [cursor=pointer]:
+                  - generic [ref=e365]: Administrators
+                - tab "Developers" [ref=e366] [cursor=pointer]:
+                  - generic [ref=e370]: Developers
+                - tab "Testers" [ref=e371] [cursor=pointer]:
+                  - generic [ref=e372]:
+                    - generic [ref=e375]: Testers
+                    - generic [ref=e376]:
+                      - generic [ref=e378]: 0 of 50
+                      - status [ref=e379]: 0 of 50 testers
+                - tab "Analytics Users" [ref=e380] [cursor=pointer]:
+                  - generic [ref=e381]:
+                    - generic [ref=e384]: Analytics Users
+                    - generic [ref=e385]:
+                      - generic [ref=e387]: 0 of 50
+                      - status [ref=e388]: 0 of 50 testers
+                - button "More" [active] [ref=e389] [cursor=pointer]:
+                  - generic [ref=e392]: More
+              - button "Add People" [ref=e396] [cursor=pointer]:
+                - generic [ref=e401]: Add People
+            - separator [ref=e402]
+            - grid "Roles Table" [ref=e406]:
+              - rowgroup [ref=e407]:
+                - row "Name Role Status Actions" [ref=e408]:
+                  - columnheader "Name" [ref=e409] [cursor=pointer]:
+                    - button "Name" [ref=e412]:
+                      - heading "Name" [level=4] [ref=e415]
+                  - columnheader "Role" [ref=e419] [cursor=pointer]:
+                    - button "Role" [ref=e422]:
+                      - heading "Role" [level=4] [ref=e427]
+                  - columnheader "Status" [ref=e436] [cursor=pointer]:
+                    - button "Status" [ref=e439]:
+                      - heading "Status" [level=4] [ref=e444]
+                  - columnheader "Actions" [ref=e453]:
+                    - heading "Actions" [level=4] [ref=e457]
+              - rowgroup
