@@ -132,7 +132,7 @@ describe('POST /api/smart-posts/god-mode', () => {
     expect(json.error).toBe('ai_parse_failed');
   });
 
-  it('returns 502 when LLM returns valid JSON but rationale is missing', async () => {
+  it('returns 502 ai_invalid_shape with field=rationale when rationale is missing', async () => {
     vi.mocked(buildDeepProfile).mockResolvedValueOnce(makeProfile());
     vi.mocked(cerebrasChatCompletion).mockResolvedValueOnce(
       JSON.stringify({ overrides: { format: 'REEL' } }),
@@ -142,7 +142,22 @@ describe('POST /api/smart-posts/god-mode', () => {
     const json = await res.json();
 
     expect(res.status).toBe(502);
-    expect(json.error).toBe('ai_parse_failed');
+    expect(json.error).toBe('ai_invalid_shape');
+    expect(json.field).toBe('rationale');
+  });
+
+  it('returns 502 ai_invalid_shape with field=overrides when overrides are empty/missing', async () => {
+    vi.mocked(buildDeepProfile).mockResolvedValueOnce(makeProfile());
+    vi.mocked(cerebrasChatCompletion).mockResolvedValueOnce(
+      JSON.stringify({ rationale: 'valid prose' }),
+    );
+
+    const res = await POST(makeReq({ brandId: 'b1', igUserId: 'ig1' }));
+    const json = await res.json();
+
+    expect(res.status).toBe(502);
+    expect(json.error).toBe('ai_invalid_shape');
+    expect(json.field).toBe('overrides');
   });
 
   it('returns 200 with godModeRationale + deepProfile on the happy path', async () => {

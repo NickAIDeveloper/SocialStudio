@@ -8,6 +8,14 @@ import type { DeepProfile } from '@/lib/meta/deep-profile.types';
 // Allow longer runtime — deep profile fetch + LLM design + image compositing.
 export const maxDuration = 60;
 
+// Minimum recent posts on the connected IG account before god-mode will try
+// to design one. Below this we don't have enough signal in the deep profile.
+const MIN_SAMPLE_SIZE = 5;
+
+// LLM call params — matches analyze/route.ts pattern.
+const LLM_TEMP = 0.4;
+const LLM_MAX_TOKENS = 600;
+
 const SYSTEM_PROMPT =
   'You are designing a single Instagram post to maximize engagement for one specific account. ' +
   "You will be given the account's full performance profile in JSON. " +
@@ -39,6 +47,23 @@ function llmParseErrorResponse(mode: string, raw: string) {
     {
       error: 'ai_parse_failed',
       message: 'AI returned an unexpected response. Please try again.',
+    },
+    { status: 502 },
+  );
+}
+
+// Used when JSON parsed cleanly but the shape is wrong (missing/empty field).
+// Distinct from ai_parse_failed so client + telemetry can tell them apart.
+function llmInvalidShapeResponse(field: string, raw: string) {
+  console.error(
+    `[SmartPosts/god-mode/${field}] LLM returned invalid shape (first 500 chars):`,
+    raw.slice(0, 500),
+  );
+  return NextResponse.json(
+    {
+      error: 'ai_invalid_shape',
+      message: 'AI returned an unexpected response. Please try again.',
+      field,
     },
     { status: 502 },
   );
@@ -131,12 +156,11 @@ export async function POST(req: NextRequest) {
       throw e;
     }
 
-    if (profile.sampleSize < 5) {
+    if (profile.sampleSize < MIN_SAMPLE_SIZE) {
       return NextResponse.json(
         {
           error: 'not_enough_data',
-          message:
-            'We need at least 5 recent posts on this account before god-mode can design one. Post a few more and try again.',
+          message: `We need at least ${MIN_SAMPLE_SIZE} recent posts on this account before god-mode can design one. Post a few more and try again.`,
         },
         { status: 422 },
       );
@@ -147,7 +171,7 @@ export async function POST(req: NextRequest) {
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: buildUserPrompt(profile) },
       ],
-      { temperature: 0.4, maxTokens: 600 },
+      { temperature: LLM_TEMP, maxTokens: LLM_MAX_TOKENS },
     );
 
     const parsed = parseLlmJson(raw);
@@ -156,12 +180,12 @@ export async function POST(req: NextRequest) {
     const llmSeed = parsed.data as { overrides?: unknown; rationale?: unknown };
     const sanitized = sanitizeMetaOverrides(llmSeed.overrides);
     if (!sanitized || Object.keys(sanitized).length === 0) {
-      return llmParseErrorResponse('overrides', raw);
+      return llmInvalidShapeResponse('overrides', raw);
     }
 
     const rationale =
       typeof llmSeed.rationale === 'string' ? llmSeed.rationale.trim() : '';
-    if (!rationale) return llmParseErrorResponse('rationale', raw);
+    if (!rationale) return llmInvalidShapeResponse('rationale', raw);
 
     const origin = req.nextUrl.origin;
     const cookie = req.headers.get('cookie') ?? '';
