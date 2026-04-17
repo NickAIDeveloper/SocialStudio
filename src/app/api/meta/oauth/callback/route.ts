@@ -21,7 +21,8 @@ import {
 // to /meta with a success or error query param.
 
 function redirectBack(req: NextRequest, params: Record<string, string>) {
-  const url = new URL('/meta', req.nextUrl.origin);
+  const url = new URL('/analytics', req.nextUrl.origin);
+  url.searchParams.set('source', 'meta');
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   return NextResponse.redirect(url);
 }

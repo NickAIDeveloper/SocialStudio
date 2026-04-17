@@ -1,4 +1,4 @@
-import AnalyticsDashboard from '@/components/analytics-dashboard';
+import { PerformancePage } from '@/components/performance/performance-page';
 import { BrandRequiredGate } from '@/components/brand-required-gate';
 
 export default function AnalyticsPage() {
@@ -11,7 +11,7 @@ export default function AnalyticsPage() {
         </p>
       </div>
       <BrandRequiredGate feature="view analytics">
-        <AnalyticsDashboard />
+        <PerformancePage />
       </BrandRequiredGate>
     </>
   );
