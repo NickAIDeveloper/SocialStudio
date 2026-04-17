@@ -121,6 +121,41 @@ interface MetaOverrides {
   pattern?: string;
 }
 
+// Runtime validator for client-supplied metaOverrides. The interface above is
+// compile-time only — TypeScript trusts the client. Without this we've seen
+// hour: "abc" silently skip timing, hour: NaN produce "NaN:00" schedule
+// labels, and day: "Funday" propagate to nextOccurrenceIso which returns null.
+// Drop any field that fails validation; keep the rest.
+function sanitizeMetaOverrides(raw: unknown): MetaOverrides | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const out: MetaOverrides = {};
+  if (typeof o.preset === 'string' && o.preset.trim().length > 0) {
+    out.preset = o.preset;
+  }
+  if (o.format === 'REEL' || o.format === 'CAROUSEL' || o.format === 'IMAGE') {
+    out.format = o.format;
+  }
+  if (
+    typeof o.day === 'string' &&
+    DAY_INDEX[o.day.trim().toLowerCase()] !== undefined
+  ) {
+    out.day = o.day;
+  }
+  if (
+    typeof o.hour === 'number' &&
+    Number.isFinite(o.hour) &&
+    o.hour >= 0 &&
+    o.hour <= 23
+  ) {
+    out.hour = Math.floor(o.hour);
+  }
+  if (typeof o.pattern === 'string' && o.pattern.trim().length > 0) {
+    out.pattern = o.pattern;
+  }
+  return out;
+}
+
 // Map Instagram format → internal ContentType the caption pipeline understands.
 // Mirror normalizeContentType in lib/smart-posts.ts — REEL→tip, CAROUSEL→carousel,
 // IMAGE→quote — so the seed stays consistent whichever input set it.
@@ -135,11 +170,12 @@ export async function POST(request: NextRequest) {
   try {
     const userId = await getUserId();
     const body = await request.json();
-    const { insightId, brandId, metaOverrides } = body as {
+    const { insightId, brandId, metaOverrides: rawMetaOverrides } = body as {
       insightId?: string;
       brandId?: string;
-      metaOverrides?: MetaOverrides;
+      metaOverrides?: unknown;
     };
+    const metaOverrides = sanitizeMetaOverrides(rawMetaOverrides);
 
     if (!brandId) {
       return NextResponse.json({ error: 'brandId required — pick a brand first.' }, { status: 400 });

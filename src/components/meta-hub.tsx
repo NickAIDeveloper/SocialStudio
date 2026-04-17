@@ -1079,9 +1079,16 @@ function CaptionPatterns({
         body: JSON.stringify({ mode: 'patterns', posts, medians }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      if (!res.ok) throw new Error(json.message || json.error || `HTTP ${res.status}`);
+      // Defense in depth: the server now returns 502 on LLM parse failure,
+      // but if a valid JSON response arrives with the wrong shape, surface
+      // that as an AI error instead of showing "no patterns — post more"
+      // and blaming the user for the LLM's gibberish.
       const raw = json.data?.patterns as { patterns?: CaptionPattern[] } | null;
-      setPatterns(raw?.patterns ?? []);
+      if (!raw || !Array.isArray(raw.patterns)) {
+        throw new Error('AI returned an unexpected format. Please try again.');
+      }
+      setPatterns(raw.patterns);
       setLoaded(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed');
