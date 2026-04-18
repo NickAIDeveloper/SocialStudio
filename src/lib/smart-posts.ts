@@ -53,6 +53,17 @@ function normalizeContentType(raw: string | undefined | null): ContentType {
   return 'quote';
 }
 
+// User-facing labels for our internal ContentType enum. These are the words
+// the user sees in "Why this works" — "quote post" / "tip post" read as
+// internal jargon, so we phrase each type naturally instead.
+const CONTENT_TYPE_LABEL: Record<ContentType, string> = {
+  quote: 'quote graphic',
+  tip: 'tip-style post',
+  carousel: 'carousel',
+  community: 'community post',
+  promo: 'promo post',
+};
+
 const ACTIONABLE_TYPES = new Set([
   'best-content-type',
   'optimal-timing',
@@ -239,7 +250,7 @@ export function mergePerfectSeed(
     if (partial) {
       seed.contentType = partial.contentType;
       contributions['best-content-type'] =
-        `We picked a ${partial.contentType} post because that format performs best for your account.`;
+        `We picked a ${CONTENT_TYPE_LABEL[partial.contentType]} because that format performs best for your account.`;
     }
   }
 

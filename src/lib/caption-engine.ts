@@ -13,8 +13,48 @@
  * Universal text sanitizer — strips ALL JSON, code, HTML, and LLM artifacts.
  * Apply to any AI-generated text before display or storage.
  */
+// LLM trailing conversational commentary patterns. The model sometimes
+// appends notes to the user after the caption body, e.g.
+//   "... Link in bio. : I removed the hashtag as per your instructions."
+// Two trigger types:
+//   1. Colon-delimited: " : I removed/added/etc ..." — the colon is the
+//      LLM's separator between caption and commentary.
+//   2. Sentence-boundary + marker phrase: a sentence terminator (preserved
+//      via lookbehind) followed by a known commentary opener.
+// Lookbehind keeps the prior "." in the body so "Body. Note:..." → "Body."
+const LLM_TRAILING_COMMENTARY = [
+  /\s*:\s*I(?:'ve| have)?\s+(?:removed|added|kept|changed|included|excluded|replaced|written|adjusted|crafted|created|used|chosen|picked|selected|tried|avoided|made)\b[\s\S]*$/i,
+  /(?<=[.!?])\s+\(?Note\s*[:\-]\s[\s\S]*$/i,
+  /(?<=[.!?])\s+However,?\s+if you (?:want|would|prefer|'d)[\s\S]*$/i,
+  /(?<=[.!?])\s+(?:Please )?Let me know if[\s\S]*$/i,
+  /(?<=[.!?])\s+Feel free to[\s\S]*$/i,
+  /(?<=[.!?])\s+As (?:requested|instructed|per your)[\s\S]*$/i,
+  /(?<=[.!?])\s+(?:Hope|I hope) (?:this|these|you)[\s\S]*$/i,
+  /(?<=[.!?])\s+I(?:'ve| have)\s+(?:removed|added|kept|changed|included|excluded|replaced|written|adjusted|crafted|created|used|chosen|picked|selected|tried|avoided|made)\b[\s\S]*$/i,
+];
+
+// LLM leading meta-commentary — the model prefaces output with conversational
+// openers like "Sure! Here's the caption:" or "Here is the post you requested:".
+// These patterns strip everything from the start of the string up to and
+// including the colon that introduces the actual caption body. Anchored to
+// `^` so we never strip mid-caption text.
+const LLM_LEADING_META = [
+  /^\s*(?:Sure|Of course|Absolutely|Certainly|Got it|Okay|OK|Great)[!,.]?\s+(?:Here(?:'s| is)|Below is)[^:]*:\s*/i,
+  /^\s*Here(?:'s| is)\s+(?:the|a|your|an)?\s*(?:caption|post|Instagram\s+post|copy|version|hook|hookText)\s*[^:]*:\s*/i,
+  /^\s*Below is\s+(?:the|a|your)?\s*(?:caption|post|version|hook)\s*[^:]*:\s*/i,
+  /^\s*(?:Final|Polished|Revised|Updated)\s+(?:caption|post|version)\s*[:\-]\s*/i,
+  /^\s*(?:Option|Version)\s+\d+\s*[:\-]\s*/i,
+  /^\s*I(?:'ve| have)\s+(?:crafted|written|created|prepared|drafted|put together)\s+[^:]*:\s*/i,
+];
+
+// Strip stray JSON-array remnants that survive brace stripping, e.g. when the
+// model emits {"hashtags": ["#run", "#pace"]} the braces go but the array
+// fragment ["#run", "#pace"] would otherwise remain. Conservative: only matches
+// arrays that look like JSON (quoted entries or hashtag-shaped strings).
+const JSON_ARRAY_REMNANT = /\[\s*(?:"[^"]*"|#\w+)(?:\s*,\s*(?:"[^"]*"|#\w+))*\s*\]/g;
+
 export function sanitizeCaption(text: string): string {
-  return text
+  let out = text
     .replace(/\\n/g, '\n')                              // unescape \\n
     .replace(/```[\s\S]*?```/g, '')                      // strip code blocks
     .replace(/<[^>]+>/g, '')                             // strip HTML tags
@@ -24,6 +64,7 @@ export function sanitizeCaption(text: string): string {
     .replace(/,?\s*["']?hashtags?["']?\s*:[\s\S]*$/i, '')// strip trailing hashtags JSON
     .replace(/,?\s*["']?hookText["']?\s*:[\s\S]*$/i, '') // strip trailing hookText JSON
     .replace(/[{}]/g, '')                                // strip JSON braces
+    .replace(JSON_ARRAY_REMNANT, '')                     // strip stray JSON arrays
     .replace(/\s*[—–]{1,3}\s*/g, ' ')                   // strip em/en dashes
     .replace(/([.!?])\s*(\d+)\.\s/g, '$1\n$2. ')        // line break before numbered step ONLY after sentence end
     .replace(/#\w+/g, '')                                // strip any inline hashtags
@@ -31,23 +72,31 @@ export function sanitizeCaption(text: string): string {
     .replace(/  +/g, ' ')                                // collapse double spaces
     .replace(/,\s*$/, '')                                // strip trailing comma
     .trim();
+  for (const rx of LLM_LEADING_META) out = out.replace(rx, '').trim();
+  // Re-strip wrapping quotes that may have been hidden behind the leading meta.
+  out = out.replace(/^["'\u201C\u201D]+|["'\u201C\u201D]+$/g, '').trim();
+  for (const rx of LLM_TRAILING_COMMENTARY) out = out.replace(rx, '').trim();
+  return out;
 }
 
 export function sanitizeHook(text: string): string {
-  return text
+  let out = text
     .replace(/\\n/g, ' ')                                // no newlines in hooks
     .replace(/\n/g, ' ')
     .replace(/```[\s\S]*?```/g, '')                      // strip code blocks
     .replace(/<[^>]+>/g, '')                             // strip HTML
     .replace(/\*\*/g, '')                                // strip markdown
-    .replace(/^["']+|["']+$/g, '')                       // strip wrapping quotes
+    .replace(/^["'\u201C\u201D]+|["'\u201C\u201D]+$/g, '') // strip wrapping quotes
     .replace(/^(caption|hook|hookText)\s*:\s*/i, '')     // strip key prefixes
     .replace(/,?\s*["']?hashtags?[\s\S]*$/i, '')         // strip hashtags leak
     .replace(/[{}]/g, '')                                // strip JSON braces
+    .replace(JSON_ARRAY_REMNANT, '')                     // strip stray JSON arrays
     .replace(/\s+\d+\.?\s*$/, '')                        // strip trailing "1." or "1"
     .replace(/\s{2,}/g, ' ')                             // collapse whitespace
-    .trim()
-    .slice(0, 60);                                       // max 60 chars
+    .trim();
+  for (const rx of LLM_LEADING_META) out = out.replace(rx, '').trim();
+  out = out.replace(/^["'\u201C\u201D]+|["'\u201C\u201D]+$/g, '').trim();
+  return out.slice(0, 60);
 }
 
 export function sanitizeHashtags(text: string): string {

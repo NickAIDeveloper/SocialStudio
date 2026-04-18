@@ -20,9 +20,12 @@ function mockFetch(brandsOk: boolean, bufferOk: boolean, imageSourceOk: boolean)
     if (u.startsWith('/api/buffer')) {
       return Promise.resolve(new Response('{}', { status: bufferOk ? 200 : 401 }));
     }
-    if (u.startsWith('/api/image-source')) {
+    if (u.startsWith('/api/linked-accounts')) {
       return Promise.resolve(new Response(
-        JSON.stringify({ source: imageSourceOk ? 'pexels' : null }),
+        JSON.stringify({
+          success: true,
+          data: imageSourceOk ? [{ provider: 'pexels' }] : [],
+        }),
         { status: 200 },
       ));
     }

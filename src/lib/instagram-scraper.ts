@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import * as fs from 'fs';
 import * as path from 'path';
+import { cleanIgCaption } from './ig-caption-clean';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -150,7 +151,7 @@ function parseOgDescription(content: string): { likes: number; comments: number;
     caption = content.slice(dashIdx + 3).trim();
   }
 
-  return { likes, comments, caption };
+  return { likes, comments, caption: cleanIgCaption(caption) };
 }
 
 // ---------------------------------------------------------------------------
@@ -278,7 +279,7 @@ async function scrapeAccounts(
                 .first()
                 .textContent()
                 .catch(() => null);
-              if (captionEl) caption = captionEl.trim();
+              if (captionEl) caption = cleanIgCaption(captionEl);
             }
 
             const meta = extractPostMetadata(caption, timestamp);

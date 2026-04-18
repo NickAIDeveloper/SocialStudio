@@ -172,20 +172,62 @@ Return JSON only.`,
 
 type ParseResult = { ok: true; data: unknown } | { ok: false; raw: string };
 
-// Cerebras sometimes wraps JSON in ```json blocks or adds trailing commentary.
-// Strip non-JSON prefixes/suffixes before parsing. Return a discriminated
-// result so callers can surface a real error to the client instead of
-// silently degrading to empty cards — the old null-return path hid bugs.
-function parseLlmJson(raw: string): ParseResult {
-  const trimmed = raw.trim();
-  const first = trimmed.indexOf('{');
-  const last = trimmed.lastIndexOf('}');
-  if (first === -1 || last === -1 || last <= first) return { ok: false, raw };
-  try {
-    return { ok: true, data: JSON.parse(trimmed.slice(first, last + 1)) };
-  } catch {
-    return { ok: false, raw };
+function stripMarkdownFences(s: string): string {
+  const fenced = s.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/);
+  return fenced ? fenced[1].trim() : s;
+}
+
+// Walk the string tracking string/escape state so braces inside JSON string
+// literals don't confuse depth tracking. Returns the first balanced object.
+function extractFirstJsonObject(s: string): string | null {
+  const start = s.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (c === '\\') {
+      escape = true;
+      continue;
+    }
+    if (c === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (c === '{') depth++;
+    else if (c === '}') {
+      depth--;
+      if (depth === 0) return s.slice(start, i + 1);
+    }
   }
+  return null;
+}
+
+// Cerebras sometimes wraps JSON in ```json blocks or adds trailing commentary
+// (which may itself contain braces and break a naive lastIndexOf('}') pass).
+// Try: clean parse after fence strip, then balanced-brace extraction.
+function parseLlmJson(raw: string): ParseResult {
+  const stripped = stripMarkdownFences(raw.trim());
+  try {
+    return { ok: true, data: JSON.parse(stripped) };
+  } catch {
+    // fall through
+  }
+  const balanced = extractFirstJsonObject(stripped);
+  if (balanced) {
+    try {
+      return { ok: true, data: JSON.parse(balanced) };
+    } catch {
+      // fall through
+    }
+  }
+  return { ok: false, raw };
 }
 
 function llmParseErrorResponse(mode: string, raw: string) {
