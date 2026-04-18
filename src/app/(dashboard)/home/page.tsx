@@ -1,15 +1,22 @@
-import { CommandCenter } from '@/components/command-center';
+'use client';
 
-export default function Home() {
+import { Suspense, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+
+function Redirect() {
+  const router = useRouter();
+  const sp = useSearchParams();
+  useEffect(() => {
+    const q = sp.toString();
+    router.replace(q ? `/analyze?${q}` : '/analyze', { scroll: false });
+  }, [router, sp]);
+  return null;
+}
+
+export default function HomePage() {
   return (
-    <>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-white">Home</h1>
-        <p className="text-sm text-white mt-1">
-          Your content command center. See what&apos;s happening and take action.
-        </p>
-      </div>
-      <CommandCenter />
-    </>
+    <Suspense fallback={null}>
+      <Redirect />
+    </Suspense>
   );
 }

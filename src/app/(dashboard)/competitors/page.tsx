@@ -1,15 +1,23 @@
-import { CompetitorDashboard } from '@/components/competitor-dashboard';
+'use client';
+
+import { Suspense, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+
+function Redirect() {
+  const router = useRouter();
+  const sp = useSearchParams();
+  useEffect(() => {
+    const next = new URLSearchParams(sp.toString());
+    next.set('tab', 'competitors');
+    router.replace(`/analyze?${next.toString()}`, { scroll: false });
+  }, [router, sp]);
+  return null;
+}
 
 export default function CompetitorsPage() {
   return (
-    <>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-white">Competitor Intelligence</h1>
-        <p className="text-sm text-white mt-1 max-w-xl">
-          Study what top accounts in your space are doing, then use those insights to create better content.
-        </p>
-      </div>
-      <CompetitorDashboard />
-    </>
+    <Suspense fallback={null}>
+      <Redirect />
+    </Suspense>
   );
 }

@@ -9,12 +9,10 @@ export function MetaRedirect() {
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
-    // Add source=meta only if not already present
     if (!params.has('source')) {
       params.set('source', 'meta');
     }
-    const redirectUrl = `/analytics?${params.toString()}`;
-    router.replace(redirectUrl, { scroll: false });
+    router.replace(`/analyze?${params.toString()}`, { scroll: false });
   }, [router, searchParams]);
 
   return null;

@@ -1,15 +1,22 @@
-import { PerformancePage } from '@/components/performance/performance-page';
+'use client';
+
+import { Suspense, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+
+function Redirect() {
+  const router = useRouter();
+  const sp = useSearchParams();
+  useEffect(() => {
+    const q = sp.toString();
+    router.replace(q ? `/analyze?${q}` : '/analyze', { scroll: false });
+  }, [router, sp]);
+  return null;
+}
 
 export default function AnalyticsPage() {
   return (
-    <>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-white">Analytics</h1>
-        <p className="text-sm text-white mt-1">
-          Track post performance across your Instagram accounts.
-        </p>
-      </div>
-      <PerformancePage />
-    </>
+    <Suspense fallback={null}>
+      <Redirect />
+    </Suspense>
   );
 }
