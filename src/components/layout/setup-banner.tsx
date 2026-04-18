@@ -23,15 +23,22 @@ export function SetupBanner() {
     void Promise.allSettled([
       fetch('/api/brands').then((r) => r.ok ? r.json() : null),
       fetch('/api/buffer?action=channels').then((r) => ({ ok: r.ok })),
-      fetch('/api/image-source').then((r) => r.ok ? r.json() : null),
+      // Image source = any connected stock-photo / image-gen provider. This is
+      // the same signal the onboarding wizard uses; the old /api/image-source
+      // endpoint was never implemented and 404'd on every page load.
+      fetch('/api/linked-accounts').then((r) => r.ok ? r.json() : null),
     ]).then((results) => {
       const brandsRes = results[0].status === 'fulfilled' ? results[0].value as { brands?: Array<{ instagramHandle?: string | null }> } | null : null;
       const bufferRes = results[1].status === 'fulfilled' ? results[1].value as { ok: boolean } : { ok: false };
-      const imageRes = results[2].status === 'fulfilled' ? results[2].value as { source?: string | null } | null : null;
+      const linkedRes = results[2].status === 'fulfilled' ? results[2].value as { success?: boolean; data?: Array<{ provider: string }> } | null : null;
+      const imageProviders = new Set(['pixabay', 'unsplash', 'pexels', 'gemini_images']);
+      const hasImageSource = Boolean(
+        linkedRes?.success && linkedRes.data?.some((a) => imageProviders.has(a.provider)),
+      );
       setState({
         hasBrandWithIg: Boolean(brandsRes?.brands?.some((b) => b.instagramHandle)),
         hasBuffer: bufferRes.ok,
-        hasImageSource: Boolean(imageRes?.source),
+        hasImageSource,
         loaded: true,
       });
     });
