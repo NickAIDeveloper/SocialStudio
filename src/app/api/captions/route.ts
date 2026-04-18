@@ -316,10 +316,12 @@ Return ONLY valid JSON:
     if (!parsed || !parsed.caption) {
       const raw = cleaned.replace(/[{}]/g, '');
       // Extract fields manually using key: "value" pattern
-      const captionMatch = raw.match(/["']?caption["']?\s*:\s*["']([^"']+)["']/i)
+      // Match content between outer JSON double-quotes, NOT apostrophes — the
+      // previous [^"'] class truncated captions at contractions like "You'll".
+      const captionMatch = raw.match(/["']?caption["']?\s*:\s*"([^"]+)"/i)
         || raw.match(/caption["']?\s*:\s*(.+?)(?:,\s*["']?hashtags|,\s*["']?hookText|$)/i);
       const hashtagsMatch = raw.match(/#\w+/g);
-      const hookMatch = raw.match(/["']?hookText["']?\s*:\s*["']([^"']+)["']/i);
+      const hookMatch = raw.match(/["']?hookText["']?\s*:\s*"([^"]+)"/i);
 
       const captionText = captionMatch
         ? captionMatch[1].replace(/\\n/g, '\n').replace(/["']/g, '').trim()
@@ -356,9 +358,9 @@ Return ONLY valid JSON:
         cleaned = cleaned.replace(/,\s*$/, '');
         // Strip any remaining hashtags from caption body
         cleaned = cleaned.replace(/#\w+/g, '').trim();
-        // Insert line breaks before numbered steps
+        // Insert line breaks before numbered steps ONLY after sentence-ending punctuation
+        // (the old lowercase-letter variant mangled sentences like "zone 3. Most runners").
         cleaned = cleaned.replace(/([.!?])\s*(\d+)\.\s/g, '$1\n$2. ');
-        cleaned = cleaned.replace(/([a-z])\s+(\d+)\.\s/g, '$1\n\n$2. ');
         // Normalize whitespace
         cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
         cleaned = cleaned.replace(/  +/g, ' ');
