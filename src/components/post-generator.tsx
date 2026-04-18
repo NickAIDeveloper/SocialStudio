@@ -151,6 +151,7 @@ export function PostGenerator() {
 
   // Image search state
   const [images, setImages] = useState<ImageResult[]>([]);
+  const [derivedSuggestions, setDerivedSuggestions] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<ImageResult | null>(null);
   const [selectedCarouselImages, setSelectedCarouselImages] = useState<ImageResult[]>([]);
   const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null);
@@ -355,6 +356,9 @@ export function PostGenerator() {
       });
       const pickData = await pickRes.json();
       if (pickData.searchTerm) searchTerm = pickData.searchTerm;
+      if (Array.isArray(pickData.alternatives) && pickData.alternatives.length > 0) {
+        setDerivedSuggestions(pickData.alternatives);
+      }
     } catch { /* fall back to default search term */ }
 
     // Trigger the ImageSourceSelector search so the UI stays in sync
@@ -682,6 +686,9 @@ export function PostGenerator() {
       });
       const pickData = await pickRes.json();
       if (pickData.searchTerm) searchTerm = pickData.searchTerm;
+      if (Array.isArray(pickData.alternatives) && pickData.alternatives.length > 0) {
+        setDerivedSuggestions(pickData.alternatives);
+      }
     } catch { /* fall back to brand query */ }
     if (imageSelectorRef.current) {
       imageSelectorRef.current.triggerSearch(searchTerm);
@@ -868,6 +875,7 @@ export function PostGenerator() {
                   setProcessedImageUrl(null);
                   setProcessedCarouselUrls([]);
                   setImages([]);
+                  setDerivedSuggestions([]);
                                 setCarouselIndex(0);
                 }}>
                 <SelectTrigger className="bg-white border-zinc-300 text-zinc-900 h-9 text-sm">
@@ -1074,7 +1082,7 @@ export function PostGenerator() {
           />
 
           <div className="flex flex-wrap gap-1.5">
-            {suggestions.slice(0, 6).map((query) => (
+            {(derivedSuggestions.length > 0 ? derivedSuggestions : suggestions).slice(0, 6).map((query) => (
               <button
                 key={query}
                 onClick={() => imageSelectorRef.current?.triggerSearch(query)}
