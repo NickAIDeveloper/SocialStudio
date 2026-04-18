@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeCaption } from '../caption-engine';
+import { sanitizeCaption, sanitizeHook } from '../caption-engine';
 
 describe('sanitizeCaption — LLM trailing commentary', () => {
   it('strips ": I removed the hashtag as per your instructions" tail', () => {
@@ -46,5 +46,78 @@ describe('sanitizeCaption — LLM trailing commentary', () => {
   it('handles clean caption unchanged', () => {
     const input = 'Train smarter with Affectly. Link in bio.';
     expect(sanitizeCaption(input)).toBe('Train smarter with Affectly. Link in bio.');
+  });
+});
+
+describe('sanitizeCaption — leading meta-commentary', () => {
+  it('strips "Sure! Here\'s the caption:" opener', () => {
+    const input = "Sure! Here's the caption: Train smarter today.";
+    expect(sanitizeCaption(input)).toBe('Train smarter today.');
+  });
+
+  it('strips "Here is the post:" opener', () => {
+    const input = 'Here is the post: Train smarter today.';
+    expect(sanitizeCaption(input)).toBe('Train smarter today.');
+  });
+
+  it('strips "Final caption:" label', () => {
+    const input = 'Final caption: Train smarter today.';
+    expect(sanitizeCaption(input)).toBe('Train smarter today.');
+  });
+
+  it('strips "Option 1:" prefix', () => {
+    const input = 'Option 1: Train smarter today.';
+    expect(sanitizeCaption(input)).toBe('Train smarter today.');
+  });
+
+  it('strips "I have crafted a caption for you:" opener', () => {
+    const input = "I've crafted a caption for you: Train smarter today.";
+    expect(sanitizeCaption(input)).toBe('Train smarter today.');
+  });
+
+  it('strips wrapping quotes hidden behind leading meta', () => {
+    const input = 'Here is the caption: "Train smarter today."';
+    expect(sanitizeCaption(input)).toBe('Train smarter today.');
+  });
+
+  it('does NOT strip body text mentioning "here"', () => {
+    const input = 'Here we go again. Another long run done.';
+    expect(sanitizeCaption(input)).toBe('Here we go again. Another long run done.');
+  });
+});
+
+describe('sanitizeCaption — JSON array remnants', () => {
+  it('strips bare hashtag-array remnant', () => {
+    const input = 'Train smarter today. ["#run", "#pace"]';
+    expect(sanitizeCaption(input)).toBe('Train smarter today.');
+  });
+
+  it('strips quoted-string array remnant', () => {
+    const input = 'Train smarter today. ["pace", "stride"]';
+    expect(sanitizeCaption(input)).toBe('Train smarter today.');
+  });
+
+  it('does NOT strip legitimate bracketed text', () => {
+    const input = 'New PR [unofficial] today.';
+    expect(sanitizeCaption(input)).toBe('New PR [unofficial] today.');
+  });
+});
+
+describe('sanitizeHook — hardening', () => {
+  it('strips "Here is the hook:" leading meta', () => {
+    expect(sanitizeHook('Here is the hook: Save this for later')).toBe('Save this for later');
+  });
+
+  it('strips "Sure! Here\'s a hook:" opener', () => {
+    expect(sanitizeHook("Sure! Here's a hook: Save this")).toBe('Save this');
+  });
+
+  it('strips smart quotes wrapping hook', () => {
+    expect(sanitizeHook('\u201CSave this for later\u201D')).toBe('Save this for later');
+  });
+
+  it('caps at 60 chars', () => {
+    const long = 'x'.repeat(80);
+    expect(sanitizeHook(long).length).toBe(60);
   });
 });
