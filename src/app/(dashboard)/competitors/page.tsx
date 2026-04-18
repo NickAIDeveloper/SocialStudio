@@ -1,5 +1,4 @@
 import { CompetitorDashboard } from '@/components/competitor-dashboard';
-import { BrandRequiredGate } from '@/components/brand-required-gate';
 
 export default function CompetitorsPage() {
   return (
@@ -10,9 +9,7 @@ export default function CompetitorsPage() {
           Study what top accounts in your space are doing, then use those insights to create better content.
         </p>
       </div>
-      <BrandRequiredGate feature="analyze competitors">
-        <CompetitorDashboard />
-      </BrandRequiredGate>
+      <CompetitorDashboard />
     </>
   );
 }

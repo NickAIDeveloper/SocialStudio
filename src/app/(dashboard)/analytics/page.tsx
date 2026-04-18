@@ -1,5 +1,4 @@
 import { PerformancePage } from '@/components/performance/performance-page';
-import { BrandRequiredGate } from '@/components/brand-required-gate';
 
 export default function AnalyticsPage() {
   return (
@@ -10,9 +9,7 @@ export default function AnalyticsPage() {
           Track post performance across your Instagram accounts.
         </p>
       </div>
-      <BrandRequiredGate feature="view analytics">
-        <PerformancePage />
-      </BrandRequiredGate>
+      <PerformancePage />
     </>
   );
 }

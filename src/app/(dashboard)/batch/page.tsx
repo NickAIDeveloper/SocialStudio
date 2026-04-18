@@ -1,5 +1,4 @@
 import { BatchGallery } from '@/components/batch-gallery';
-import { BrandRequiredGate } from '@/components/brand-required-gate';
 
 export default function BatchPage() {
   return (
@@ -10,9 +9,7 @@ export default function BatchPage() {
           Pre-generated posts for your brands. Preview, tweak, and schedule in bulk.
         </p>
       </div>
-      <BrandRequiredGate feature="generate batch posts">
-        <BatchGallery />
-      </BrandRequiredGate>
+      <BatchGallery />
     </>
   );
 }

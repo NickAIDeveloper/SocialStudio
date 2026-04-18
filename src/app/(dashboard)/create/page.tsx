@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 import { CreatePage } from '@/components/create/create-page';
-import { BrandRequiredGate } from '@/components/brand-required-gate';
 
 export default function CreateRoute() {
   return (
@@ -11,11 +10,9 @@ export default function CreateRoute() {
           Generate one post or a batch of 20. Captions, images, overlays, and one-click scheduling.
         </p>
       </div>
-      <BrandRequiredGate feature="create posts">
-        <Suspense fallback={<div className="text-sm text-white/70">Loading…</div>}>
-          <CreatePage />
-        </Suspense>
-      </BrandRequiredGate>
+      <Suspense fallback={<div className="text-sm text-white/70">Loading…</div>}>
+        <CreatePage />
+      </Suspense>
     </>
   );
 }

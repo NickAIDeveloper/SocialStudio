@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 import { SmartPostsDashboard } from '@/components/smart-posts-dashboard';
-import { BrandRequiredGate } from '@/components/brand-required-gate';
 
 // SmartPostsDashboard reads ?preset / ?metaFormat / ?metaDay / ?metaHour /
 // ?metaPattern via useSearchParams() (linked from the /meta page's "Apply
@@ -15,11 +14,9 @@ export default function SmartPostsPage() {
           Recommendations from your real data. One click to generate a tailored post.
         </p>
       </div>
-      <BrandRequiredGate feature="get smart recommendations">
-        <Suspense fallback={<div className="text-sm text-white/70">Loading…</div>}>
-          <SmartPostsDashboard />
-        </Suspense>
-      </BrandRequiredGate>
+      <Suspense fallback={<div className="text-sm text-white/70">Loading…</div>}>
+        <SmartPostsDashboard />
+      </Suspense>
     </>
   );
 }

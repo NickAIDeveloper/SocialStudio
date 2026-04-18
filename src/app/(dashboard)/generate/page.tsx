@@ -1,6 +1,5 @@
 import { PostGenerator } from '@/components/post-generator';
 import { ContentRepurposer } from '@/components/content-repurposer';
-import { BrandRequiredGate } from '@/components/brand-required-gate';
 
 export default function GeneratePage() {
   return (
@@ -11,11 +10,9 @@ export default function GeneratePage() {
           Generate captions, find images, add overlays, and schedule to Buffer.
         </p>
       </div>
-      <BrandRequiredGate feature="create posts">
-        <ContentRepurposer />
-        <div className="mt-6" />
-        <PostGenerator />
-      </BrandRequiredGate>
+      <ContentRepurposer />
+      <div className="mt-6" />
+      <PostGenerator />
     </>
   );
 }
