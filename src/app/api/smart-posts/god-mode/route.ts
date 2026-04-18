@@ -91,15 +91,18 @@ function compactProfileForPrompt(profile: DeepProfile) {
   };
 }
 
-function buildUserPrompt(profile: DeepProfile): string {
+function buildUserPrompt(profile: DeepProfile, likeOfMediaId?: string): string {
   const compact = compactProfileForPrompt(profile);
+  const likeOfLine = likeOfMediaId
+    ? `The user wants this new post to be similar in style and angle to their existing top performer with media id ${likeOfMediaId}. Use that post's apparent format and topic as the anchor, not the account medians.\n\n`
+    : '';
   return [
     "Below is the account's full performance profile. Use the actual numbers.",
     '',
     'PROFILE_JSON:',
     JSON.stringify(compact, null, 2),
     '',
-    'Design ONE Instagram post that has the best chance of beating this account\'s median reach.',
+    likeOfLine + 'Design ONE Instagram post that has the best chance of beating this account\'s median reach.',
     'Reply with this exact JSON shape, and nothing else:',
     '{',
     '  "overrides": {',
@@ -118,7 +121,11 @@ export async function POST(req: NextRequest) {
   try {
     const userId = await getUserId();
     const body = await req.json();
-    const { brandId, igUserId } = body as { brandId?: string; igUserId?: string };
+    const { brandId, igUserId, likeOfMediaId } = body as {
+      brandId?: string;
+      igUserId?: string;
+      likeOfMediaId?: string;
+    };
 
     if (!brandId) {
       return NextResponse.json(
@@ -169,7 +176,7 @@ export async function POST(req: NextRequest) {
     const raw = await cerebrasChatCompletion(
       [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: buildUserPrompt(profile) },
+        { role: 'user', content: buildUserPrompt(profile, likeOfMediaId) },
       ],
       { temperature: LLM_TEMP, maxTokens: LLM_MAX_TOKENS },
     );

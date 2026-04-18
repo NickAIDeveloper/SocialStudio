@@ -276,8 +276,9 @@ export function SmartPostsDashboard() {
     try {
       const useGodMode = godModeReady;
       const url = useGodMode ? '/api/smart-posts/god-mode' : '/api/smart-posts/generate';
+      const likeOf = searchParams.get('likeOf') ?? undefined;
       const body = useGodMode
-        ? { brandId, igUserId: ig }
+        ? { brandId, igUserId: ig, likeOfMediaId: likeOf }
         : { brandId, metaOverrides };
       const res = await fetch(url, {
         method: 'POST',
