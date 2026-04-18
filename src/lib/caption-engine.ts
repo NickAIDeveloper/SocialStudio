@@ -25,8 +25,7 @@ export function sanitizeCaption(text: string): string {
     .replace(/,?\s*["']?hookText["']?\s*:[\s\S]*$/i, '') // strip trailing hookText JSON
     .replace(/[{}]/g, '')                                // strip JSON braces
     .replace(/\s*[—–]{1,3}\s*/g, ' ')                   // strip em/en dashes
-    .replace(/([.!?])\s*(\d+)\.\s/g, '$1\n$2. ')        // line breaks before numbered steps
-    .replace(/([a-z])\s+(\d+)\.\s/g, '$1\n\n$2. ')      // line breaks before numbered steps
+    .replace(/([.!?])\s*(\d+)\.\s/g, '$1\n$2. ')        // line break before numbered step ONLY after sentence end
     .replace(/#\w+/g, '')                                // strip any inline hashtags
     .replace(/\n{3,}/g, '\n\n')                          // max double newline
     .replace(/  +/g, ' ')                                // collapse double spaces
