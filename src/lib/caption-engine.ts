@@ -13,8 +13,28 @@
  * Universal text sanitizer — strips ALL JSON, code, HTML, and LLM artifacts.
  * Apply to any AI-generated text before display or storage.
  */
+// LLM trailing conversational commentary patterns. The model sometimes
+// appends notes to the user after the caption body, e.g.
+//   "... Link in bio. : I removed the hashtag as per your instructions."
+// Two trigger types:
+//   1. Colon-delimited: " : I removed/added/etc ..." — the colon is the
+//      LLM's separator between caption and commentary.
+//   2. Sentence-boundary + marker phrase: a sentence terminator (preserved
+//      via lookbehind) followed by a known commentary opener.
+// Lookbehind keeps the prior "." in the body so "Body. Note:..." → "Body."
+const LLM_TRAILING_COMMENTARY = [
+  /\s*:\s*I(?:'ve| have)?\s+(?:removed|added|kept|changed|included|excluded|replaced|written|adjusted|crafted|created|used|chosen|picked|selected|tried|avoided|made)\b[\s\S]*$/i,
+  /(?<=[.!?])\s+\(?Note\s*[:\-]\s[\s\S]*$/i,
+  /(?<=[.!?])\s+However,?\s+if you (?:want|would|prefer|'d)[\s\S]*$/i,
+  /(?<=[.!?])\s+(?:Please )?Let me know if[\s\S]*$/i,
+  /(?<=[.!?])\s+Feel free to[\s\S]*$/i,
+  /(?<=[.!?])\s+As (?:requested|instructed|per your)[\s\S]*$/i,
+  /(?<=[.!?])\s+(?:Hope|I hope) (?:this|these|you)[\s\S]*$/i,
+  /(?<=[.!?])\s+I(?:'ve| have)\s+(?:removed|added|kept|changed|included|excluded|replaced|written|adjusted|crafted|created|used|chosen|picked|selected|tried|avoided|made)\b[\s\S]*$/i,
+];
+
 export function sanitizeCaption(text: string): string {
-  return text
+  let out = text
     .replace(/\\n/g, '\n')                              // unescape \\n
     .replace(/```[\s\S]*?```/g, '')                      // strip code blocks
     .replace(/<[^>]+>/g, '')                             // strip HTML tags
@@ -31,6 +51,8 @@ export function sanitizeCaption(text: string): string {
     .replace(/  +/g, ' ')                                // collapse double spaces
     .replace(/,\s*$/, '')                                // strip trailing comma
     .trim();
+  for (const rx of LLM_TRAILING_COMMENTARY) out = out.replace(rx, '').trim();
+  return out;
 }
 
 export function sanitizeHook(text: string): string {
