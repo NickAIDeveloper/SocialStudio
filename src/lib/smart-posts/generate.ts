@@ -17,6 +17,36 @@ const DAY_INDEX: Record<string, number> = {
   saturday: 6, sat: 6,
 };
 
+const SEMANTIC_OVERLAP_STOPWORDS = new Set([
+  'this', 'that', 'with', 'from', 'your', 'have', 'will', 'more', 'just',
+  'some', 'when', 'what', 'they', 'them', 'their', 'there', 'these', 'those',
+  'into', 'about', 'than', 'then', 'been', 'being', 'were', 'which', 'would',
+  'could', 'should', 'like', 'make', 'made', 'also', 'only',
+]);
+
+function tokenizeForOverlap(s: string): Set<string> {
+  const out = new Set<string>();
+  for (const raw of s.toLowerCase().replace(/[^\p{L}\s]/gu, ' ').split(/\s+/)) {
+    if (raw.length >= 4 && !SEMANTIC_OVERLAP_STOPWORDS.has(raw)) out.add(raw);
+  }
+  return out;
+}
+
+// Does the LLM-derived image query share at least one substantive word with
+// the actual post content? If not the query drifted into unrelated territory
+// (the "coins for a running post" bug) and we should fall back to the
+// brand-anchored default.
+function hasContextOverlap(query: string, contextTexts: string[]): boolean {
+  const queryTokens = tokenizeForOverlap(query);
+  if (queryTokens.size === 0) return false;
+  for (const ctx of contextTexts) {
+    for (const tok of tokenizeForOverlap(ctx)) {
+      if (queryTokens.has(tok)) return true;
+    }
+  }
+  return false;
+}
+
 async function deriveImageQuery(args: {
   brandName: string;
   brandDescription: string;
@@ -71,6 +101,16 @@ Return ONLY the query: 3–5 words, lowercase, no quotes, no punctuation.`;
     if (/silhouette|sunset|contemplation|reflection|journey\b/.test(cleaned)) {
       return args.fallback;
     }
+    // Reject queries that drift off-topic (no substantive word overlap with
+    // brand + post content). Catches cases like "coins stacks money" for a
+    // running post where the LLM latched onto a metaphor and lost the subject.
+    const contextTexts = [
+      args.brandName,
+      args.brandDescription,
+      args.hookText,
+      args.caption,
+    ];
+    if (!hasContextOverlap(cleaned, contextTexts)) return args.fallback;
     return cleaned;
   } catch (err) {
     console.error('[SmartPosts/generate] Image query derivation failed:', err instanceof Error ? err.message : err);
@@ -281,11 +321,16 @@ export async function generateFromSeed(
     const ct = contentTypeFromFormat(metaOverrides.format);
     if (ct) {
       seed = { ...seed, contentType: ct };
+      // Meta format replaces the insight-based framework pick — drop the stale
+      // base contribution so "Why this works" doesn't say "picked carousel"
+      // while the post is actually a reel.
+      delete contributions['best-content-type'];
       contributions['meta-format'] = `Meta format → ${metaOverrides.format}`;
     }
     if (metaOverrides.day && typeof metaOverrides.hour === 'number') {
       const hour = Math.max(0, Math.min(23, Math.floor(metaOverrides.hour)));
       seed = { ...seed, suggestedPostTime: { day: metaOverrides.day, hour } };
+      delete contributions['optimal-timing'];
       contributions['meta-timing'] =
         `Meta best slot → ${metaOverrides.day} ${String(hour).padStart(2, '0')}:00`;
     }
@@ -294,6 +339,7 @@ export async function generateFromSeed(
         ...seed,
         captionPatternHint: { type: 'meta', label: metaOverrides.pattern.slice(0, 80) },
       };
+      delete contributions['caption-patterns'];
       contributions['meta-pattern'] =
         `Meta caption pattern → ${metaOverrides.pattern.slice(0, 60)}`;
     }
