@@ -1,9 +1,8 @@
 import { Suspense } from 'react';
-import { PostGenerator } from '@/components/post-generator';
-import { ContentRepurposer } from '@/components/content-repurposer';
+import { CreatePage } from '@/components/create/create-page';
 import { BrandRequiredGate } from '@/components/brand-required-gate';
 
-export default function CreatePage() {
+export default function CreateRoute() {
   return (
     <>
       <div className="mb-8">
@@ -14,9 +13,7 @@ export default function CreatePage() {
       </div>
       <BrandRequiredGate feature="create posts">
         <Suspense fallback={<div className="text-sm text-white/70">Loading…</div>}>
-          <ContentRepurposer />
-          <div className="mt-6" />
-          <PostGenerator />
+          <CreatePage />
         </Suspense>
       </BrandRequiredGate>
     </>
