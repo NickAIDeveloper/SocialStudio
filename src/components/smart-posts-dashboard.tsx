@@ -22,6 +22,7 @@ import { useIgAccounts } from '@/lib/ig-accounts';
 import { IgAccountPicker } from '@/components/performance/ig-account-picker';
 import { SourceToggle } from '@/components/performance/source-toggle';
 import { WhyThisWorks } from '@/components/smart-posts/why-this-works';
+import { TopPerformersStrip } from '@/components/smart-posts/top-performers-strip';
 import type { DeepProfile } from '@/lib/meta/deep-profile.types';
 
 interface BrandRow {
@@ -276,8 +277,9 @@ export function SmartPostsDashboard() {
     try {
       const useGodMode = godModeReady;
       const url = useGodMode ? '/api/smart-posts/god-mode' : '/api/smart-posts/generate';
+      const likeOf = searchParams.get('likeOf') ?? undefined;
       const body = useGodMode
-        ? { brandId, igUserId: ig }
+        ? { brandId, igUserId: ig, likeOfMediaId: likeOf }
         : { brandId, metaOverrides };
       const res = await fetch(url, {
         method: 'POST',
@@ -462,6 +464,8 @@ export function SmartPostsDashboard() {
           {refreshMessage}
         </div>
       )}
+
+      {source === 'meta' && ig && <TopPerformersStrip igUserId={ig} />}
 
       {loadingInsights ? (
         <div className="flex items-center justify-center py-20">

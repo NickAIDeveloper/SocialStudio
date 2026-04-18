@@ -1,18 +1,23 @@
-import { BatchGallery } from '@/components/batch-gallery';
-import { BrandRequiredGate } from '@/components/brand-required-gate';
+'use client';
+
+import { Suspense, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+
+function Redirect() {
+  const router = useRouter();
+  const sp = useSearchParams();
+  useEffect(() => {
+    const next = new URLSearchParams(sp.toString());
+    next.set('mode', 'batch');
+    router.replace(`/create?${next.toString()}`, { scroll: false });
+  }, [router, sp]);
+  return null;
+}
 
 export default function BatchPage() {
   return (
-    <>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-white">Batch Gallery</h1>
-        <p className="text-sm text-white mt-1 max-w-xl">
-          Pre-generated posts for your brands. Preview, tweak, and schedule in bulk.
-        </p>
-      </div>
-      <BrandRequiredGate feature="generate batch posts">
-        <BatchGallery />
-      </BrandRequiredGate>
-    </>
+    <Suspense fallback={null}>
+      <Redirect />
+    </Suspense>
   );
 }

@@ -1,21 +1,23 @@
-import { PostGenerator } from '@/components/post-generator';
-import { ContentRepurposer } from '@/components/content-repurposer';
-import { BrandRequiredGate } from '@/components/brand-required-gate';
+'use client';
+
+import { Suspense, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+
+function Redirect() {
+  const router = useRouter();
+  const sp = useSearchParams();
+  useEffect(() => {
+    const next = new URLSearchParams(sp.toString());
+    if (!next.has('mode')) next.set('mode', 'single');
+    router.replace(`/create?${next.toString()}`, { scroll: false });
+  }, [router, sp]);
+  return null;
+}
 
 export default function GeneratePage() {
   return (
-    <>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-white">Create Post</h1>
-        <p className="text-sm text-white mt-1">
-          Generate captions, find images, add overlays, and schedule to Buffer.
-        </p>
-      </div>
-      <BrandRequiredGate feature="create posts">
-        <ContentRepurposer />
-        <div className="mt-6" />
-        <PostGenerator />
-      </BrandRequiredGate>
-    </>
+    <Suspense fallback={null}>
+      <Redirect />
+    </Suspense>
   );
 }
