@@ -15,6 +15,7 @@ import { generateAnalyticsInsights } from '@/lib/insights-engine';
 import { generateCompetitorInsights } from '@/lib/competitor-engine';
 import { getHealthSummary } from '@/lib/health-score';
 import type { InsightCard, PostData, CompetitorPostData } from '@/lib/health-score';
+import { cleanIgCaption } from '@/lib/ig-caption-clean';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -50,7 +51,7 @@ function mapRowToPostData(
 ): PostData {
   return {
     id: row.id,
-    caption: row.caption,
+    caption: cleanIgCaption(row.caption),
     likes: analytics?.likes ?? 0,
     comments: analytics?.comments ?? 0,
     saves: 0,
@@ -70,7 +71,7 @@ function mapScrapedToCompetitor(
 ): CompetitorPostData {
   return {
     handle,
-    caption: row.caption ?? '',
+    caption: cleanIgCaption(row.caption ?? ''),
     likes: row.likes,
     comments: row.comments,
     hashtags: row.hashtags ? row.hashtags.split(',').map((t) => t.trim()).filter(Boolean) : [],
@@ -147,7 +148,7 @@ async function computeAnalytics(userId: string, brandId?: string | null): Promis
 
   const scrapedPostData: PostData[] = ownScrapedRows.map((r) => ({
     id: r.post.id,
-    caption: r.post.caption ?? '',
+    caption: cleanIgCaption(r.post.caption ?? ''),
     likes: r.post.likes,
     comments: r.post.comments,
     saves: 0,
@@ -318,7 +319,7 @@ async function computeCompetitors(userId: string): Promise<CachedPayload> {
     : [];
 
   const scrapedUserPosts: PostData[] = ownScrapedRows.map(r => ({
-    id: r.id, caption: r.caption ?? '', likes: r.likes, comments: r.comments,
+    id: r.id, caption: cleanIgCaption(r.caption ?? ''), likes: r.likes, comments: r.comments,
     saves: 0, shares: 0, reach: 0, impressions: 0,
     hashtags: r.hashtags ? r.hashtags.split(',').map(t => t.trim()).filter(Boolean) : [],
     contentType: r.isVideo ? 'reel' : 'image',
