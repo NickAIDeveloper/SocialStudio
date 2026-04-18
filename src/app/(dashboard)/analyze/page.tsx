@@ -1,8 +1,8 @@
 import { Suspense } from 'react';
-import { PerformancePage } from '@/components/performance/performance-page';
+import { AnalyzePage } from '@/components/analyze/analyze-page';
 import { BrandRequiredGate } from '@/components/brand-required-gate';
 
-export default function AnalyzePage() {
+export default function AnalyzeRoute() {
   return (
     <>
       <div className="mb-8">
@@ -13,7 +13,7 @@ export default function AnalyzePage() {
       </div>
       <BrandRequiredGate feature="view analytics">
         <Suspense fallback={<div className="text-sm text-white/70">Loading…</div>}>
-          <PerformancePage />
+          <AnalyzePage />
         </Suspense>
       </BrandRequiredGate>
     </>
