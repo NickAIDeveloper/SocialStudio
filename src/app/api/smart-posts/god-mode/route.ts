@@ -173,12 +173,17 @@ function buildUserPrompt(profile: DeepProfile, likeOfMediaId?: string): string {
 export async function POST(req: NextRequest) {
   try {
     const userId = await getUserId();
-    const body = await req.json();
-    const { brandId, igUserId, likeOfMediaId } = body as {
-      brandId?: string;
-      igUserId?: string;
-      likeOfMediaId?: string;
-    };
+    let body: { brandId?: string; igUserId?: string; likeOfMediaId?: string };
+    try {
+      body = await req.json();
+    } catch (err) {
+      console.warn('[SmartPosts/god-mode] invalid JSON body:', err);
+      return NextResponse.json(
+        { error: 'invalid_json', message: 'Request body must be valid JSON.' },
+        { status: 400 },
+      );
+    }
+    const { brandId, igUserId, likeOfMediaId } = body;
 
     if (!brandId) {
       return NextResponse.json(

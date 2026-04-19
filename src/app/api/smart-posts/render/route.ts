@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth-helpers';
 import { createInstagramImageWithText } from '@/lib/image-processing';
+import { assertAllowedImageUrl } from '@/lib/url-validation';
 
 // Allow extra headroom — sharp + remote image fetch can be slow.
 export const maxDuration = 30;
@@ -29,11 +30,39 @@ export async function POST(req: NextRequest) {
   try {
     await getUserId();
 
-    const body = (await req.json().catch(() => ({}))) as RenderBody;
+    let body: RenderBody;
+    try {
+      body = (await req.json()) as RenderBody;
+    } catch (err) {
+      console.warn('[SmartPosts/render] invalid JSON body:', err);
+      return NextResponse.json(
+        { error: 'invalid_json', message: 'Request body must be valid JSON.' },
+        { status: 400 },
+      );
+    }
 
     if (!body.sourceImageUrl || typeof body.sourceImageUrl !== 'string') {
       return NextResponse.json(
         { error: 'sourceImageUrl_required', message: 'sourceImageUrl is required.' },
+        { status: 400 },
+      );
+    }
+    // Defense in depth: reject non-https and non-allowlisted hosts at the boundary
+    // with a 400 rather than leaking downstream as a 502.
+    try {
+      assertAllowedImageUrl(body.sourceImageUrl);
+    } catch (err) {
+      return NextResponse.json(
+        {
+          error: 'invalid_source_image_url',
+          message: err instanceof Error ? err.message : 'Invalid sourceImageUrl.',
+        },
+        { status: 400 },
+      );
+    }
+    if (!body.hookText || typeof body.hookText !== 'string') {
+      return NextResponse.json(
+        { error: 'hookText_required', message: 'hookText is required.' },
         { status: 400 },
       );
     }
@@ -56,7 +85,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const hookText = (body.hookText ?? '').slice(0, 60);
+    const hookText = body.hookText.slice(0, 60);
     const logoUrl = typeof body.logoUrl === 'string' ? body.logoUrl : null;
 
     try {
