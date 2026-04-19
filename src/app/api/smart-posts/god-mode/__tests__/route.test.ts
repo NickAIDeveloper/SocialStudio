@@ -121,43 +121,71 @@ describe('POST /api/smart-posts/god-mode', () => {
     expect(json.error).toBe('ig_account_not_owned');
   });
 
-  it('returns 502 ai_parse_failed when LLM returns non-JSON', async () => {
+  const fallbackOk = () => ({
+    ok: true as const,
+    data: {
+      imageDataUrl: 'data:image/jpeg;base64,FB',
+      sourceImageUrl: 'https://example.com/fb.jpg',
+      caption: 'Fallback caption',
+      hashtags: '',
+      hookText: '',
+      seed: { contentType: 'tip' },
+      suggestedPostTime: null,
+      scheduledAt: null,
+      sourceInsightId: null,
+      contributions: {},
+      candidates: [],
+      renderParams: {
+        brand: 'affectly' as const,
+        hookText: '',
+        textPosition: 'center' as const,
+        overlayStyle: 'editorial' as const,
+        logoUrl: null,
+      },
+    },
+  });
+
+  it('falls back to generate when LLM returns non-JSON (reason=parse_failed)', async () => {
     vi.mocked(buildDeepProfile).mockResolvedValueOnce(makeProfile());
     vi.mocked(cerebrasChatCompletion).mockResolvedValueOnce("sorry I can't help");
+    vi.mocked(generateFromSeed).mockResolvedValueOnce(fallbackOk());
 
     const res = await POST(makeReq({ brandId: 'b1', igUserId: 'ig1' }));
     const json = await res.json();
 
-    expect(res.status).toBe(502);
-    expect(json.error).toBe('ai_parse_failed');
+    expect(res.status).toBe(200);
+    expect(json.godModeFellBack).toBe(true);
+    expect(json.godModeFellBackReason).toBe('parse_failed');
   });
 
-  it('returns 502 ai_invalid_shape with field=rationale when rationale is missing', async () => {
+  it('accepts LLM response with missing rationale (non-fatal, empty string)', async () => {
     vi.mocked(buildDeepProfile).mockResolvedValueOnce(makeProfile());
     vi.mocked(cerebrasChatCompletion).mockResolvedValueOnce(
       JSON.stringify({ overrides: { format: 'REEL' } }),
     );
+    vi.mocked(generateFromSeed).mockResolvedValueOnce(fallbackOk());
 
     const res = await POST(makeReq({ brandId: 'b1', igUserId: 'ig1' }));
     const json = await res.json();
 
-    expect(res.status).toBe(502);
-    expect(json.error).toBe('ai_invalid_shape');
-    expect(json.field).toBe('rationale');
+    expect(res.status).toBe(200);
+    expect(json.godModeRationale).toBe('');
+    expect(json.godModeFellBack).toBeUndefined();
   });
 
-  it('returns 502 ai_invalid_shape with field=overrides when overrides are empty/missing', async () => {
+  it('falls back to generate when overrides are empty/missing (reason=empty_overrides)', async () => {
     vi.mocked(buildDeepProfile).mockResolvedValueOnce(makeProfile());
     vi.mocked(cerebrasChatCompletion).mockResolvedValueOnce(
       JSON.stringify({ rationale: 'valid prose' }),
     );
+    vi.mocked(generateFromSeed).mockResolvedValueOnce(fallbackOk());
 
     const res = await POST(makeReq({ brandId: 'b1', igUserId: 'ig1' }));
     const json = await res.json();
 
-    expect(res.status).toBe(502);
-    expect(json.error).toBe('ai_invalid_shape');
-    expect(json.field).toBe('overrides');
+    expect(res.status).toBe(200);
+    expect(json.godModeFellBack).toBe(true);
+    expect(json.godModeFellBackReason).toBe('empty_overrides');
   });
 
   it('returns 200 with godModeRationale + deepProfile on the happy path', async () => {
