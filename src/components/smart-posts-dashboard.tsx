@@ -22,6 +22,9 @@ import { useIgAccounts } from '@/lib/ig-accounts';
 import { SourceToggle } from '@/components/performance/source-toggle';
 import { WhyThisWorks } from '@/components/smart-posts/why-this-works';
 import { TopPerformersStrip } from '@/components/smart-posts/top-performers-strip';
+import { CandidateStrip } from '@/components/smart-posts/candidate-strip';
+import { MoreOptionsDialog } from '@/components/smart-posts/more-options-dialog';
+import type { ImageCandidate, RenderParams } from '@/lib/smart-posts/generate';
 import type { DeepProfile } from '@/lib/meta/deep-profile.types';
 
 interface BrandRow {
@@ -68,6 +71,8 @@ interface PerfectPost {
   // the full <WhyThisWorks /> panel; for now they render as bulleted text.
   godModeRationale?: string;
   deepProfile?: DeepProfile;
+  candidates?: ImageCandidate[];
+  renderParams?: RenderParams;
 }
 
 interface HistoryPayload {
@@ -155,6 +160,7 @@ export function SmartPostsDashboard() {
   const [genError, setGenError] = useState<string | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [scheduleOk, setScheduleOk] = useState(false);
+  const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
 
   // Brand list fetch — still owned here so the dashboard can render a select
   // and so handleSchedule can look up the brand slug. The selected value is
@@ -312,7 +318,7 @@ export function SmartPostsDashboard() {
       const likeOf = searchParams.get('likeOf') ?? undefined;
       const body = useGodMode
         ? { brandId, igUserId: ig, likeOfMediaId: likeOf }
-        : { brandId, metaOverrides };
+        : { brandId, metaOverrides, igUserId: ig };
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -333,6 +339,14 @@ export function SmartPostsDashboard() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleImageSwap = (newImageDataUrl: string, newSourceUrl: string) => {
+    setPost((prev) =>
+      prev
+        ? { ...prev, imageDataUrl: newImageDataUrl, sourceImageUrl: newSourceUrl }
+        : prev,
+    );
   };
 
   const handleSchedule = async () => {
@@ -592,6 +606,21 @@ export function SmartPostsDashboard() {
                       deepProfile={post.deepProfile}
                     />
 
+                    {post.candidates && post.candidates.length > 1 && post.renderParams && (
+                      <div className="pt-2">
+                        <p className="mb-1.5 text-xs uppercase tracking-wide text-zinc-400">
+                          Swap image
+                        </p>
+                        <CandidateStrip
+                          candidates={post.candidates}
+                          activeUrl={post.sourceImageUrl}
+                          renderParams={post.renderParams}
+                          onImageChange={handleImageSwap}
+                          onOpenMoreOptions={() => setMoreOptionsOpen(true)}
+                        />
+                      </div>
+                    )}
+
                     <div className="flex flex-wrap gap-2 pt-2">
                       <button
                         onClick={() => void handleGenerate()}
@@ -691,6 +720,15 @@ export function SmartPostsDashboard() {
             </div>
           </aside>
         </div>
+      )}
+
+      {post?.renderParams && (
+        <MoreOptionsDialog
+          open={moreOptionsOpen}
+          onOpenChange={setMoreOptionsOpen}
+          renderParams={post.renderParams}
+          onImageChange={handleImageSwap}
+        />
       )}
     </div>
   );

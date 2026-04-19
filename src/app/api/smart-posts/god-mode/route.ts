@@ -95,6 +95,7 @@ async function generateFallback(opts: {
   profile: DeepProfile;
   reason: string;
   raw: string;
+  igUserId?: string;
 }) {
   console.warn(
     `[SmartPosts/god-mode/fallback] reason=${opts.reason}, falling back to standard generate. Raw (first 500):`,
@@ -105,6 +106,7 @@ async function generateFallback(opts: {
     userId: opts.userId,
     origin: opts.origin,
     cookie: opts.cookie,
+    igUserId: opts.igUserId,
   });
   if (!outcome.ok) {
     return NextResponse.json(
@@ -237,13 +239,13 @@ export async function POST(req: NextRequest) {
 
     const parsed = parseLlmJson(raw);
     if (!parsed.ok) {
-      return generateFallback({ brandId, userId, origin, cookie, profile, reason: 'parse_failed', raw });
+      return generateFallback({ brandId, userId, origin, cookie, profile, reason: 'parse_failed', raw, igUserId });
     }
 
     const llmSeed = parsed.data as { overrides?: unknown; rationale?: unknown };
     const sanitized = sanitizeMetaOverrides(llmSeed.overrides);
     if (!sanitized || Object.keys(sanitized).length === 0) {
-      return generateFallback({ brandId, userId, origin, cookie, profile, reason: 'empty_overrides', raw });
+      return generateFallback({ brandId, userId, origin, cookie, profile, reason: 'empty_overrides', raw, igUserId });
     }
 
     // Empty rationale is non-fatal — caller can still see contributions and
@@ -257,6 +259,7 @@ export async function POST(req: NextRequest) {
       userId,
       origin,
       cookie,
+      igUserId,
     });
 
     if (!outcome.ok) {
