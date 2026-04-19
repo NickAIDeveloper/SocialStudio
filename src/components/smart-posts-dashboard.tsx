@@ -19,7 +19,6 @@ import type { InsightCard } from '@/lib/health-score';
 import { isActionable } from '@/lib/smart-posts';
 import { useHubState } from '@/lib/url-state';
 import { useIgAccounts } from '@/lib/ig-accounts';
-import { IgAccountPicker } from '@/components/performance/ig-account-picker';
 import { SourceToggle } from '@/components/performance/source-toggle';
 import { WhyThisWorks } from '@/components/smart-posts/why-this-works';
 import { TopPerformersStrip } from '@/components/smart-posts/top-performers-strip';
@@ -29,6 +28,29 @@ interface BrandRow {
   id: string;
   name: string;
   slug: string;
+  instagramHandle?: string | null;
+}
+
+interface IgAccountLite {
+  igUserId: string;
+  igUsername: string | null;
+}
+
+// Resolve the IG account that belongs to a given brand. Brands carry a
+// free-text `instagramHandle` field; we case-insensitively match it against
+// connected Meta accounts. Returns null when the brand has no handle, or when
+// the handle isn't among the user's connected accounts.
+function resolveIgForBrand(
+  brandId: string | null,
+  brands: BrandRow[],
+  accounts: IgAccountLite[],
+): string | null {
+  if (!brandId) return null;
+  const brand = brands.find((b) => b.id === brandId);
+  if (!brand?.instagramHandle) return null;
+  const handle = brand.instagramHandle.replace(/^@/, '').toLowerCase();
+  const account = accounts.find((a) => a.igUsername?.toLowerCase() === handle);
+  return account?.igUserId ?? null;
 }
 
 interface PerfectPost {
@@ -151,6 +173,16 @@ export function SmartPostsDashboard() {
     // changes here — that would re-fetch on every selection.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Keep `ig` in sync with the selected brand. Brands map 1:1 to IG accounts
+  // via `brand.instagramHandle`, so the user only ever picks a brand — IG is
+  // resolved from it. Re-runs when accounts finish loading so the resolution
+  // succeeds even when accounts arrive after the brand list.
+  useEffect(() => {
+    if (accountsLoading || brandList.length === 0) return;
+    const resolved = resolveIgForBrand(brand, brandList, accounts);
+    if (resolved !== ig) setIg(resolved);
+  }, [brand, brandList, accounts, accountsLoading, ig, setIg]);
 
   const brandId = brand ?? '';
 
@@ -388,6 +420,10 @@ export function SmartPostsDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center gap-4 rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-4">
+        {/* Single brand picker — IG account is resolved from the brand's
+            instagramHandle, so we never show a separate IG dropdown. The
+            label on each option includes the @handle when we can match it
+            to a connected Meta account. */}
         <div className="flex items-center gap-3">
           <label className="text-sm text-white">Brand</label>
           <select
@@ -396,18 +432,22 @@ export function SmartPostsDashboard() {
             className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-white focus:border-teal-500 focus:outline-none"
           >
             {brandList.length === 0 && <option value="">No brands</option>}
-            {brandList.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
+            {brandList.map((b) => {
+              const matchedHandle = b.instagramHandle
+                ? accounts.find(
+                    (a) =>
+                      a.igUsername?.toLowerCase() ===
+                      b.instagramHandle?.replace(/^@/, '').toLowerCase(),
+                  )?.igUsername
+                : null;
+              return (
+                <option key={b.id} value={b.id}>
+                  {matchedHandle ? `${b.name} (@${matchedHandle})` : b.name}
+                </option>
+              );
+            })}
           </select>
         </div>
-
-        {/* IG picker only shows in meta mode; in scrape mode we don't need it. */}
-        {source === 'meta' && hasIgAccounts && (
-          <IgAccountPicker value={ig} onChange={setIg} />
-        )}
 
         <div className="flex items-center gap-4 text-sm">
           {healthScore !== null && (

@@ -83,35 +83,41 @@ function parseLlmJson(raw: string): ParseResult {
   return { ok: false, raw };
 }
 
-function llmParseErrorResponse(mode: string, raw: string) {
-  console.error(
-    `[SmartPosts/god-mode/${mode}] LLM returned non-JSON output (first 500 chars):`,
-    raw.slice(0, 500),
+// Cerebras occasionally returns malformed JSON or omits a required field.
+// Rather than 502'ing the user, fall back to the deterministic generate path
+// so they still get a post built from real insights — just without the LLM
+// rationale. The raw output is logged for telemetry.
+async function generateFallback(opts: {
+  brandId: string;
+  userId: string;
+  origin: string;
+  cookie: string;
+  profile: DeepProfile;
+  reason: string;
+  raw: string;
+}) {
+  console.warn(
+    `[SmartPosts/god-mode/fallback] reason=${opts.reason}, falling back to standard generate. Raw (first 500):`,
+    opts.raw.slice(0, 500),
   );
-  return NextResponse.json(
-    {
-      error: 'ai_parse_failed',
-      message: 'AI returned an unexpected response. Please try again.',
-    },
-    { status: 502 },
-  );
-}
-
-// Used when JSON parsed cleanly but the shape is wrong (missing/empty field).
-// Distinct from ai_parse_failed so client + telemetry can tell them apart.
-function llmInvalidShapeResponse(field: string, raw: string) {
-  console.error(
-    `[SmartPosts/god-mode/${field}] LLM returned invalid shape (first 500 chars):`,
-    raw.slice(0, 500),
-  );
-  return NextResponse.json(
-    {
-      error: 'ai_invalid_shape',
-      message: 'AI returned an unexpected response. Please try again.',
-      field,
-    },
-    { status: 502 },
-  );
+  const outcome = await generateFromSeed({
+    brandId: opts.brandId,
+    userId: opts.userId,
+    origin: opts.origin,
+    cookie: opts.cookie,
+  });
+  if (!outcome.ok) {
+    return NextResponse.json(
+      { error: outcome.err.error, message: outcome.err.message },
+      { status: outcome.err.status },
+    );
+  }
+  return NextResponse.json({
+    ...outcome.data,
+    deepProfile: opts.profile,
+    godModeFellBack: true,
+    godModeFellBackReason: opts.reason,
+  });
 }
 
 // Trim large arrays out of the deep profile before stringifying for the LLM.
@@ -226,21 +232,24 @@ export async function POST(req: NextRequest) {
       { temperature: LLM_TEMP, maxTokens: LLM_MAX_TOKENS },
     );
 
+    const origin = req.nextUrl.origin;
+    const cookie = req.headers.get('cookie') ?? '';
+
     const parsed = parseLlmJson(raw);
-    if (!parsed.ok) return llmParseErrorResponse('parse', parsed.raw);
+    if (!parsed.ok) {
+      return generateFallback({ brandId, userId, origin, cookie, profile, reason: 'parse_failed', raw });
+    }
 
     const llmSeed = parsed.data as { overrides?: unknown; rationale?: unknown };
     const sanitized = sanitizeMetaOverrides(llmSeed.overrides);
     if (!sanitized || Object.keys(sanitized).length === 0) {
-      return llmInvalidShapeResponse('overrides', raw);
+      return generateFallback({ brandId, userId, origin, cookie, profile, reason: 'empty_overrides', raw });
     }
 
+    // Empty rationale is non-fatal — caller can still see contributions and
+    // deepProfile in WhyThisWorks. Only fall back when the seed itself is bad.
     const rationale =
       typeof llmSeed.rationale === 'string' ? llmSeed.rationale.trim() : '';
-    if (!rationale) return llmInvalidShapeResponse('rationale', raw);
-
-    const origin = req.nextUrl.origin;
-    const cookie = req.headers.get('cookie') ?? '';
 
     const outcome = await generateFromSeed({
       brandId,
