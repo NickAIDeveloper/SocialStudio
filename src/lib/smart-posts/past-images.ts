@@ -54,8 +54,23 @@ export async function fetchTopPerformingPastImages(
       `${input.origin}/api/meta/instagram/insights?igUserId=${encodeURIComponent(input.igUserId)}`,
       { headers: { cookie: input.cookie } },
     );
-    if (!res.ok) return [];
-    const json = (await res.json()) as InsightsResponse;
+    if (!res.ok) {
+      const bodySnippet = await res.text().catch(() => '');
+      console.error(
+        `[fetchTopPerformingPastImages] insights fetch non-OK — status=${res.status} igUserId=${input.igUserId} body=${bodySnippet.slice(0, 200)}`,
+      );
+      return [];
+    }
+    let json: InsightsResponse;
+    try {
+      json = (await res.json()) as InsightsResponse;
+    } catch (parseErr) {
+      console.error(
+        `[fetchTopPerformingPastImages] insights JSON parse failed — igUserId=${input.igUserId}`,
+        parseErr,
+      );
+      return [];
+    }
     const media = json.data?.media ?? [];
     return media
       .map<PastImageMedia>((m) => ({
@@ -69,7 +84,10 @@ export async function fetchTopPerformingPastImages(
       .sort((a, b) => b.reach - a.reach)
       .slice(0, input.limit);
   } catch (err) {
-    console.warn('[fetchTopPerformingPastImages] failed, falling back to []', err);
+    console.error(
+      `[fetchTopPerformingPastImages] network/fetch error — igUserId=${input.igUserId} origin=${input.origin}`,
+      err,
+    );
     return [];
   }
 }
