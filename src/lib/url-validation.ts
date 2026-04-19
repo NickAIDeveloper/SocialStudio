@@ -30,6 +30,16 @@ export function assertAllowedImageUrl(url: string): void {
   if (parsed.hostname === 'oaidalleapiprodscus.blob.core.windows.net') {
     return;
   }
+  // Allow Instagram / Facebook CDN hosts for past-IG image candidates
+  // (e.g. scontent-xxx.cdninstagram.com, scontent.xx.fbcdn.net).
+  if (
+    parsed.hostname.endsWith('.cdninstagram.com')
+    || parsed.hostname === 'cdninstagram.com'
+    || parsed.hostname.endsWith('.fbcdn.net')
+    || parsed.hostname === 'fbcdn.net'
+  ) {
+    return;
+  }
   if (!ALLOWED_IMAGE_HOSTS.has(parsed.hostname)) {
     throw new Error(`Image host not permitted: ${parsed.hostname}`);
   }
