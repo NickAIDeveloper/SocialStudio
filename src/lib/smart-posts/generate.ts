@@ -2,6 +2,7 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { brands, scrapedPosts, posts } from '@/lib/db/schema';
 import { seedFromInsight, mergePerfectSeed } from '@/lib/smart-posts';
+import { fetchTopPerformingPastImages } from './past-images';
 import { createInstagramImageWithText } from '@/lib/image-processing';
 import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
 import type { InsightCard } from '@/lib/health-score';
@@ -187,6 +188,22 @@ export interface GenerateFromSeedInput {
   origin: string;
   /** Forwarded cookie header for internal API auth. */
   cookie: string;
+  /** Optional connected IG account id; when present, top past posts join the candidate list. */
+  igUserId?: string;
+}
+
+export interface ImageCandidate {
+  url: string;
+  source: 'stock' | 'past';
+  permalink?: string;
+}
+
+export interface RenderParams {
+  brand: 'affectly' | 'pacebrain';
+  hookText: string;
+  textPosition: 'top' | 'center' | 'bottom';
+  overlayStyle: 'editorial' | 'bold-card' | 'gradient-bar' | 'full-tint';
+  logoUrl: string | null;
 }
 
 export interface GenerateFromSeedResult {
@@ -200,6 +217,8 @@ export interface GenerateFromSeedResult {
   scheduledAt: string | null;
   sourceInsightId: string | null;
   contributions: Record<string, string>;
+  candidates: ImageCandidate[];
+  renderParams: RenderParams;
 }
 
 export type GenerateFromSeedError =
@@ -222,7 +241,7 @@ export type GenerateFromSeedOutcome =
 export async function generateFromSeed(
   input: GenerateFromSeedInput,
 ): Promise<GenerateFromSeedOutcome> {
-  const { insightId, brandId, metaOverrides: rawMetaOverrides, userId, origin, cookie } = input;
+  const { insightId, brandId, metaOverrides: rawMetaOverrides, userId, origin, cookie, igUserId } = input;
   const metaOverrides = sanitizeMetaOverrides(rawMetaOverrides);
 
   if (!brandId) {
@@ -391,10 +410,13 @@ export async function generateFromSeed(
     contentType: seed.contentType,
     fallback: fallbackQuery,
   });
-  const imagesRes = await fetch(
-    `${origin}/api/images?source=all&q=${encodeURIComponent(topicQuery)}`,
-    { headers: { cookie } },
-  );
+  const [imagesRes, pastRes] = await Promise.all([
+    fetch(`${origin}/api/images?source=all&q=${encodeURIComponent(topicQuery)}`, {
+      headers: { cookie },
+    }),
+    fetchTopPerformingPastImages({ igUserId, limit: 2, origin, cookie }),
+  ]);
+
   if (!imagesRes.ok) {
     return {
       ok: false,
@@ -408,8 +430,27 @@ export async function generateFromSeed(
   const imagesPayload = (await imagesRes.json()) as {
     images?: Array<{ largeImageURL?: string; url?: string }>;
   };
-  const firstImage = imagesPayload.images?.[0];
-  const sourceImageUrl = firstImage?.largeImageURL ?? firstImage?.url;
+
+  const TARGET = 6;
+  const PAST_CAP = 2;
+  const pastCandidates: ImageCandidate[] = pastRes
+    .slice(0, PAST_CAP)
+    .map((m) => ({
+      url: (m.media_url ?? m.thumbnail_url) as string,
+      source: 'past' as const,
+      permalink: m.permalink,
+    }))
+    .filter((c) => Boolean(c.url));
+  const stockCandidates: ImageCandidate[] = (imagesPayload.images ?? [])
+    .slice(0, TARGET - pastCandidates.length)
+    .map((img) => ({
+      url: (img.largeImageURL ?? img.url) as string,
+      source: 'stock' as const,
+    }))
+    .filter((c) => Boolean(c.url));
+
+  const candidates: ImageCandidate[] = [...stockCandidates, ...pastCandidates];
+  const sourceImageUrl = candidates[0]?.url;
   if (!sourceImageUrl) {
     return {
       ok: false,
@@ -441,6 +482,14 @@ export async function generateFromSeed(
     ? nextOccurrenceIso(seed.suggestedPostTime.day, seed.suggestedPostTime.hour)
     : null;
 
+  const renderParams: RenderParams = {
+    brand: renderBrand,
+    hookText: hookText.slice(0, 60),
+    textPosition: seed.textPosition,
+    overlayStyle: seed.overlayStyle,
+    logoUrl: brand.logoUrl ?? null,
+  };
+
   return {
     ok: true,
     data: {
@@ -454,6 +503,8 @@ export async function generateFromSeed(
       scheduledAt,
       sourceInsightId: insightId ?? null,
       contributions,
+      candidates,
+      renderParams,
     },
   };
 }
