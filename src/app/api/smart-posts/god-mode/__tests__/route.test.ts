@@ -188,6 +188,14 @@ describe('POST /api/smart-posts/god-mode', () => {
         scheduledAt: '2024-04-21T09:00:00.000Z',
         sourceInsightId: null,
         contributions: { 'meta-format': 'Meta format REEL' },
+        candidates: [],
+        renderParams: {
+          brand: 'affectly',
+          hookText: '',
+          textPosition: 'center',
+          overlayStyle: 'editorial',
+          logoUrl: null,
+        },
       },
     });
 
