@@ -9,16 +9,19 @@ export async function POST(request: NextRequest) {
   try {
     const userId = await getUserId();
     const body = await request.json();
-    const { insightId, brandId, metaOverrides } = body as {
+    const { insightId, brandId, metaOverrides, igUserId } = body as {
       insightId?: string;
       brandId?: string;
       metaOverrides?: unknown;
+      igUserId?: string;
     };
 
     const origin = request.nextUrl.origin;
     const cookie = request.headers.get('cookie') ?? '';
 
-    const outcome = await generateFromSeed({ insightId, brandId, metaOverrides, userId, origin, cookie });
+    const outcome = await generateFromSeed({
+      insightId, brandId, metaOverrides, userId, origin, cookie, igUserId,
+    });
 
     if (!outcome.ok) {
       return NextResponse.json(
