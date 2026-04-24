@@ -265,11 +265,18 @@ SCROLL-STOPPING HOOK RULES (this is the most important part):
 - BAD hooks: "Imperfect mastery" / "Learning matters" / "Study tips" (too vague, no emotion)
 
 CAPTION RULES:
-- Under 80 words. Dense with value. Every sentence earns the next.
+- ${captionLengthHint === 'long' ? 'Target 120-200 words. Multi-paragraph with texture, examples, or narrative.' : captionLengthHint === 'short' ? 'Target 40-80 words. Punchy, dense, no fluff.' : captionLengthHint === 'medium' ? 'Target 80-120 words. Balanced depth.' : 'Target 60-120 words. Dense with value. Every sentence earns the next.'}
+- MINIMUM CONTENT: caption MUST have a hook line AND a body with at least 2 more sentences or list items. A single-line title is NOT a caption — it will be rejected.
 - First line must hook HARD. Create a "wait, what?" reaction.
 - End with a specific CTA. Never say "download" (this is a web app). Say "try it free", "link in bio", "save this", etc.
 - No hashtags in caption body. No dashes or hyphens. No markdown. No emojis.
 - Write like a human who actually cares, not a marketing robot.
+
+HASHTAG RULES:
+- Return EXACTLY 5 hashtags in the "hashtags" field. Not fewer. Not more.
+- All 5 must be relevant to the post topic and brand niche.
+- Do NOT use any hashtag from the AVOID list above.
+- Mix tier 1 (broad reach, e.g. #running), tier 2 (mid-niche, e.g. #runnerscommunity), and tier 3 (specific, e.g. #trackworkout).
 
 ABSOLUTE RULE — NO FABRICATIONS:
 - NEVER invent statistics, percentages, or study results (e.g. "200% more retention" is BANNED).
@@ -280,7 +287,7 @@ ABSOLUTE RULE — NO FABRICATIONS:
 - Stick to relatable truths and personal experiences, not fake science.
 
 Return ONLY valid JSON:
-{"caption":"full caption text","hashtags":"#tag1 #tag2 #tag3 #tag4 #tag5","hookText":"3-6 word scroll-stopping hook"}`;
+{"caption":"full multi-line caption with hook line plus body plus CTA","hashtags":"#tag1 #tag2 #tag3 #tag4 #tag5","hookText":"3-6 word scroll-stopping hook"}`;
 
     const content = await cerebrasChatCompletion(
       [
@@ -405,7 +412,7 @@ ${finalHook}
 Return ONLY: {"caption":"corrected caption","hookText":"corrected hook"}`,
           },
         ],
-        { temperature: 0.1, maxTokens: 400 },
+        { temperature: 0.1, maxTokens: 700 },
       );
 
       const polishCleaned = polishResult.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();

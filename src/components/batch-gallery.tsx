@@ -167,8 +167,8 @@ export function BatchGallery() {
   }, [bufferOrgs]);
 
   // Generate all posts
-  const [batchCount, setBatchCount] = useState(10);
-  const batchCountRef = useRef(10);
+  const [batchCount, setBatchCount] = useState(5);
+  const batchCountRef = useRef(5);
   const [batchContentType, setBatchContentType] = useState<ContentType | 'mixed'>('mixed');
   const batchContentTypeRef = useRef<ContentType | 'mixed'>('mixed');
   const [batchEffect, setBatchEffect] = useState<ImageEffect | 'random'>('random');
@@ -558,7 +558,7 @@ export function BatchGallery() {
 
           {/* Post count radio buttons */}
           <div className="flex items-center gap-1 bg-zinc-800/60 rounded-lg p-1 border border-zinc-700/50">
-            {[5, 10, 15, 20].map(n => (
+            {[1, 5, 15, 20].map(n => (
               <button
                 key={n}
                 onClick={() => { setBatchCount(n); batchCountRef.current = n; }}
