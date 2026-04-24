@@ -5,7 +5,6 @@ import { useHubState } from '@/lib/url-state';
 import type { HubState } from '@/lib/url-state';
 import { useIgAccounts } from '@/lib/ig-accounts';
 import { SourceToggle } from './source-toggle';
-import { BrandSelector } from './brand-selector';
 import { IgAccountPicker } from './ig-account-picker';
 import { InstagramSection } from '@/components/performance/meta-sections/instagram-section';
 import { DeepProfileSection } from './deep-profile-section';
@@ -38,7 +37,7 @@ export function PerformancePage({ defaults }: PerformancePageProps) {
   const resolvedSourceDefault: HubState['source'] =
     !accountsLoading && hasIgAccounts ? 'meta' : 'scrape';
 
-  const { source, brand, ig, setSource, setBrand, setIg } = useHubState({
+  const { source, ig, setSource, setIg } = useHubState({
     defaults: { source: resolvedSourceDefault, ...defaults },
   });
 
@@ -46,11 +45,6 @@ export function PerformancePage({ defaults }: PerformancePageProps) {
     <div className="space-y-8">
       {/* Top controls bar */}
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-4">
-        {/* BrandSelector is only meaningful in meta mode; scrape has its own
-            internal brand picker inside AnalyticsDashboard. */}
-        {source === 'meta' && (
-          <BrandSelector value={brand} onChange={setBrand} />
-        )}
         {source === 'meta' && (
           <IgAccountPicker value={ig} onChange={setIg} />
         )}
@@ -80,12 +74,11 @@ export function PerformancePage({ defaults }: PerformancePageProps) {
               Pick an Instagram account above to see the deep profile.
             </p>
           )}
-          {/* InstagramSection self-fetches accounts and insights end-to-end.
-              It contains HeroCard, FormatStrip, Heatmap, CaptionPatterns, and
-              PostAutopsy internally — no props needed. The ig picker in the top
-              bar above is informational context for the brand; the picker inside
-              InstagramSection is the operative one. See DONE_WITH_CONCERNS. */}
-          <InstagramSection />
+          {/* InstagramSection renders HeroCard, FormatStrip, Heatmap,
+              CaptionPatterns, and PostAutopsy. The top-bar IG picker is the
+              source of truth — passing `ig` + `setIg` keeps the stats in sync
+              with the dropdown and with DeepProfileSection. */}
+          <InstagramSection igUserId={ig} onSelectIg={setIg} />
         </div>
       )}
     </div>
