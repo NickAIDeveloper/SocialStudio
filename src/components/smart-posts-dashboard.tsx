@@ -333,6 +333,17 @@ export function SmartPostsDashboard() {
         );
         return;
       }
+      // Minimum shape guard — the API contract requires these fields; if any are
+      // missing we show an error rather than silently rendering a broken post.
+      const maybe = respBody as Partial<PerfectPost>;
+      if (
+        typeof maybe.imageDataUrl !== 'string'
+        || typeof maybe.sourceImageUrl !== 'string'
+        || typeof maybe.caption !== 'string'
+      ) {
+        setGenError('Unexpected response from server — please try again.');
+        return;
+      }
       setPost(respBody as PerfectPost);
     } catch (err) {
       setGenError(err instanceof Error ? err.message : 'Network error');

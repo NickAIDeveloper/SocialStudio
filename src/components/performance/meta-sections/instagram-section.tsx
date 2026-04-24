@@ -379,15 +379,32 @@ function IgInsightsPanel({
 
 // ── InstagramSection ──────────────────────────────────────────────────────────
 
-export function InstagramSection() {
+interface InstagramSectionProps {
+  /** When provided, the section is controlled: the parent drives selection. */
+  igUserId?: string | null;
+  onSelectIg?: (igUserId: string | null) => void;
+}
+
+export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps = {}) {
   const searchParams = useSearchParams();
   const [accounts, setAccounts] = useState<IgAccount[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedIg, setSelectedIg] = useState<string | null>(null);
+  const [internalSelectedIg, setInternalSelectedIg] = useState<string | null>(null);
   const [bundle, setBundle] = useState<IgInsightsBundle | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [igMessage, setIgMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(
     null
+  );
+
+  // Controlled (prop-driven) vs uncontrolled (standalone) selection.
+  const isControlled = igUserId !== undefined;
+  const selectedIg = isControlled ? (igUserId ?? null) : internalSelectedIg;
+  const setSelectedIg = useCallback(
+    (id: string | null) => {
+      if (isControlled) onSelectIg?.(id);
+      else setInternalSelectedIg(id);
+    },
+    [isControlled, onSelectIg],
   );
 
   const fetchAccounts = useCallback(async () => {
@@ -395,8 +412,13 @@ export function InstagramSection() {
       const res = await fetch('/api/meta/instagram/accounts', { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      setAccounts(json.data ?? []);
-      if (json.data?.length && !selectedIg) setSelectedIg(json.data[0].igUserId);
+      const list: IgAccount[] = json.data ?? [];
+      setAccounts(list);
+      // Auto-select the first account when nothing is selected yet, so the
+      // stats panel appears immediately on first load (in both modes).
+      if (list.length && !selectedIg) {
+        setSelectedIg(list[0].igUserId);
+      }
     } catch (err) {
       setIgMessage({
         type: 'error',
@@ -405,7 +427,7 @@ export function InstagramSection() {
     } finally {
       setLoading(false);
     }
-  }, [selectedIg]);
+  }, [selectedIg, setSelectedIg]);
 
   const fetchInsights = useCallback(async (igUserId: string) => {
     setInsightsLoading(true);
