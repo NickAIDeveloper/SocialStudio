@@ -58,17 +58,17 @@ export function MoreOptionsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col">
         <DialogHeader>
           <DialogTitle>Pick a different image</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
           <ImageSourceSelector
             brand={renderParams.brand}
             onImagesLoaded={(imgs) => setResults(imgs)}
           />
           {results.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="-mr-2 grid min-h-0 flex-1 grid-cols-3 gap-2 overflow-y-auto pr-2">
               {results.map((img) => {
                 const url = img.largeImageURL ?? img.previewURL;
                 const isPending = pendingUrl === url;
