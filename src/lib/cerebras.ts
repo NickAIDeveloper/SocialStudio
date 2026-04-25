@@ -13,10 +13,22 @@ interface CerebrasMessage {
 
 export async function cerebrasChatCompletion(
   messages: CerebrasMessage[],
-  options?: { temperature?: number; maxTokens?: number },
+  options?: { temperature?: number; maxTokens?: number; responseFormat?: 'json' | 'text' },
 ): Promise<string> {
   const apiKey = process.env.CEREBUS;
   if (!apiKey) throw new Error('CEREBUS env var not set');
+
+  const body: Record<string, unknown> = {
+    model: CEREBRAS_MODEL,
+    messages,
+    temperature: options?.temperature ?? 0.7,
+    max_tokens: options?.maxTokens ?? 1500,
+  };
+  if (options?.responseFormat === 'json') {
+    // Cerebras supports OpenAI-compatible JSON mode on llama-3.1-8b.
+    // The model is forced to emit a syntactically valid JSON object.
+    body.response_format = { type: 'json_object' };
+  }
 
   const response = await fetch(CEREBRAS_API_URL, {
     method: 'POST',
@@ -24,12 +36,7 @@ export async function cerebrasChatCompletion(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model: CEREBRAS_MODEL,
-      messages,
-      temperature: options?.temperature ?? 0.7,
-      max_tokens: options?.maxTokens ?? 1500,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
