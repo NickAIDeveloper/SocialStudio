@@ -2,6 +2,34 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth-helpers';
 import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
 
+// llama-3.1-8b sometimes ignores "reply as JSON" and produces prose. Even
+// with response_format: json_object we get the occasional malformed payload.
+// One retry with a stricter, JSON-mode system prompt rescues most failures
+// without doubling the user-facing latency in the happy path.
+async function chatJsonWithRetry(
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+  options: { temperature: number; maxTokens: number },
+): Promise<{ raw: string; parsed: ParseResult }> {
+  const first = await cerebrasChatCompletion(messages, { ...options, responseFormat: 'json' });
+  const parsed1 = parseLlmJson(first);
+  if (parsed1.ok) return { raw: first, parsed: parsed1 };
+
+  const stricter = [
+    {
+      role: 'system' as const,
+      content:
+        'You MUST reply with a single JSON object and nothing else. No markdown fences. No commentary. No preamble. The reply must start with { and end with }.',
+    },
+    ...messages.filter((m) => m.role !== 'system'),
+  ];
+  const second = await cerebrasChatCompletion(stricter, {
+    ...options,
+    responseFormat: 'json',
+    temperature: 0,
+  });
+  return { raw: second, parsed: parseLlmJson(second) };
+}
+
 // POST /api/meta/instagram/analyze
 //
 // Thin AI analysis endpoint that the /meta UI calls after it already has the
@@ -79,12 +107,12 @@ export async function POST(req: NextRequest) {
         (a, b) => (b.reach ?? b.saves ?? 0) - (a.reach ?? a.saves ?? 0),
       );
       const top = sorted[0];
-      const verdictRaw = await cerebrasChatCompletion(
+      const { raw, parsed } = await chatJsonWithRetry(
         [
           {
             role: 'system',
             content:
-              'You are a social media analyst. Explain in 1-2 sentences WHY a specific Instagram post outperformed the creator\'s other posts. Be concrete — cite the hook, format, or topic. Then give ONE tactical suggestion for the next post. Reply as JSON: {"verdict": "...", "suggestion": "...", "makeMorePrompt": "short phrase to seed a new post"}.',
+              'You are a social media analyst. Explain in 1-2 sentences WHY a specific Instagram post outperformed the creator\'s other posts. Be concrete — cite the hook, format, or topic. Then give ONE tactical suggestion for the next post. Reply with a single JSON object and nothing else: {"verdict": "...", "suggestion": "...", "makeMorePrompt": "short phrase to seed a new post"}.',
           },
           {
             role: 'user',
@@ -98,10 +126,9 @@ ${sorted.slice(1, 5).map(describePost).join('\n')}
 Return JSON only.`,
           },
         ],
-        { temperature: 0.4, maxTokens: 400 },
+        { temperature: 0.4, maxTokens: 500 },
       );
-      const parsed = parseLlmJson(verdictRaw);
-      if (!parsed.ok) return llmParseErrorResponse('hero', parsed.raw);
+      if (!parsed.ok) return llmParseErrorResponse('hero', raw);
       return NextResponse.json({ data: { top, analysis: parsed.data } });
     }
 
@@ -109,12 +136,12 @@ Return JSON only.`,
       const sorted = [...posts]
         .sort((a, b) => (b.reach ?? 0) - (a.reach ?? 0))
         .slice(0, 10);
-      const raw = await cerebrasChatCompletion(
+      const { raw, parsed } = await chatJsonWithRetry(
         [
           {
             role: 'system',
             content:
-              'You analyze Instagram caption patterns. Given a list of top posts, extract 3 concrete patterns that recur in the highest-performing ones. Focus on HOOKS, CAPTION STRUCTURE, and TOPICS. Reply as JSON: {"patterns": [{"label": "...", "evidence": "...", "howToUse": "..."}]}.',
+              'You analyze Instagram caption patterns. Given a list of top posts, extract 3 concrete patterns that recur in the highest-performing ones. Focus on HOOKS, CAPTION STRUCTURE, and TOPICS. Reply with a single JSON object and nothing else: {"patterns": [{"label": "...", "evidence": "...", "howToUse": "..."}]}. Always return exactly 3 entries even if some are weak.',
           },
           {
             role: 'user',
@@ -124,22 +151,21 @@ ${sorted.map(describePost).join('\n')}
 Find 3 patterns that explain the wins. Return JSON only.`,
           },
         ],
-        { temperature: 0.4, maxTokens: 600 },
+        { temperature: 0.4, maxTokens: 900 },
       );
-      const parsed = parseLlmJson(raw);
-      if (!parsed.ok) return llmParseErrorResponse('patterns', parsed.raw);
+      if (!parsed.ok) return llmParseErrorResponse('patterns', raw);
       return NextResponse.json({ data: { patterns: parsed.data } });
     }
 
     if (mode === 'autopsy') {
       const target = posts.find((p) => p.id === postId);
       if (!target) return NextResponse.json({ error: 'postId not found in posts[]' }, { status: 400 });
-      const raw = await cerebrasChatCompletion(
+      const { raw, parsed } = await chatJsonWithRetry(
         [
           {
             role: 'system',
             content:
-              'You are a social media post autopsy specialist. Given ONE post + the creator\'s medians, explain what worked or didn\'t and give 3 specific fixes/amplifications for a remake. Reply as JSON: {"verdict": "positive|negative|mixed", "why": "one paragraph", "fixes": ["...", "...", "..."]}.',
+              'You are a social media post autopsy specialist. Given ONE post + the creator\'s medians, explain what worked or didn\'t and give 3 specific fixes/amplifications for a remake. Reply with a single JSON object and nothing else: {"verdict": "positive|negative|mixed", "why": "one paragraph", "fixes": ["...", "...", "..."]}.',
           },
           {
             role: 'user',
@@ -153,10 +179,9 @@ comments: ${ratioLabel(target.comments, medians.comments)}
 Return JSON only.`,
           },
         ],
-        { temperature: 0.3, maxTokens: 500 },
+        { temperature: 0.3, maxTokens: 600 },
       );
-      const parsed = parseLlmJson(raw);
-      if (!parsed.ok) return llmParseErrorResponse('autopsy', parsed.raw);
+      if (!parsed.ok) return llmParseErrorResponse('autopsy', raw);
       return NextResponse.json({ data: { postId: target.id, analysis: parsed.data } });
     }
 
