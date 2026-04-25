@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    console.error('[Analyze/run] Error:', error);
     return NextResponse.json(
       { error: 'analysis_failed', message: error instanceof Error ? error.message : 'Unknown' },
       { status: 500 },

@@ -54,7 +54,8 @@ describe('POST /api/analyze/run', () => {
       healthScore: null, healthDelta: null, summary: null,
       analyticsInsights: [], competitorInsights: [], deepProfile: null,
     });
-    await POST(makeReq({}) as never);
+    const res = await POST(makeReq({}) as never);
+    expect(res.status).toBe(200);
     expect(runAnalysisMock).toHaveBeenCalledWith(
       expect.objectContaining({ brandId: null, igUserId: null }),
       expect.any(Object),
@@ -63,9 +64,7 @@ describe('POST /api/analyze/run', () => {
 
   it('returns 401 when getUserId throws Unauthorized', async () => {
     const { getUserId } = await import('@/lib/auth-helpers');
-    (getUserId as unknown as { mockRejectedValueOnce: (e: Error) => void }).mockRejectedValueOnce(
-      new Error('Unauthorized'),
-    );
+    vi.mocked(getUserId).mockRejectedValueOnce(new Error('Unauthorized'));
     const res = await POST(makeReq({}) as never);
     expect(res.status).toBe(401);
   });
