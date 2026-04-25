@@ -176,19 +176,32 @@ async function computeAnalytics(userId: string, brandId?: string | null): Promis
     .where(and(...ownAccountConditions));
   const followerCount = ownAccounts.reduce((max, a) => Math.max(max, a.followerCount ?? 0), 0);
 
-  // 5. Calculate dynamic niche avg from competitor data
+  // 5. Calculate dynamic niche avg from competitor data — STRICT: when a brand
+  // is selected, only that brand's competitors count. Otherwise different
+  // brands' niches (e.g. running vs mental-health) get averaged together and
+  // the engagement-benchmark insight is wrong for both.
+  const competitorAccountConditions = [
+    eq(scrapedAccounts.userId, userId),
+    eq(scrapedAccounts.isCompetitor, true),
+  ];
+  if (brandId) competitorAccountConditions.push(eq(scrapedAccounts.brandId, brandId));
   const competitorAccountRows = await db
     .select()
     .from(scrapedAccounts)
-    .where(and(eq(scrapedAccounts.userId, userId), eq(scrapedAccounts.isCompetitor, true)));
+    .where(and(...competitorAccountConditions));
 
   let nicheAvg = DEFAULT_NICHE_AVG_ENGAGEMENT;
   if (competitorAccountRows.length > 0) {
+    const compPostConditions = [
+      eq(scrapedPosts.userId, userId),
+      eq(scrapedAccounts.isCompetitor, true),
+    ];
+    if (brandId) compPostConditions.push(eq(scrapedAccounts.brandId, brandId));
     const compPostRows = await db
       .select()
       .from(scrapedPosts)
       .innerJoin(scrapedAccounts, eq(scrapedPosts.accountId, scrapedAccounts.id))
-      .where(and(eq(scrapedPosts.userId, userId), eq(scrapedAccounts.isCompetitor, true)))
+      .where(and(...compPostConditions))
       .limit(200);
 
     if (compPostRows.length > 0) {
@@ -225,36 +238,64 @@ async function computeAnalytics(userId: string, brandId?: string | null): Promis
     console.error('[Insights] Snapshot write failed (non-critical):', err instanceof Error ? err.message : err);
   }
 
-  // Cache result (upsert)
-  await db
-    .insert(insightsCache)
-    .values({
-      userId,
-      type: 'analytics',
-      data: { insights, summary } as unknown as Record<string, unknown>,
-      healthScore,
-      computedAt: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: [insightsCache.userId, insightsCache.type],
-      set: {
+  // Cache result (upsert) — only when no brand filter. The cache key is
+  // (userId, type) with no brand column, so writing a brand-specific result
+  // would pollute every other brand's cache read. Brand-specific requests
+  // recompute fresh every time (they already skip the cache read at GET time).
+  if (!brandId) {
+    await db
+      .insert(insightsCache)
+      .values({
+        userId,
+        type: 'analytics',
         data: { insights, summary } as unknown as Record<string, unknown>,
         healthScore,
         computedAt: new Date(),
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: [insightsCache.userId, insightsCache.type],
+        set: {
+          data: { insights, summary } as unknown as Record<string, unknown>,
+          healthScore,
+          computedAt: new Date(),
+        },
+      });
+  }
 
   return { insights, healthScore, summary, computedAt };
 }
 
-async function computeCompetitors(userId: string): Promise<CachedPayload> {
-  // Fetch competitor accounts with follower data
+async function computeCompetitors(userId: string, brandId?: string | null): Promise<CachedPayload> {
+  // Resolve brand handle so own-account lookup respects the brand.
+  let brandHandle: string | null = null;
+  if (brandId) {
+    const [brand] = await db
+      .select()
+      .from(brands)
+      .where(and(eq(brands.userId, userId), eq(brands.id, brandId)))
+      .limit(1);
+    brandHandle = brand?.instagramHandle ?? null;
+  }
+
+  // Fetch competitor accounts — filter by brand when provided so users with
+  // multiple brands (e.g. a running app and a learning app) don't get their
+  // niches blended together.
+  const competitorAccountConditions = [
+    eq(scrapedAccounts.userId, userId),
+    eq(scrapedAccounts.isCompetitor, true),
+  ];
+  if (brandId) competitorAccountConditions.push(eq(scrapedAccounts.brandId, brandId));
   const competitorAccountRows = await db
     .select()
     .from(scrapedAccounts)
-    .where(and(eq(scrapedAccounts.userId, userId), eq(scrapedAccounts.isCompetitor, true)));
+    .where(and(...competitorAccountConditions));
 
   // Fetch competitor scraped posts joined with scraped accounts
+  const competitorPostConditions = [
+    eq(scrapedPosts.userId, userId),
+    eq(scrapedAccounts.isCompetitor, true),
+  ];
+  if (brandId) competitorPostConditions.push(eq(scrapedAccounts.brandId, brandId));
   const competitorRows = await db
     .select({
       post: scrapedPosts,
@@ -262,12 +303,7 @@ async function computeCompetitors(userId: string): Promise<CachedPayload> {
     })
     .from(scrapedPosts)
     .innerJoin(scrapedAccounts, eq(scrapedPosts.accountId, scrapedAccounts.id))
-    .where(
-      and(
-        eq(scrapedPosts.userId, userId),
-        eq(scrapedAccounts.isCompetitor, true),
-      ),
-    )
+    .where(and(...competitorPostConditions))
     .orderBy(desc(scrapedPosts.scrapedAt))
     .limit(500);
 
@@ -275,11 +311,16 @@ async function computeCompetitors(userId: string): Promise<CachedPayload> {
     mapScrapedToCompetitor(r.post, r.handle),
   );
 
-  // Fetch user's own account for comparison
+  // Fetch user's own account for comparison — also filter by brand when set.
+  const ownAccountConditions = [
+    eq(scrapedAccounts.userId, userId),
+    eq(scrapedAccounts.isCompetitor, false),
+  ];
+  if (brandHandle) ownAccountConditions.push(eq(scrapedAccounts.handle, brandHandle));
   const ownAccountRows = await db
     .select()
     .from(scrapedAccounts)
-    .where(and(eq(scrapedAccounts.userId, userId), eq(scrapedAccounts.isCompetitor, false)));
+    .where(and(...ownAccountConditions));
   const ownAccount = ownAccountRows[0] ?? null;
   const userAccountData = ownAccount ? {
     handle: ownAccount.handle,
@@ -295,11 +336,13 @@ async function computeCompetitors(userId: string): Promise<CachedPayload> {
     postCount: a.postCount ?? 0,
   }));
 
-  // Also fetch user posts for comparison
+  // Also fetch user posts for comparison — filter by brand when provided.
+  const userPostConditions = [eq(posts.userId, userId)];
+  if (brandId) userPostConditions.push(eq(posts.brandId, brandId));
   const userPostRows = await db
     .select()
     .from(posts)
-    .where(eq(posts.userId, userId))
+    .where(and(...userPostConditions))
     .orderBy(desc(posts.createdAt))
     .limit(200);
 
@@ -335,24 +378,28 @@ async function computeCompetitors(userId: string): Promise<CachedPayload> {
   const insights = generateCompetitorInsights(userPosts, competitorPosts, userAccountData, competitorAccountData);
   const computedAt = new Date().toISOString();
 
-  // Cache result (upsert)
-  await db
-    .insert(insightsCache)
-    .values({
-      userId,
-      type: 'competitors',
-      data: { insights } as unknown as Record<string, unknown>,
-      healthScore: null,
-      computedAt: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: [insightsCache.userId, insightsCache.type],
-      set: {
+  // Cache result (upsert) — only when no brand filter, same reason as
+  // computeAnalytics: cache key is (userId, type) and a brand-specific write
+  // would corrupt every other brand's read.
+  if (!brandId) {
+    await db
+      .insert(insightsCache)
+      .values({
+        userId,
+        type: 'competitors',
         data: { insights } as unknown as Record<string, unknown>,
         healthScore: null,
         computedAt: new Date(),
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: [insightsCache.userId, insightsCache.type],
+        set: {
+          data: { insights } as unknown as Record<string, unknown>,
+          healthScore: null,
+          computedAt: new Date(),
+        },
+      });
+  }
 
   return { insights, computedAt };
 }
@@ -398,7 +445,7 @@ export async function GET(request: NextRequest) {
     const result =
       type === 'analytics'
         ? await computeAnalytics(userId, brandId)
-        : await computeCompetitors(userId);
+        : await computeCompetitors(userId, brandId);
 
     return NextResponse.json(result);
   } catch (error) {
@@ -430,7 +477,7 @@ export async function POST(request: NextRequest) {
     const result =
       type === 'analytics'
         ? await computeAnalytics(userId, brandId)
-        : await computeCompetitors(userId);
+        : await computeCompetitors(userId, brandId);
 
     return NextResponse.json(result);
   } catch (error) {

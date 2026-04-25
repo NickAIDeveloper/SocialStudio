@@ -113,22 +113,29 @@ export async function POST(request: NextRequest) {
       console.error('[Captions] Non-critical error:', err instanceof Error ? err.message : err);
     }
 
-    // Pull cached insights for additional context
+    // Pull cached insights for additional context.
+    // The insightsCache table is keyed (userId, type) only — no brandId — so a
+    // user with multiple brands would otherwise read whichever brand's summary
+    // was cached last. Skip the read entirely when generating for a specific
+    // brand: brandContext / ownPostContext / brandVoiceContext below already
+    // give the LLM enough brand-specific signal.
     let insightContext = '';
-    try {
-      const [cached] = await db
-        .select()
-        .from(insightsCache)
-        .where(and(eq(insightsCache.userId, userId), eq(insightsCache.type, 'analytics')));
+    if (!brand) {
+      try {
+        const [cached] = await db
+          .select()
+          .from(insightsCache)
+          .where(and(eq(insightsCache.userId, userId), eq(insightsCache.type, 'analytics')));
 
-      if (cached?.data) {
-        const data = cached.data as { summary?: string };
-        if (data.summary) {
-          insightContext = `\n\nACCOUNT INSIGHTS: ${data.summary}`;
+        if (cached?.data) {
+          const data = cached.data as { summary?: string };
+          if (data.summary) {
+            insightContext = `\n\nACCOUNT INSIGHTS: ${data.summary}`;
+          }
         }
+      } catch (err) {
+        console.error('[Captions] Non-critical error:', err instanceof Error ? err.message : err);
       }
-    } catch (err) {
-      console.error('[Captions] Non-critical error:', err instanceof Error ? err.message : err);
     }
 
     // Fetch brand voice from the brand record itself (per-brand voice settings)
