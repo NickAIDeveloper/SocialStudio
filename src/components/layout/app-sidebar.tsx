@@ -8,7 +8,6 @@ import {
   BarChart3,
   Sparkles,
   Plus,
-  Calendar,
   Menu,
   Settings,
   X,
@@ -20,7 +19,6 @@ const primaryItems = [
   { href: '/analyze', label: 'Analyze', icon: BarChart3 },
   { href: '/smart-posts', label: 'Smart Posts', icon: Sparkles },
   { href: '/create', label: 'Create', icon: Plus },
-  { href: '/schedule', label: 'Schedule', icon: Calendar },
 ];
 
 export function AppSidebar() {
