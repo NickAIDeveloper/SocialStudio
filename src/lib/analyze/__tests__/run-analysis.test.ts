@@ -77,18 +77,28 @@ describe('runAnalysis', () => {
     expect(result.competitorInsights).toEqual([]);
   });
 
-  it('runs the four steps in parallel (combined wall time < sum of step times)', async () => {
-    const slow = (ms: number) =>
-      vi.fn().mockImplementation(() => new Promise((r) => setTimeout(r, ms)));
+  it('runs the four steps in parallel (combined wall time within one delay, not four)', async () => {
+    const DELAY_MS = 50;
+    const sleep = <T>(value: T): (() => Promise<T>) =>
+      () => new Promise<T>((r) => setTimeout(() => r(value), DELAY_MS));
+
     const deps: AnalysisDeps = {
-      fetchAnalyticsInsights: slow(50).mockResolvedValue({ insights: [], healthScore: 0, summary: '' }),
-      fetchCompetitorInsights: slow(50).mockResolvedValue({ insights: [] }),
-      fetchDeepProfile: slow(50).mockResolvedValue({} as DeepProfile),
-      fetchHealthDelta: slow(50).mockResolvedValue({ current: 0, previous: 0, delta: 0 }),
+      fetchAnalyticsInsights: vi
+        .fn()
+        .mockImplementation(sleep({ insights: [], healthScore: 0, summary: '' })),
+      fetchCompetitorInsights: vi.fn().mockImplementation(sleep({ insights: [] })),
+      fetchDeepProfile: vi.fn().mockImplementation(sleep({} as DeepProfile)),
+      fetchHealthDelta: vi
+        .fn()
+        .mockImplementation(sleep({ current: 0, previous: 0, delta: 0 })),
     };
     const t0 = Date.now();
     await runAnalysis(baseOpts, deps);
     const wall = Date.now() - t0;
-    expect(wall).toBeLessThan(150); // 4 × 50ms serial would be 200ms; parallel ~50ms with overhead
+    // Lower bound: at least one delay actually elapsed (proves the stub really waits).
+    expect(wall).toBeGreaterThanOrEqual(DELAY_MS - 10);
+    // Upper bound: not anywhere near 4× serial (proves we ran in parallel).
+    // Serial would be ~200ms; allow generous CI headroom but still well under that.
+    expect(wall).toBeLessThan(DELAY_MS * 3);
   });
 });

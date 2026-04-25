@@ -6,6 +6,7 @@ import type {
   AnalysisStep,
   AnalysisStepId,
 } from './types';
+import type { DeepProfile } from '@/lib/meta/deep-profile.types';
 
 const STEP_LABELS: Record<AnalysisStepId, string> = {
   analytics: 'Analyzing your posts',
@@ -48,13 +49,13 @@ export async function runAnalysis(
   const analyticsP = runStep('analytics', () => deps.fetchAnalyticsInsights(brandId));
   const competitorsP = runStep('competitors', () => deps.fetchCompetitorInsights());
   const healthDeltaP = runStep('health-delta', () => deps.fetchHealthDelta(brandId));
-  const deepProfileP = igUserId
+  const deepProfileP: Promise<{ step: AnalysisStep; value: DeepProfile | null }> = igUserId
     ? runStep('deep-profile', () => deps.fetchDeepProfile(igUserId))
     : Promise.resolve({
         step: {
-          id: 'deep-profile' as const,
+          id: 'deep-profile',
           label: STEP_LABELS['deep-profile'],
-          status: 'skipped' as const,
+          status: 'skipped',
         },
         value: null,
       });
