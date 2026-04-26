@@ -96,6 +96,7 @@ async function generateFallback(opts: {
   reason: string;
   raw: string;
   igUserId?: string;
+  learningIds?: string[];
 }) {
   console.warn(
     `[SmartPosts/god-mode/fallback] reason=${opts.reason}, falling back to standard generate. Raw (first 500):`,
@@ -107,6 +108,7 @@ async function generateFallback(opts: {
     origin: opts.origin,
     cookie: opts.cookie,
     igUserId: opts.igUserId,
+    learningIds: opts.learningIds,
   });
   if (!outcome.ok) {
     return NextResponse.json(
@@ -173,7 +175,7 @@ function buildUserPrompt(profile: DeepProfile, likeOfMediaId?: string): string {
 export async function POST(req: NextRequest) {
   try {
     const userId = await getUserId();
-    let body: { brandId?: string; igUserId?: string; likeOfMediaId?: string };
+    let body: { brandId?: string; igUserId?: string; likeOfMediaId?: string; learningIds?: string[] };
     try {
       body = await req.json();
     } catch (err) {
@@ -183,7 +185,10 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-    const { brandId, igUserId, likeOfMediaId } = body;
+    const { brandId, igUserId, likeOfMediaId, learningIds } = body;
+    const cleanLearningIds = Array.isArray(learningIds)
+      ? learningIds.filter((s): s is string => typeof s === 'string' && s.length > 0)
+      : undefined;
 
     if (!brandId) {
       return NextResponse.json(
@@ -244,13 +249,13 @@ export async function POST(req: NextRequest) {
 
     const parsed = parseLlmJson(raw);
     if (!parsed.ok) {
-      return generateFallback({ brandId, userId, origin, cookie, profile, reason: 'parse_failed', raw, igUserId });
+      return generateFallback({ brandId, userId, origin, cookie, profile, reason: 'parse_failed', raw, igUserId, learningIds: cleanLearningIds });
     }
 
     const llmSeed = parsed.data as { overrides?: unknown; rationale?: unknown };
     const sanitized = sanitizeMetaOverrides(llmSeed.overrides);
     if (!sanitized || Object.keys(sanitized).length === 0) {
-      return generateFallback({ brandId, userId, origin, cookie, profile, reason: 'empty_overrides', raw, igUserId });
+      return generateFallback({ brandId, userId, origin, cookie, profile, reason: 'empty_overrides', raw, igUserId, learningIds: cleanLearningIds });
     }
 
     // Empty rationale is non-fatal — caller can still see contributions and
@@ -265,6 +270,7 @@ export async function POST(req: NextRequest) {
       origin,
       cookie,
       igUserId,
+      learningIds: cleanLearningIds,
     });
 
     if (!outcome.ok) {
