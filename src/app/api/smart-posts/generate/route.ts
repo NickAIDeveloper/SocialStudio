@@ -9,18 +9,23 @@ export async function POST(request: NextRequest) {
   try {
     const userId = await getUserId();
     const body = await request.json();
-    const { insightId, brandId, metaOverrides, igUserId } = body as {
+    const { insightId, brandId, metaOverrides, igUserId, learningIds } = body as {
       insightId?: string;
       brandId?: string;
       metaOverrides?: unknown;
       igUserId?: string;
+      learningIds?: string[];
     };
+    const cleanLearningIds = Array.isArray(learningIds)
+      ? learningIds.filter((s): s is string => typeof s === 'string' && s.length > 0)
+      : undefined;
 
     const origin = request.nextUrl.origin;
     const cookie = request.headers.get('cookie') ?? '';
 
     const outcome = await generateFromSeed({
       insightId, brandId, metaOverrides, userId, origin, cookie, igUserId,
+      learningIds: cleanLearningIds,
     });
 
     if (!outcome.ok) {
