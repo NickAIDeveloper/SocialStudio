@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,6 +12,7 @@ import { hashtagSets, optimalPostingTimes } from '@/data/competitor-insights';
 import { suggestedQueries, brandCategories } from '@/lib/pixabay';
 import type { PixabayImage } from '@/lib/pixabay';
 import { generateCaption, extractHookText, resetCaptionHistory, sanitizeCaption, sanitizeHook, sanitizeHashtags } from '@/lib/caption-engine';
+import { decodeLearnings } from '@/lib/analyze/learnings';
 
 type Brand = string;
 type ContentType = 'quote' | 'tip' | 'carousel' | 'community' | 'promo';
@@ -125,6 +127,8 @@ interface ApiBrand {
 // ── Component ────────────────────────────────────────────────────────────
 
 export function BatchGallery() {
+  const sp = useSearchParams();
+  const incomingLearnings = decodeLearnings(sp.get('learnings'));
   const [posts, setPosts] = useState<BatchPost[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -555,6 +559,12 @@ export function BatchGallery() {
             <option value="vignette">Vignette</option>
             <option value="high-contrast">High Contrast</option>
           </select>
+
+          {incomingLearnings.length > 0 && (
+            <div className="rounded-lg border border-teal-500/40 bg-teal-500/10 px-3 py-1.5 text-xs text-teal-200">
+              {incomingLearnings.length} learning{incomingLearnings.length === 1 ? '' : 's'} from Analyze will guide this batch
+            </div>
+          )}
 
           {/* Post count radio buttons */}
           <div className="flex items-center gap-1 bg-zinc-800/60 rounded-lg p-1 border border-zinc-700/50">
