@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { InsightCard } from '@/lib/health-score';
 import { isActionable } from '@/lib/smart-posts';
+import { decodeLearnings } from '@/lib/analyze/learnings';
 import { useHubState } from '@/lib/url-state';
 import { useIgAccounts } from '@/lib/ig-accounts';
 import { SourceToggle } from '@/components/performance/source-toggle';
@@ -316,9 +317,11 @@ export function SmartPostsDashboard() {
       const useGodMode = godModeReady;
       const url = useGodMode ? '/api/smart-posts/god-mode' : '/api/smart-posts/generate';
       const likeOf = searchParams.get('likeOf') ?? undefined;
+      const learningIds = decodeLearnings(searchParams.get('learnings'));
+      const learningIdsField = learningIds.length > 0 ? { learningIds } : {};
       const body = useGodMode
-        ? { brandId, igUserId: ig, likeOfMediaId: likeOf }
-        : { brandId, metaOverrides, igUserId: ig };
+        ? { brandId, igUserId: ig, likeOfMediaId: likeOf, ...learningIdsField }
+        : { brandId, metaOverrides, igUserId: ig, ...learningIdsField };
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

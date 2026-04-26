@@ -190,6 +190,10 @@ export interface GenerateFromSeedInput {
   cookie: string;
   /** Optional connected IG account id; when present, top past posts join the candidate list. */
   igUserId?: string;
+  /** Optional learning IDs from the cart. When non-empty, only insights with
+   * matching ids contribute to the merged seed. Empty/undefined = every
+   * actionable insight contributes (pre-cart behavior). */
+  learningIds?: string[];
 }
 
 export interface ImageCandidate {
@@ -241,7 +245,7 @@ export type GenerateFromSeedOutcome =
 export async function generateFromSeed(
   input: GenerateFromSeedInput,
 ): Promise<GenerateFromSeedOutcome> {
-  const { insightId, brandId, metaOverrides: rawMetaOverrides, userId, origin, cookie, igUserId } = input;
+  const { insightId, brandId, metaOverrides: rawMetaOverrides, userId, origin, cookie, igUserId, learningIds } = input;
   const metaOverrides = sanitizeMetaOverrides(rawMetaOverrides);
 
   if (!brandId) {
@@ -321,7 +325,21 @@ export async function generateFromSeed(
     }
     contributions = { [card.type]: seed.reasoning };
   } else {
-    const merged = mergePerfectSeed(allInsights, brandId);
+    const filtered =
+      learningIds && learningIds.length > 0
+        ? allInsights.filter((c) => learningIds.includes(c.id))
+        : allInsights;
+    if (filtered.length === 0) {
+      return {
+        ok: false,
+        err: {
+          error: 'no_actionable_insights',
+          message: 'No actionable insights matched your selection.',
+          status: 422,
+        },
+      };
+    }
+    const merged = mergePerfectSeed(filtered, brandId);
     if (!merged) {
       return {
         ok: false,

@@ -1,10 +1,13 @@
+// src/components/analyze/insights/insight-feed.tsx
 'use client';
 
+import { useState, useCallback } from 'react';
 import type { AnalysisResult } from '@/lib/analyze/types';
 import type { InsightCard } from '@/lib/health-score';
 import { mapDeepProfileToCards, type InsightCardLike } from '@/lib/analyze/insight-mapper';
 import { HealthHeroCard } from './health-hero';
 import { InsightCardView } from './insight-card';
+import { LearningsCtaDock } from './learnings-cta-dock';
 
 function adaptInsight(card: InsightCard): InsightCardLike {
   return {
@@ -22,6 +25,17 @@ interface InsightFeedProps {
 }
 
 export function InsightFeed({ result }: InsightFeedProps) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggle = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
   const analyticsCards = result.analyticsInsights.map(adaptInsight);
   const profileCards = mapDeepProfileToCards(result.deepProfile);
   const allCards = [...analyticsCards, ...profileCards].sort(
@@ -42,10 +56,20 @@ export function InsightFeed({ result }: InsightFeedProps) {
       ) : (
         <div className="space-y-3">
           {allCards.map((card) => (
-            <InsightCardView key={card.id} card={card} />
+            <InsightCardView
+              key={card.id}
+              card={card}
+              selected={selectedIds.has(card.id)}
+              onToggle={() => toggle(card.id)}
+            />
           ))}
         </div>
       )}
+      <LearningsCtaDock
+        selectedIds={selectedIds}
+        brandId={result.brandId}
+        igUserId={result.igUserId}
+      />
     </div>
   );
 }

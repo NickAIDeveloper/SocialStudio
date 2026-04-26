@@ -11,11 +11,26 @@ async function fetchImageBuffer(imageUrl: string): Promise<Buffer> {
     if (!base64Data) throw new Error('Invalid data URI: missing base64 payload');
     return Buffer.from(base64Data, 'base64');
   }
-  const response = await fetch(imageUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch image: ${response.status}`);
+
+  // Image CDNs (Pixabay, Unsplash, Pexels, Instagram CDN) sometimes
+  // rate-limit Vercel's shared egress IPs with a 429. Retry with backoff
+  // before giving up — most 429s clear within a second or two. Also retry
+  // on transient 5xx. Permanent 4xx errors (404, 403) fail immediately.
+  const MAX_ATTEMPTS = 3;
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
+    }
+    const response = await fetch(imageUrl);
+    if (response.ok) return Buffer.from(await response.arrayBuffer());
+    lastStatus = response.status;
+    if (response.status !== 429 && response.status < 500) break;
   }
-  return Buffer.from(await response.arrayBuffer());
+  if (lastStatus === 429) {
+    throw new Error('Image source rate-limited us. Pick a different image or try again in a moment.');
+  }
+  throw new Error(`Failed to fetch image: ${lastStatus}`);
 }
 
 const LOGOS_DIR = path.join(process.cwd(), 'public', 'logos');
