@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Sparkles, Square, CheckSquare } from 'lucide-react';
 import type { InsightCardLike } from '@/lib/analyze/insight-mapper';
 
 interface InsightCardViewProps {
   card: InsightCardLike;
+  selected: boolean;
+  onToggle: () => void;
 }
 
 const VERDICT_STYLES = {
@@ -26,11 +28,15 @@ const VERDICT_ICON_COLOR = {
   negative: 'text-rose-300',
 } as const;
 
-export function InsightCardView({ card }: InsightCardViewProps) {
+export function InsightCardView({ card, selected, onToggle }: InsightCardViewProps) {
   const [open, setOpen] = useState(false);
   const Icon = VERDICT_ICON[card.verdict];
   return (
-    <div className={`rounded-xl border p-4 ${VERDICT_STYLES[card.verdict]}`}>
+    <div
+      className={`rounded-xl border p-4 transition-colors ${VERDICT_STYLES[card.verdict]} ${
+        selected ? 'ring-2 ring-teal-400/40' : ''
+      }`}
+    >
       <div className="flex items-start gap-3">
         <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${VERDICT_ICON_COLOR[card.verdict]}`} />
         <div className="flex-1">
@@ -40,6 +46,19 @@ export function InsightCardView({ card }: InsightCardViewProps) {
             <p className="mt-2 text-xs font-medium text-teal-300">→ {card.action}</p>
           )}
         </div>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-pressed={selected}
+          aria-label={selected ? 'Remove from learnings' : 'Use this learning'}
+          className="shrink-0 rounded-md p-1 text-zinc-300 hover:bg-zinc-800/40 hover:text-white"
+        >
+          {selected ? (
+            <CheckSquare className="h-4 w-4 text-teal-300" />
+          ) : (
+            <Square className="h-4 w-4" />
+          )}
+        </button>
         {card.drillDown && (
           <button
             type="button"
