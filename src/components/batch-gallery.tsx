@@ -13,6 +13,8 @@ import { suggestedQueries, brandCategories } from '@/lib/pixabay';
 import type { PixabayImage } from '@/lib/pixabay';
 import { generateCaption, extractHookText, resetCaptionHistory, sanitizeCaption, sanitizeHook, sanitizeHashtags } from '@/lib/caption-engine';
 import { decodeLearnings } from '@/lib/analyze/learnings';
+import { mergePerfectSeed } from '@/lib/smart-posts';
+import type { InsightCard } from '@/lib/health-score';
 
 type Brand = string;
 type ContentType = 'quote' | 'tip' | 'carousel' | 'community' | 'promo';
@@ -124,6 +126,20 @@ interface ApiBrand {
   slug: string;
 }
 
+// Hints derived from a brand's analyze insights, forwarded to /api/captions
+// to make the batch caption generator learning-aware. When learningIds are
+// supplied (cart-passed), they filter the insights; otherwise we use every
+// actionable insight the brand has.
+interface BatchHints {
+  hookPattern?: string;
+  captionLengthHint?: 'short' | 'medium' | 'long';
+  captionPatternHint?: { type: string; label: string };
+  toneHint?: 'community';
+  avoidTopics: string[];
+}
+
+const EMPTY_HINTS: BatchHints = { avoidTopics: [] };
+
 // ── Component ────────────────────────────────────────────────────────────
 
 export function BatchGallery() {
@@ -178,6 +194,41 @@ export function BatchGallery() {
   const [batchEffect, setBatchEffect] = useState<ImageEffect | 'random'>('random');
   const batchEffectRef = useRef<ImageEffect | 'random'>('random');
 
+  // Auto-pull hints for a brand from its analyze insights. Returns empty
+  // hints on any failure (no insights, network error, no actionable
+  // insights) so the batch falls back gracefully to the unguided flow.
+  const deriveHintsForBrand = useCallback(
+    async (brandId: string, learningIds: string[] | undefined): Promise<BatchHints> => {
+      try {
+        const res = await fetch(
+          `/api/insights?type=analytics&brandId=${encodeURIComponent(brandId)}`,
+        );
+        if (!res.ok) return EMPTY_HINTS;
+        const payload = (await res.json()) as { insights?: InsightCard[] };
+        const all = payload.insights ?? [];
+        if (all.length === 0) return EMPTY_HINTS;
+        const filtered =
+          learningIds && learningIds.length > 0
+            ? all.filter((c) => learningIds.includes(c.id))
+            : all;
+        if (filtered.length === 0) return EMPTY_HINTS;
+        const merged = mergePerfectSeed(filtered, brandId);
+        if (!merged) return EMPTY_HINTS;
+        const seed = merged.seed;
+        return {
+          hookPattern: seed.hookPattern,
+          captionLengthHint: seed.captionLengthHint,
+          captionPatternHint: seed.captionPatternHint,
+          toneHint: seed.toneHint,
+          avoidTopics: seed.avoidTopics ?? [],
+        };
+      } catch {
+        return EMPTY_HINTS;
+      }
+    },
+    [],
+  );
+
   const generateBatch = useCallback(async () => {
     const currentBatchCount = batchCountRef.current;
     if (generatingRef.current) return;
@@ -199,9 +250,24 @@ export function BatchGallery() {
     const postsPerBrand = Math.ceil(currentBatchCount / Math.max(brandSlugs.length, 1));
     const roundsNeeded = Math.ceil(postsPerBrand / contentTypes.length);
 
+    // Cart-passed learnings narrow the insight set; absent → use every
+    // actionable insight the brand has (auto-pull mode).
+    const filterLearnings = incomingLearnings.length > 0 ? incomingLearnings : undefined;
+    const brandHintsMap = new Map<string, BatchHints>();
+
     resetCaptionHistory();
     let postIdx = 0;
     for (const brand of brandSlugs) {
+      // Derive hints once per brand at the start of its loop
+      if (!brandHintsMap.has(brand)) {
+        const matchedBrand = apiBrands.find((b) => b.slug === brand);
+        const hints = matchedBrand
+          ? await deriveHintsForBrand(matchedBrand.id, filterLearnings)
+          : EMPTY_HINTS;
+        brandHintsMap.set(brand, hints);
+      }
+      const brandHints = brandHintsMap.get(brand) ?? EMPTY_HINTS;
+
       const slots = generateTimeSlots(brand, postsPerBrand);
       let brandPostCount = 0;
       for (let round = 0; round < roundsNeeded && brandPostCount < postsPerBrand; round++) {
@@ -222,10 +288,17 @@ export function BatchGallery() {
                 brandSlug: brand,
                 contentType: type,
                 variationSeed: postIdx * 100 + Math.floor(Math.random() * 99),
-                avoidTopics: newPosts
-                  .filter(p => p.brand === brand)
-                  .map(p => p.hookText)
-                  .filter(Boolean),
+                avoidTopics: [
+                  ...brandHints.avoidTopics,
+                  ...newPosts
+                    .filter((p) => p.brand === brand)
+                    .map((p) => p.hookText)
+                    .filter(Boolean),
+                ],
+                hookPattern: brandHints.hookPattern,
+                captionLengthHint: brandHints.captionLengthHint,
+                captionPatternHint: brandHints.captionPatternHint,
+                toneHint: brandHints.toneHint,
               }),
             });
             const aiData = await aiRes.json();
@@ -431,7 +504,7 @@ export function BatchGallery() {
 
     setIsGenerating(false);
     generatingRef.current = false;
-  }, [apiBrands]);
+  }, [apiBrands, incomingLearnings, deriveHintsForBrand]);
 
   // Schedule a single post to Buffer
   const schedulePost = useCallback(async (postId: string) => {
@@ -568,7 +641,7 @@ export function BatchGallery() {
 
           {/* Post count radio buttons */}
           <div className="flex items-center gap-1 bg-zinc-800/60 rounded-lg p-1 border border-zinc-700/50">
-            {[1, 5, 15, 20].map(n => (
+            {[1, 5, 15, 20, 30].map(n => (
               <button
                 key={n}
                 onClick={() => { setBatchCount(n); batchCountRef.current = n; }}

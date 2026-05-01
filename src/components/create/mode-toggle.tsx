@@ -42,7 +42,7 @@ export function ModeToggle() {
             active === m ? 'bg-zinc-800 text-white shadow-sm' : 'text-white hover:bg-zinc-800/40',
           )}
         >
-          {m === 'single' ? '1 post' : '20 posts'}
+          {m === 'single' ? 'Single' : 'Batch'}
         </button>
       ))}
     </div>

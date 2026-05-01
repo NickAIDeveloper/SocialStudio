@@ -27,16 +27,16 @@ describe('ModeToggle', () => {
     mockReplace.mockClear();
   });
 
-  it('clicking 20 posts pushes ?mode=batch', () => {
+  it('clicking Batch pushes ?mode=batch', () => {
     render(<ModeToggle />);
-    fireEvent.click(screen.getByRole('tab', { name: /20 posts/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /batch/i }));
     expect(mockReplace.mock.calls[0][0]).toContain('mode=batch');
   });
 
-  it('clicking 1 post removes mode param', () => {
+  it('clicking Single removes mode param', () => {
     mockSp = 'mode=batch&brand=b1';
     render(<ModeToggle />);
-    fireEvent.click(screen.getByRole('tab', { name: /1 post/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /single/i }));
     const target = mockReplace.mock.calls[0][0] as string;
     expect(target).not.toContain('mode=');
     expect(target).toContain('brand=b1');
