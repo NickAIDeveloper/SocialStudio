@@ -282,6 +282,45 @@ export function resetCaptionHistory(): void {
 
 // ── Hook text extraction ─────────────────────────────────────────────────
 
+// LLMs frequently promise a number in the hook ("5 ways", "5 science hacks")
+// but only write 3 numbered items in the caption body. The mismatch makes the
+// post look broken — the user sees the hook claim 5 and counts 3 in the
+// caption. We detect a number-promise in the hook, count actual `^N. ` items
+// in the caption, and on mismatch coerce the number to match the real list
+// count, also patching the matching opener line in the caption (e.g.
+// "Try these 5 ways" → "Try these 3 ways"). Pure string ops, no extra LLM
+// calls. Allows up to 2 adjective-style words between the number and the
+// noun ("5 brutal mistakes", "5 science hacks") so we still catch real cases.
+const COUNT_PROMISE_RX =
+  /(\b(?:[1-9]|1[0-9]|20)\b)(\s+(?:[\w-]+\s+){0,2})(ways|hacks|tips|tricks|things|reasons|signs|steps|ideas|secrets|rules|lessons|mistakes|truths|habits|methods|strategies)\b/i;
+
+function countNumberedListItems(caption: string): number {
+  const matches = caption.match(/(?:^|\n)\s*\d+\.\s+\S/g);
+  return matches ? matches.length : 0;
+}
+
+export function reconcileCountClaim(
+  hookText: string,
+  caption: string,
+): { hookText: string; caption: string } {
+  const hookMatch = hookText.match(COUNT_PROMISE_RX);
+  if (!hookMatch) return { hookText, caption };
+  const promised = parseInt(hookMatch[1], 10);
+  const actual = countNumberedListItems(caption);
+  // Only reconcile when there IS a numbered list to count against. A hook
+  // that says "5 ways" with a non-list caption may be honest about an
+  // inline list — leave it alone rather than mangle valid copy.
+  // Cap at 20 to avoid pathological cases (caption with 99 items).
+  if (actual === 0 || actual === promised || actual > 20) {
+    return { hookText, caption };
+  }
+  const newHook = hookText.replace(COUNT_PROMISE_RX, `${actual}$2$3`);
+  // First-occurrence-only replace on caption — the opener is the statistical
+  // place this promise lives. Avoids mangling later in-body references.
+  const newCaption = caption.replace(COUNT_PROMISE_RX, `${actual}$2$3`);
+  return { hookText: newHook, caption: newCaption };
+}
+
 export function extractHookText(caption: string): string {
   if (!caption.trim()) return '';
   // Remove emojis and "caption:" prefix
