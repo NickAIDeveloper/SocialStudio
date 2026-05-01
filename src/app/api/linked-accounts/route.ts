@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { linkedAccounts } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
 import { encrypt } from '@/lib/encryption';
+import { getOrganizationsAndChannels } from '@/lib/buffer';
 
 export async function GET() {
   try {
@@ -56,19 +57,23 @@ export async function POST(request: NextRequest) {
     let metadata: Record<string, unknown> = {};
 
     if (provider === 'buffer') {
-      const res = await fetch('https://api.buffer.com/user.json', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-
-      if (!res.ok) {
+      // Buffer's legacy v1 REST endpoints (e.g. /user.json) reject modern OAuth
+      // tokens that work fine against the GraphQL API — they 400 with
+      // "Unsupported Content-Type", causing valid tokens to be flagged invalid.
+      // Validate via the same GraphQL probe the rest of the app uses.
+      try {
+        const orgs = await getOrganizationsAndChannels(accessToken);
+        metadata = {
+          organizations: orgs.length,
+          channelCount: orgs.reduce((sum, o) => sum + (o.channels?.length ?? 0), 0),
+          organizationNames: orgs.map((o) => o.name),
+        };
+      } catch {
         return NextResponse.json(
           { error: 'Invalid Buffer access token. Please check and try again.' },
           { status: 400 }
         );
       }
-
-      const bufferUser = await res.json();
-      metadata = { name: bufferUser.name, plan: bufferUser.plan };
     }
 
     if (provider === 'pixabay') {
