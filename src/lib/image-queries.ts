@@ -21,12 +21,24 @@ const BANNED_RE = /\b(silhouette|contemplation|lifestyle stock)\b/i;
 
 const META_LEAK_RE = /\b(query|reply|only|search|caption|hook|json|return)\b/i;
 
-function tokenize(s: string): Set<string> {
+export function tokenize(s: string): Set<string> {
   const out = new Set<string>();
   for (const raw of s.toLowerCase().replace(/[^\p{L}\s]/gu, ' ').split(/\s+/)) {
     if (raw.length >= 4 && !STOPWORDS.has(raw)) out.add(raw);
   }
   return out;
+}
+
+// Score an image's tag string against a set of post tokens. Tag strings on
+// Pixabay/Unsplash are comma-separated; we tokenize the same way as the
+// query check so an image's "running, sport, athlete" matches a post about
+// "running" but a forest landscape's "forest, mountain, lake" scores 0
+// against a post about "study, learning, pace". Higher score = better match.
+export function scoreTagOverlap(tags: string, postTokens: Set<string>): number {
+  const tagTokens = tokenize(tags);
+  let overlap = 0;
+  for (const t of tagTokens) if (postTokens.has(t)) overlap++;
+  return overlap;
 }
 
 function hasContextOverlap(query: string, contexts: string[]): boolean {

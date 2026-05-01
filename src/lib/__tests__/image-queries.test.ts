@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeImageQueries } from '@/lib/image-queries';
+import { sanitizeImageQueries, tokenize, scoreTagOverlap } from '@/lib/image-queries';
 
 const ctx = {
   contextTexts: [
@@ -78,5 +78,47 @@ describe('sanitizeImageQueries', () => {
       expect(q.length).toBeGreaterThanOrEqual(6);
       expect(q.length).toBeLessThanOrEqual(80);
     }
+  });
+});
+
+describe('scoreTagOverlap — image relevance scoring', () => {
+  it('scores running-tagged image high for a runner post', () => {
+    const post = tokenize('5 hacks your coach never told you running training pace');
+    const runnerTags = 'running, athlete, training, sport, track, marathon';
+    const laptopTags = 'laptop, technology, office, work, computer';
+    expect(scoreTagOverlap(runnerTags, post)).toBeGreaterThan(scoreTagOverlap(laptopTags, post));
+  });
+
+  it('rejects forest landscape for a study post (zero overlap)', () => {
+    const post = tokenize('Your study pace is a lie. Track your learning, focus, and habits.');
+    const forestTags = 'forest, mountain, lake, nature, landscape, trees';
+    // Tag tokenization is exact (not stem-based) so the matching tags must
+    // share literal words with the post — "study" not "student".
+    const studyTags = 'study, books, desk, learning, focus, reading';
+    expect(scoreTagOverlap(forestTags, post)).toBe(0);
+    expect(scoreTagOverlap(studyTags, post)).toBeGreaterThan(0);
+  });
+
+  it('rejects cassette for "study pace" hook', () => {
+    const post = tokenize('Your study pace is a lie. Track your learning habits.');
+    const cassetteTags = 'cassette, vintage, retro, music, audio, tape';
+    expect(scoreTagOverlap(cassetteTags, post)).toBe(0);
+  });
+
+  it('returns 0 for empty tag string', () => {
+    const post = tokenize('any post tokens here');
+    expect(scoreTagOverlap('', post)).toBe(0);
+  });
+
+  it('returns 0 for empty post tokens', () => {
+    const empty = new Set<string>();
+    expect(scoreTagOverlap('any, tags, here', empty)).toBe(0);
+  });
+
+  it('counts each unique tag-token at most once', () => {
+    const post = tokenize('running training run runner');
+    // post tokens are deduped by Set; tag tokens are also deduped
+    const tags = 'running, running, running';
+    expect(scoreTagOverlap(tags, post)).toBe(1);
   });
 });
