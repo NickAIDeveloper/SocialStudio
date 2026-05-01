@@ -375,7 +375,12 @@ export function BatchGallery() {
             const pickRes = await fetch('/api/images/pick', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ caption: post.caption, brand: post.brand, contentType: post.contentType }),
+              body: JSON.stringify({
+                caption: post.caption,
+                hookText: post.hookText,
+                brand: post.brand,
+                contentType: post.contentType,
+              }),
             });
             const pickData = await pickRes.json();
             if (pickData.searchTerm) query = pickData.searchTerm;
@@ -401,7 +406,12 @@ export function BatchGallery() {
               const pickRes = await fetch('/api/images/pick', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ caption: post.caption, brand: post.brand, images: hits.slice(0, 10) }),
+                body: JSON.stringify({
+                  caption: post.caption,
+                  hookText: post.hookText,
+                  brand: post.brand,
+                  images: hits.slice(0, 10),
+                }),
               });
               const pickData = await pickRes.json();
               if (typeof pickData.pickedIndex === 'number' && hits[pickData.pickedIndex]) {
