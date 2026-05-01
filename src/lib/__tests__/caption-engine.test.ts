@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeCaption, sanitizeHook } from '../caption-engine';
+import { sanitizeCaption, sanitizeHook, reconcileCountClaim } from '../caption-engine';
 
 describe('sanitizeCaption — LLM trailing commentary', () => {
   it('strips ": I removed the hashtag as per your instructions" tail', () => {
@@ -119,5 +119,65 @@ describe('sanitizeHook — hardening', () => {
   it('caps at 60 chars', () => {
     const long = 'x'.repeat(80);
     expect(sanitizeHook(long).length).toBe(60);
+  });
+});
+
+describe('reconcileCountClaim — hook number vs list count mismatch', () => {
+  it('coerces hook "5 science hacks" to "3 science hacks" when caption lists 3', () => {
+    const hookText = '5 science hacks for runners';
+    const caption =
+      'Try these 5 ways to make your runs more scientific:\n1. Track pace zones.\n2. Optimize training.\n3. Find your signature.';
+    const out = reconcileCountClaim(hookText, caption);
+    expect(out.hookText).toBe('3 science hacks for runners');
+    expect(out.caption).toContain('Try these 3 ways');
+    expect(out.caption).toContain('1. Track pace zones.');
+    expect(out.caption).toContain('3. Find your signature.');
+  });
+
+  it('leaves hook unchanged when promised count already matches list count', () => {
+    const hookText = '3 ways to train smarter';
+    const caption = 'Body line.\n1. First.\n2. Second.\n3. Third.';
+    const out = reconcileCountClaim(hookText, caption);
+    expect(out.hookText).toBe('3 ways to train smarter');
+    expect(out.caption).toBe(caption);
+  });
+
+  it('leaves hook unchanged when caption has no numbered list', () => {
+    const hookText = '5 ways to train smarter';
+    const caption = 'Just a body with no list at all. Sentences only.';
+    const out = reconcileCountClaim(hookText, caption);
+    expect(out.hookText).toBe('5 ways to train smarter');
+    expect(out.caption).toBe(caption);
+  });
+
+  it('leaves hook unchanged when hook has no number promise', () => {
+    const hookText = 'Save this for later';
+    const caption = 'Body.\n1. First.\n2. Second.';
+    const out = reconcileCountClaim(hookText, caption);
+    expect(out.hookText).toBe('Save this for later');
+    expect(out.caption).toBe(caption);
+  });
+
+  it('handles adjective between number and noun ("5 brutal mistakes")', () => {
+    const hookText = '5 brutal mistakes runners make';
+    const caption = 'Body.\n1. One.\n2. Two.';
+    const out = reconcileCountClaim(hookText, caption);
+    expect(out.hookText).toBe('2 brutal mistakes runners make');
+  });
+
+  it('bumps hook number UP when caption has more items than promised', () => {
+    const hookText = '3 ways to recover faster';
+    const caption = 'Body.\n1. One.\n2. Two.\n3. Three.\n4. Four.\n5. Five.';
+    const out = reconcileCountClaim(hookText, caption);
+    expect(out.hookText).toBe('5 ways to recover faster');
+  });
+
+  it('only patches the first count-promise occurrence in the caption', () => {
+    const hookText = '5 tips for runners';
+    const caption =
+      'Try these 5 tips today.\n1. One.\n2. Two.\n3. Three.\nSee 5 tips daily.';
+    const out = reconcileCountClaim(hookText, caption);
+    expect(out.caption).toContain('Try these 3 tips today');
+    expect(out.caption).toContain('See 5 tips daily');
   });
 });

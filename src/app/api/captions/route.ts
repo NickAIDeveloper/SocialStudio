@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { brands, scrapedAccounts, scrapedPosts, insightsCache } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
 import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
-import { sanitizeCaption, sanitizeHook, sanitizeHashtags } from '@/lib/caption-engine';
+import { sanitizeCaption, sanitizeHook, sanitizeHashtags, reconcileCountClaim } from '@/lib/caption-engine';
 
 export async function POST(request: NextRequest) {
   try {
@@ -276,6 +276,7 @@ CAPTION RULES:
 - MINIMUM CONTENT: caption MUST have a hook line AND a body with at least 2 more sentences or list items. A single-line title is NOT a caption — it will be rejected.
 - First line must hook HARD. Create a "wait, what?" reaction.
 - End with a specific CTA. Never say "download" (this is a web app). Say "try it free", "link in bio", "save this", etc.
+- COUNT CONSISTENCY: If your hookText contains a number ("5 ways", "3 hacks", "5 science hacks") OR your caption opens with a count promise ("Try these 5 ways"), the caption body MUST contain EXACTLY that many numbered list items (1., 2., 3., ...). Count them before you finalize. A hook that says "5 hacks" with only 3 items in the caption is a hard reject.
 - No hashtags in caption body. No dashes or hyphens. No markdown. No emojis.
 - Write like a human who actually cares, not a marketing robot.
 
@@ -341,11 +342,15 @@ Return ONLY valid JSON:
         ? captionMatch[1].replace(/\\n/g, '\n').replace(/["']/g, '').trim()
         : raw.replace(/#\w+/g, '').replace(/["':{}]/g, '').replace(/\s{2,}/g, ' ').slice(0, 500).trim();
 
+      const fallbackReconciled = reconcileCountClaim(
+        sanitizeHook(hookMatch ? hookMatch[1] : captionText.split(/[.\n]/)[0] || ''),
+        sanitizeCaption(captionText),
+      );
       return NextResponse.json({
         success: true,
-        caption: sanitizeCaption(captionText),
+        caption: fallbackReconciled.caption,
         hashtags: sanitizeHashtags((hashtagsMatch || []).join(' ')),
-        hookText: sanitizeHook(hookMatch ? hookMatch[1] : captionText.split(/[.\n]/)[0] || ''),
+        hookText: fallbackReconciled.hookText,
         source: 'cerebras-extracted',
       });
     }
@@ -437,6 +442,12 @@ Return ONLY: {"caption":"corrected caption","hookText":"corrected hook"}`,
       // Polish is best-effort — use unpolished content if it fails
       console.error('[Captions] Polish pass failed (non-critical):', polishErr instanceof Error ? polishErr.message : polishErr);
     }
+
+    // Reconcile any number-promise/list-count mismatch ("5 hacks" hook with 3
+    // items in the caption). Runs AFTER polish so polish can't undo the fix.
+    const reconciled = reconcileCountClaim(finalHook, finalCaption);
+    finalHook = reconciled.hookText;
+    finalCaption = reconciled.caption;
 
     return NextResponse.json({
       success: true,
