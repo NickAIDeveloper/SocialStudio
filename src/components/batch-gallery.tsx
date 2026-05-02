@@ -15,6 +15,7 @@ import { generateCaption, extractHookText, resetCaptionHistory, sanitizeCaption,
 import { decodeLearnings } from '@/lib/analyze/learnings';
 import { mergePerfectSeed } from '@/lib/smart-posts';
 import type { InsightCard } from '@/lib/health-score';
+import { tokenize, scoreTagOverlap } from '@/lib/image-queries';
 
 type Brand = string;
 type ContentType = 'quote' | 'tip' | 'carousel' | 'community' | 'promo';
@@ -124,6 +125,7 @@ interface ApiBrand {
   id: string;
   name: string;
   slug: string;
+  description?: string | null;
 }
 
 // Hints derived from a brand's analyze insights, forwarded to /api/captions
@@ -369,8 +371,13 @@ export function BatchGallery() {
       const batch = shuffled.slice(i, i + batchSize);
       await Promise.all(batch.map(async (post) => {
         try {
-          // Use AI to pick the best search term for this caption
-          let query = '';
+          // Step 1: get up to 5 query alternatives from the LLM. Brand
+          // description sharpens the queries — without it the model sees
+          // only "affectly" as a string and produces generic queries that
+          // drift to mood-stock (plant pots for "science-backed insights").
+          const matchedBrandRecord = apiBrands.find((b) => b.slug === post.brand);
+          const brandDescription = matchedBrandRecord?.description ?? '';
+          let queries: string[] = [];
           try {
             const pickRes = await fetch('/api/images/pick', {
               method: 'POST',
@@ -379,50 +386,81 @@ export function BatchGallery() {
                 caption: post.caption,
                 hookText: post.hookText,
                 brand: post.brand,
+                brandDescription,
                 contentType: post.contentType,
               }),
             });
             const pickData = await pickRes.json();
-            if (pickData.searchTerm) query = pickData.searchTerm;
+            if (Array.isArray(pickData.alternatives) && pickData.alternatives.length > 0) {
+              queries = pickData.alternatives;
+            } else if (pickData.searchTerm) {
+              queries = [pickData.searchTerm];
+            }
           } catch { /* fallback below */ }
 
-          // Fallback: extract keywords from caption + hook for relevant search
-          if (!query) {
+          // Fallback: extract keywords from caption + hook when LLM is down
+          if (queries.length === 0) {
             const source = `${post.hookText} ${post.caption}`;
             const stopWords = new Set(['about','after','being','could','every','their','these','thing','think','those','would','which','while','your','from','have','into','just','know','like','make','more','most','much','only','over','some','such','take','than','that','them','then','they','this','very','want','what','when','will','with']);
             const words = source.split(/\s+/)
               .map((w: string) => w.replace(/[^a-zA-Z]/g, '').toLowerCase())
               .filter((w: string) => w.length > 3 && !stopWords.has(w) && !w.startsWith('#'));
-            query = words.slice(0, 3).join(' ') || post.brand;
+            queries = [words.slice(0, 3).join(' ') || post.brand];
           }
 
-          const response = await fetch(`/api/images?source=all&q=${encodeURIComponent(query)}`);
-          const data = await response.json();
-          const hits: PixabayImage[] = data.images || data.hits || [];
-          if (hits.length > 0) {
-            // Use AI to pick the best image
-            let img = hits[0];
-            try {
-              const pickRes = await fetch('/api/images/pick', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  caption: post.caption,
-                  hookText: post.hookText,
-                  brand: post.brand,
-                  images: hits.slice(0, 10),
-                }),
-              });
-              const pickData = await pickRes.json();
-              if (typeof pickData.pickedIndex === 'number' && hits[pickData.pickedIndex]) {
-                img = hits[pickData.pickedIndex];
+          // Step 2: fan out — fetch the top 3 queries in parallel, dedupe
+          // by image id. A single query that drifts off-topic isn't fatal
+          // when alternatives are searched alongside it.
+          const TOP_N_QUERIES = 3;
+          const fetchResults = await Promise.all(
+            queries.slice(0, TOP_N_QUERIES).map(async (q) => {
+              try {
+                const r = await fetch(`/api/images?source=all&q=${encodeURIComponent(q)}`);
+                const d = await r.json();
+                return (d.images || d.hits || []) as PixabayImage[];
+              } catch {
+                return [];
               }
-            } catch { /* use first image */ }
+            }),
+          );
+          const seenIds = new Set<number>();
+          const combinedHits: PixabayImage[] = [];
+          for (const list of fetchResults) {
+            for (const h of list) {
+              if (typeof h.id === 'number' && !seenIds.has(h.id)) {
+                seenIds.add(h.id);
+                combinedHits.push(h);
+              }
+            }
+          }
 
-            // Skip already-used images
-            const unused = hits.filter((h: PixabayImage) => !usedImageIds.has(h.id));
-            if (unused.length > 0 && usedImageIds.has(img.id)) {
-              img = unused[0];
+          if (combinedHits.length > 0) {
+            // Step 3: deterministic tag-overlap scoring across the combined
+            // pool, including brand description in the post-token bag so
+            // brand-relevant tags ("running", "athlete" for PaceBrain) win
+            // even when caption tokens are abstract.
+            const postTokens = tokenize(
+              [post.caption, post.hookText, post.brand, brandDescription].join(' '),
+            );
+            let bestIdx = 0;
+            let bestScore = -1;
+            combinedHits.forEach((c, i) => {
+              const score = scoreTagOverlap(String(c.tags ?? ''), postTokens);
+              // Penalize already-used images so the batch doesn't repeat
+              const penalty = usedImageIds.has(c.id) ? -0.5 : 0;
+              const adjusted = score + penalty;
+              if (adjusted > bestScore) {
+                bestScore = adjusted;
+                bestIdx = i;
+              }
+            });
+            let img = combinedHits[bestIdx];
+
+            // Skip already-used images when an unused alternative exists,
+            // even if it scores slightly lower
+            if (usedImageIds.has(img.id)) {
+              const unused = combinedHits.find((c) => !usedImageIds.has(c.id));
+              if (unused) img = unused;
             }
             usedImageIds.add(img.id);
 
