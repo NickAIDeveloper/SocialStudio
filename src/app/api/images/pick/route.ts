@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   try {
     await getUserId();
     const body = await request.json();
-    const { caption, brand, contentType, hookText, images } = body;
+    const { caption, brand, brandDescription, contentType, hookText, images } = body;
 
     if (!isCerebrasAvailable() && (!images || images.length === 0)) {
       return NextResponse.json({ error: 'AI not configured' }, { status: 503 });
@@ -25,12 +25,15 @@ export async function POST(request: NextRequest) {
     if (!images || images.length === 0) {
       const captionExcerpt = String(caption ?? '').slice(0, 400);
       const hookLine = hookText ? `HOOK: "${String(hookText).slice(0, 120)}"\n` : '';
+      const brandDescLine = brandDescription
+        ? `BRAND CONTEXT: ${String(brandDescription).slice(0, 240)}\n`
+        : '';
       const searchPrompt = `Pick stock-photo search queries for this Instagram post.
 
 ${hookLine}CAPTION: "${captionExcerpt}"
 BRAND: ${brand ?? 'unknown'}
-
-Your job: extract the most CONCRETE VISUAL SUBJECT from the hook + caption (not the brand) and return 5 distinct stock-photo queries that could illustrate it. The HOOK is the strongest signal — match its literal subject. Each query: 3-5 words, lowercase, people + activity + setting.
+${brandDescLine}
+Your job: extract the most CONCRETE VISUAL SUBJECT from the hook + caption and return 5 distinct stock-photo queries that could illustrate it. The HOOK is the strongest signal — match its literal subject. Use the BRAND CONTEXT to anchor: e.g. a running coach brand → running scenes; a study app brand → study/learning scenes. Each query: 3-5 words, lowercase, people + activity + setting.
 
 HARD BANS — these come back as generic stock and ruin the post:
 - silhouette / sunset / person looking at water / mountain
@@ -57,6 +60,7 @@ Return ONLY this JSON shape, no other text:
           String(caption ?? ''),
           String(hookText ?? ''),
           String(brand ?? ''),
+          String(brandDescription ?? ''),
           String(contentType ?? ''),
         ],
       });
