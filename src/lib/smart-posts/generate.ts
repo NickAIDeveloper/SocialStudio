@@ -264,6 +264,18 @@ export async function generateFromSeed(
     return { ok: false, err: { error: 'brand_not_found', message: 'Brand not found', status: 404 } };
   }
 
+  // Brain context (additive only — never overrides explicit metaOverrides)
+  let brainCtx: import('@/lib/brain/types').BrainContext | null = null;
+  if (process.env.BRAIN_UI_ENABLED === 'true') {
+    try {
+      const { readBrandBrain } = await import('@/lib/brain/consume');
+      brainCtx = await readBrandBrain(brandId);
+    } catch {
+      // Brain failures must never block caption generation.
+      brainCtx = null;
+    }
+  }
+
   const [anyScraped] = await db
     .select({ id: scrapedPosts.id })
     .from(scrapedPosts)
@@ -387,6 +399,28 @@ export async function generateFromSeed(
     }
   }
 
+  // Brain-derived fallbacks: only fill slots the user / metaOverrides didn't specify.
+  if (brainCtx?.formula) {
+    const f = brainCtx.formula;
+    // Format fallback
+    if (!seed.contentType) {
+      const ct = contentTypeFromFormat(f.format);
+      if (ct) {
+        seed = { ...seed, contentType: ct };
+        contributions['brain-format'] = `Brain → ${f.format}`;
+      }
+    }
+    // Timing fallback
+    if (!seed.suggestedPostTime) {
+      const dowToDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const day = dowToDay[f.bestSlot.dow];
+      if (day) {
+        seed = { ...seed, suggestedPostTime: { day, hour: f.bestSlot.hour } };
+        contributions['brain-timing'] = `Brain best slot → ${day} ${String(f.bestSlot.hour).padStart(2, '0')}:00`;
+      }
+    }
+  }
+
   const captionRes = await fetch(`${origin}/api/captions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', cookie },
@@ -399,6 +433,7 @@ export async function generateFromSeed(
       captionPatternHint: seed.captionPatternHint,
       toneHint: seed.toneHint,
       variationSeed: Math.floor(Math.random() * 100000),
+      brainBriefMd: brainCtx?.briefMd ?? null,
     }),
   });
   if (!captionRes.ok) {
