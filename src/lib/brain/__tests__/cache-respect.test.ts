@@ -26,9 +26,9 @@ describe('snapshotIg cache behaviour', () => {
       igUserId: 'ig1',
       accessToken: 'tok',
       day: '2026-05-09',
-      fetcher: fetchSpy,
-      cacheRead,
-      cacheWrite,
+      fetcher: fetchSpy as unknown as typeof fetch,
+      cacheRead: cacheRead as unknown as Parameters<typeof snapshotIg>[0]['cacheRead'],
+      cacheWrite: cacheWrite as unknown as Parameters<typeof snapshotIg>[0]['cacheWrite'],
       spacingMs: 0,
     });
 
@@ -49,9 +49,9 @@ describe('snapshotIg cache behaviour', () => {
       igUserId: 'ig1',
       accessToken: 'tok',
       day: '2026-05-09',
-      fetcher: fetchSpy,
-      cacheRead,
-      cacheWrite,
+      fetcher: fetchSpy as unknown as typeof fetch,
+      cacheRead: cacheRead as unknown as Parameters<typeof snapshotIg>[0]['cacheRead'],
+      cacheWrite: cacheWrite as unknown as Parameters<typeof snapshotIg>[0]['cacheWrite'],
       spacingMs: 0,
     });
 
