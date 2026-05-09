@@ -8,6 +8,7 @@ import {
   integer,
   jsonb,
   uniqueIndex,
+  index,
   boolean as pgBoolean,
 } from 'drizzle-orm/pg-core';
 
@@ -368,6 +369,9 @@ export const brainSnapshots = pgTable(
       .references(() => brands.id, { onDelete: 'cascade' }),
     // 'ig' | 'ads' | 'competitor_account'
     source: varchar('source', { length: 32 }).notNull(),
+    // Caller MUST truncate to start-of-day UTC before insert. The unique index
+    // (brand_id, source, captured_at) enforces "one snapshot per brand+source+day"
+    // only when callers respect this convention.
     capturedAt: timestamp('captured_at', { mode: 'date' }).notNull(),
     payload: jsonb('payload').notNull(),
     metricsSummary: jsonb('metrics_summary').notNull(),
@@ -379,6 +383,7 @@ export const brainSnapshots = pgTable(
       t.source,
       t.capturedAt
     ),
+    index('brain_snapshots_brand_captured_idx').on(t.brandId, t.capturedAt),
   ]
 );
 
@@ -405,8 +410,8 @@ export const brainSignals = pgTable(
   (t) => [
     uniqueIndex('brain_signals_brand_window_idx').on(
       t.brandId,
-      t.computedAt,
-      t.windowDays
+      t.windowDays,
+      t.computedAt
     ),
   ]
 );
@@ -423,7 +428,7 @@ export const brandBrain = pgTable('brand_brain', {
   generatedAt: timestamp('generated_at', { mode: 'date' }).notNull().defaultNow(),
   lastRunAt: timestamp('last_run_at', { mode: 'date' }).notNull().defaultNow(),
   // 'ok' | 'partial' | 'failed' | 'skipped_no_connection'
-  lastRunStatus: varchar('last_run_status', { length: 32 }).notNull(),
+  lastRunStatus: varchar('last_run_status', { length: 32 }).notNull().default('skipped_no_connection'),
   lastRunError: text('last_run_error'),
   ingestedSources: jsonb('ingested_sources').notNull(),
 });
