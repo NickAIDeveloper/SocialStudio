@@ -4,10 +4,9 @@ import {
   normalizeFormat,
   type IgMediaItem,
 } from '@/lib/meta/ig-analytics';
+import { extractCaptionFormat, type CaptionFormat } from './caption-format';
 import type {
-  CaptionShape,
   CompetitorSummary,
-  EmojiDensity,
   HookPattern,
   IgFormat,
   TopicCluster,
@@ -27,45 +26,11 @@ export interface ComputeSignalsOutput {
   topSlotHour: number | null;
   hookPatterns: HookPattern[];
   ctaPatterns: { pattern: string; sampleSize: number }[];
-  captionShape: CaptionShape;
+  captionShape: CaptionFormat;
   topicClusters: TopicCluster[];
   competitorSummary: CompetitorSummary;
   adSummary: { hasCampaigns: boolean } | null;
   rawKpis: { totalPosts: number; totalReach: number; medianReach: number };
-}
-
-const EMOJI_RE = /\p{Extended_Pictographic}/gu;
-
-function emojiDensity(captions: string[]): EmojiDensity {
-  if (captions.length === 0) return 'low';
-  const total = captions.reduce((acc, c) => acc + (c.match(EMOJI_RE)?.length ?? 0), 0);
-  const perCaption = total / captions.length;
-  if (perCaption < 1) return 'low';
-  if (perCaption < 3) return 'medium';
-  return 'high';
-}
-
-function captionShape(captions: string[]): CaptionShape {
-  if (captions.length === 0) {
-    return { avgLines: 0, avgParagraphs: 0, emojiDensity: 'low', hookToBodyRatio: 0 };
-  }
-  let lines = 0;
-  let paragraphs = 0;
-  let hookToBody = 0;
-  for (const c of captions) {
-    const ls = c.split('\n');
-    lines += ls.length;
-    paragraphs += c.split(/\n\s*\n/).length;
-    const firstLine = ls[0]?.length ?? 0;
-    const rest = c.length - firstLine;
-    hookToBody += rest > 0 ? firstLine / rest : 1;
-  }
-  return {
-    avgLines: +(lines / captions.length).toFixed(1),
-    avgParagraphs: +(paragraphs / captions.length).toFixed(1),
-    emojiDensity: emojiDensity(captions),
-    hookToBodyRatio: +(hookToBody / captions.length).toFixed(2),
-  };
 }
 
 function topHookPatterns(captions: string[]): HookPattern[] {
@@ -133,7 +98,7 @@ export function computeSignals(input: ComputeSignalsInput): ComputeSignalsOutput
     topSlotHour: topSlot?.hour ?? null,
     hookPatterns: topHookPatterns(captions),
     ctaPatterns: ctaPatterns(captions),
-    captionShape: captionShape(captions),
+    captionShape: extractCaptionFormat(safeMedia),
     topicClusters: [], // v1: not implemented; subsystem #4.
     competitorSummary: {
       totalCompetitors: input.competitors.length,
