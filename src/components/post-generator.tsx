@@ -26,6 +26,7 @@ import { suggestedQueries } from '@/lib/pixabay';
 import type { ImageResult } from '@/lib/image-sources';
 import { ImageSourceSelector } from '@/components/image-source-selector';
 import type { ImageSourceSelectorHandle } from '@/components/image-source-selector';
+import { BrainBadge } from '@/components/brain/brain-badge';
 import { generateCaption as getCaption, extractHookText, sanitizeCaption, sanitizeHook, sanitizeHashtags } from '@/lib/caption-engine';
 
 type Brand = string;
@@ -929,13 +930,21 @@ export function PostGenerator() {
         <div className="glass-card p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-medium uppercase tracking-wider text-white">Caption</h3>
-            <Button
-              onClick={generateCaption}
-              size="sm"
-              className="h-8 text-xs font-medium text-white active:scale-[0.98] transition-all duration-200 bg-teal-600 hover:bg-teal-700"
-            >
-              Generate
-            </Button>
+            <div className="flex items-center gap-2">
+              {process.env.NEXT_PUBLIC_BRAIN_UI_ENABLED === 'true' && (() => {
+                const matchedBrand = apiBrands.find(
+                  (b) => b.slug === brand || b.name.toLowerCase() === brand,
+                );
+                return matchedBrand ? <BrainBadge brandId={matchedBrand.id} /> : null;
+              })()}
+              <Button
+                onClick={generateCaption}
+                size="sm"
+                className="h-8 text-xs font-medium text-white active:scale-[0.98] transition-all duration-200 bg-teal-600 hover:bg-teal-700"
+              >
+                Generate
+              </Button>
+            </div>
           </div>
           <Textarea
             value={caption}

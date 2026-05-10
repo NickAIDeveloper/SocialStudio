@@ -145,3 +145,15 @@ After approval, `Publish` → flip to Live Mode.
 - **"App not active"** — app is in Dev Mode and the user authorizing is not listed as Admin/Developer/Tester in App roles.
 - **Scope missing from consent screen** — scope not "Ready for testing" in any customized use case, OR the scope requires App Review approval before it can be granted.
 - **Meta rejects a URL during save** — the URL resolves to an auth-gated page. Check `src/middleware.ts` allowlist includes the path, redeploy, then retry.
+
+---
+
+## Brain cron (subsystem #1)
+
+Set in **GitHub repo → Settings → Secrets and variables → Actions**:
+- `BRAIN_CRON_SECRET` — match the same value set in Vercel project env.
+
+Set in **Vercel project → Settings → Environment Variables**:
+- `BRAIN_CRON_SECRET` — any 64-char hex string (use `openssl rand -hex 32`).
+
+First manual trigger: GitHub Actions → "Daily Brain Run" → "Run workflow".

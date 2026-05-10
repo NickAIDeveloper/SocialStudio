@@ -8,6 +8,7 @@ import {
   integer,
   jsonb,
   uniqueIndex,
+  index,
   boolean as pgBoolean,
 } from 'drizzle-orm/pg-core';
 
@@ -353,6 +354,85 @@ export const insightsCache = pgTable(
   (t) => [uniqueIndex('insights_cache_user_type_idx').on(t.userId, t.type)]
 );
 
+// ── Brain (daily insights pipeline) ───────────────────────────────────────────
+// Three tables: snapshots (raw audit, 90d retention), signals (derived,
+// queryable), brand_brain (one row per brand, narrative brief consumed by
+// Smart Posts + Create). All keyed by brand_id so multi-brand users get
+// fully independent brains.
+
+export const brainSnapshots = pgTable(
+  'brain_snapshots',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    brandId: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    // 'ig' | 'ads' | 'competitor_account'
+    source: varchar('source', { length: 32 }).notNull(),
+    // Caller MUST truncate to start-of-day UTC before insert. The unique index
+    // (brand_id, source, captured_at) enforces "one snapshot per brand+source+day"
+    // only when callers respect this convention.
+    capturedAt: timestamp('captured_at', { mode: 'date' }).notNull(),
+    payload: jsonb('payload').notNull(),
+    metricsSummary: jsonb('metrics_summary').notNull(),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('brain_snapshots_brand_source_day_idx').on(
+      t.brandId,
+      t.source,
+      t.capturedAt
+    ),
+    index('brain_snapshots_brand_captured_idx').on(t.brandId, t.capturedAt),
+  ]
+);
+
+export const brainSignals = pgTable(
+  'brain_signals',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    brandId: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    computedAt: timestamp('computed_at', { mode: 'date' }).notNull().defaultNow(),
+    windowDays: integer('window_days').notNull(), // 7 | 14 | 28
+    topFormat: varchar('top_format', { length: 16 }), // REEL | CAROUSEL | IMAGE | null
+    topSlotDow: integer('top_slot_dow'), // 0-6, Sunday=0
+    topSlotHour: integer('top_slot_hour'), // 0-23 local
+    hookPatterns: jsonb('hook_patterns'),
+    ctaPatterns: jsonb('cta_patterns'),
+    captionShape: jsonb('caption_shape'),
+    topicClusters: jsonb('topic_clusters'),
+    competitorSummary: jsonb('competitor_summary'),
+    adSummary: jsonb('ad_summary'),
+    rawKpis: jsonb('raw_kpis'),
+  },
+  (t) => [
+    uniqueIndex('brain_signals_brand_window_idx').on(
+      t.brandId,
+      t.windowDays,
+      t.computedAt
+    ),
+  ]
+);
+
+export const brandBrain = pgTable('brand_brain', {
+  brandId: uuid('brand_id')
+    .primaryKey()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  briefMd: text('brief_md').notNull(),
+  briefVersion: integer('brief_version').notNull().default(0),
+  signalsId: uuid('signals_id').references(() => brainSignals.id, {
+    onDelete: 'set null',
+  }),
+  generatedAt: timestamp('generated_at', { mode: 'date' }).notNull().defaultNow(),
+  lastRunAt: timestamp('last_run_at', { mode: 'date' }).notNull().defaultNow(),
+  // 'ok' | 'partial' | 'failed' | 'skipped_no_connection'
+  lastRunStatus: varchar('last_run_status', { length: 32 }).notNull().default('skipped_no_connection'),
+  lastRunError: text('last_run_error'),
+  ingestedSources: jsonb('ingested_sources').notNull(),
+});
+
 // ── Inferred Types ─────────────────────────────────────────────────────────────
 
 export type InsertUser = typeof users.$inferInsert;
@@ -379,3 +459,10 @@ export type SelectMetaInsightsCache = typeof metaInsightsCache.$inferSelect;
 
 export type InsertInstagramAccount = typeof instagramAccounts.$inferInsert;
 export type SelectInstagramAccount = typeof instagramAccounts.$inferSelect;
+
+export type InsertBrainSnapshot = typeof brainSnapshots.$inferInsert;
+export type SelectBrainSnapshot = typeof brainSnapshots.$inferSelect;
+export type InsertBrainSignals = typeof brainSignals.$inferInsert;
+export type SelectBrainSignals = typeof brainSignals.$inferSelect;
+export type InsertBrandBrain = typeof brandBrain.$inferInsert;
+export type SelectBrandBrain = typeof brandBrain.$inferSelect;

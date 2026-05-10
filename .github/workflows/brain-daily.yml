@@ -1,0 +1,20 @@
+name: Daily Brain Run
+on:
+  schedule:
+    - cron: '0 3 * * *'   # 03:00 UTC daily
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run brain pipeline
+        env:
+          BRAIN_CRON_SECRET: ${{ secrets.BRAIN_CRON_SECRET }}
+          BRAIN_BASE_URL: https://goviraleza.com
+        run: node scripts/brain/run-daily.mjs

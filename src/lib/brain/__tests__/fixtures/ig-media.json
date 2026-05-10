@@ -1,0 +1,6 @@
+{
+  "data": [
+    { "id": "m1", "caption": "Hook line\n\nBody.", "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-05-01T19:00:00+0000", "like_count": 1200, "comments_count": 80, "permalink": "https://instagram.com/p/m1", "insights": [] },
+    { "id": "m2", "caption": "Carousel post", "media_type": "CAROUSEL_ALBUM", "timestamp": "2026-05-02T17:00:00+0000", "like_count": 800, "comments_count": 30, "permalink": "https://instagram.com/p/m2", "insights": [] }
+  ]
+}

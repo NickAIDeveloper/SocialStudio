@@ -1,0 +1,4 @@
+{
+  "m1": { "data": [{ "name": "reach", "values": [{ "value": 35000 }] }, { "name": "views", "values": [{ "value": 50000 }] }, { "name": "likes", "values": [{ "value": 1200 }] }, { "name": "comments", "values": [{ "value": 80 }] }, { "name": "saves", "values": [{ "value": 200 }] }, { "name": "shares", "values": [{ "value": 60 }] }] },
+  "m2": { "data": [{ "name": "reach", "values": [{ "value": 12000 }] }, { "name": "views", "values": [{ "value": 14000 }] }, { "name": "likes", "values": [{ "value": 800 }] }, { "name": "comments", "values": [{ "value": 30 }] }, { "name": "saves", "values": [{ "value": 150 }] }, { "name": "shares", "values": [{ "value": 20 }] }] }
+}

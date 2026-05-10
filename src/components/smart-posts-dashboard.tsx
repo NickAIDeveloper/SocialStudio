@@ -25,6 +25,7 @@ import { WhyThisWorks } from '@/components/smart-posts/why-this-works';
 import { TopPerformersStrip } from '@/components/smart-posts/top-performers-strip';
 import { CandidateStrip } from '@/components/smart-posts/candidate-strip';
 import { MoreOptionsDialog } from '@/components/smart-posts/more-options-dialog';
+import { BrainBadge } from '@/components/brain/brain-badge';
 import type { ImageCandidate, RenderParams } from '@/lib/smart-posts/generate';
 import type { DeepProfile } from '@/lib/meta/deep-profile.types';
 
@@ -495,6 +496,10 @@ export function SmartPostsDashboard() {
           <div className="ml-auto">
             <SourceToggle value={source} onChange={setSource} />
           </div>
+        )}
+
+        {process.env.NEXT_PUBLIC_BRAIN_UI_ENABLED === 'true' && brandId && (
+          <BrainBadge brandId={brandId} />
         )}
 
         {/* Refresh only makes sense once there's data to re-derive from.

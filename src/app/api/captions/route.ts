@@ -24,6 +24,10 @@ export async function POST(request: NextRequest) {
     const captionPatternHint: { type?: string; label?: string } | undefined =
       body.captionPatternHint && typeof body.captionPatternHint === 'object' ? body.captionPatternHint : undefined;
     const toneHint: string | undefined = typeof body.toneHint === 'string' ? body.toneHint : undefined;
+    const brainBriefMd: string | null =
+      typeof body.brainBriefMd === 'string' && body.brainBriefMd.length > 0
+        ? body.brainBriefMd.slice(0, 4000) // hard cap for prompt safety
+        : null;
 
     if (!brandSlug || !contentType) {
       return NextResponse.json({ error: 'brandSlug and contentType required' }, { status: 400 });
@@ -252,6 +256,10 @@ Swipe to see the method that changed everything.
 Save this for exam season."`,
     };
 
+    const brainContext = brainBriefMd
+      ? `\nBRAND BRAIN (latest daily brief — use as strategic guidance):\n${brainBriefMd}\n`
+      : '';
+
     const prompt = `You are a world-class Instagram copywriter for "${brandName}" (${handle || brandName}). Your captions consistently go viral.
 ${brandContext}
 
@@ -260,6 +268,7 @@ ${contentTypeGuide[contentType] || contentTypeGuide.promo}
 ${competitorContext}
 ${ownPostContext}
 ${insightContext}
+${brainContext}
 ${brandVoiceContext}
 
 VARIATION SEED: ${variationSeed}. ${avoidTopics.length > 0 ? `AVOID these already-used themes: ${avoidTopics.slice(0, 5).join(', ')}.` : ''} Write from a completely fresh angle.

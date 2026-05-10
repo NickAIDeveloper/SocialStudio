@@ -8,6 +8,7 @@ import { AnalyzeTabs, readTab } from './analyze-tabs';
 import { CompareSection } from './compare-section';
 import { RunAnalysisButton } from './run-analysis-button';
 import { InsightFeed } from './insights/insight-feed';
+import { BrainPanel } from '@/components/brain/brain-panel';
 import type { AnalysisResult } from '@/lib/analyze/types';
 
 export function AnalyzePage() {
@@ -24,6 +25,9 @@ export function AnalyzePage() {
         igUserId={igUserId}
         onComplete={(r) => setLatest(r)}
       />
+      {process.env.NEXT_PUBLIC_BRAIN_UI_ENABLED === 'true' && brandId && (
+        <BrainPanel brandId={brandId} />
+      )}
       {latest && <InsightFeed result={latest} />}
       <details className="group rounded-xl border border-zinc-800/60 bg-zinc-900/30">
         <summary className="cursor-pointer list-none px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300">
