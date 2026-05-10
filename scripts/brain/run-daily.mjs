@@ -55,6 +55,8 @@ async function runOne(brandId, day) {
   console.log('  brief:', brief.status, brief.json?.status ?? '');
   const competitors = await call(`/api/competitors/sync?brandId=${brandId}`, { runId, day });
   console.log('  competitors:', competitors.status, competitors.json?.status ?? '', `(updated=${competitors.json?.updated ?? 0})`);
+  const autopilot = await call(`/api/autopilot/run?brandId=${brandId}`, { runId, day });
+  console.log('  autopilot:', autopilot.status, autopilot.json?.status ?? '', autopilot.json?.reason ?? autopilot.json?.postId ?? '');
 }
 
 (async () => {
