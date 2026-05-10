@@ -60,6 +60,8 @@ async function runOne(brandId, day) {
       console.log(`    error: ${e.handle} -> ${e.reason}`);
     }
   }
+  const autopilot = await call(`/api/autopilot/run?brandId=${brandId}`, { runId, day });
+  console.log('  autopilot:', autopilot.status, autopilot.json?.status ?? '', autopilot.json?.reason ?? autopilot.json?.postId ?? '');
 }
 
 (async () => {

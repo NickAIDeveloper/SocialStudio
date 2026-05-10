@@ -435,6 +435,30 @@ export const brandBrain = pgTable('brand_brain', {
   ingestedSources: jsonb('ingested_sources').notNull(),
 });
 
+// ── Autopilot (subsystem #5) ──────────────────────────────────────────────────
+// One row per brand. Controls whether autopilot is on, how often it runs, and
+// whether it auto-publishes or saves drafts for the user to review.
+
+export const autopilotSettings = pgTable('autopilot_settings', {
+  brandId: uuid('brand_id')
+    .primaryKey()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  enabled: pgBoolean('enabled').notNull().default(false),
+  // 'daily' | 'every_other_day' | 'three_per_week' | 'weekly'
+  frequency: varchar('frequency', { length: 32 }).notNull().default('every_other_day'),
+  // 'queue' = save as draft for user review (default).
+  // 'auto'  = schedule directly to Buffer at brain.formula.bestSlot.
+  mode: varchar('mode', { length: 16 }).notNull().default('queue'),
+  lastRunAt: timestamp('last_run_at', { mode: 'date' }),
+  // Set after each run. Cron checks isDueNow(nextRunAt).
+  nextRunAt: timestamp('next_run_at', { mode: 'date' }),
+  lastError: text('last_error'),
+  // Brief audit: how many posts autopilot has produced for this brand.
+  totalGenerated: integer('total_generated').notNull().default(0),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
 // ── Inferred Types ─────────────────────────────────────────────────────────────
 
 export type InsertUser = typeof users.$inferInsert;
@@ -468,3 +492,6 @@ export type InsertBrainSignals = typeof brainSignals.$inferInsert;
 export type SelectBrainSignals = typeof brainSignals.$inferSelect;
 export type InsertBrandBrain = typeof brandBrain.$inferInsert;
 export type SelectBrandBrain = typeof brandBrain.$inferSelect;
+
+export type InsertAutopilotSettings = typeof autopilotSettings.$inferInsert;
+export type SelectAutopilotSettings = typeof autopilotSettings.$inferSelect;
