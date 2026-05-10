@@ -53,6 +53,8 @@ async function runOne(brandId, day) {
   console.log('  compute:', compute.status, compute.json?.status ?? '');
   const brief = await call(`/api/brain/brief?brandId=${brandId}`, { runId });
   console.log('  brief:', brief.status, brief.json?.status ?? '');
+  const competitors = await call(`/api/competitors/sync?brandId=${brandId}`, { runId, day });
+  console.log('  competitors:', competitors.status, competitors.json?.status ?? '', `(updated=${competitors.json?.updated ?? 0})`);
 }
 
 (async () => {

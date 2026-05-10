@@ -1,0 +1,34 @@
+{
+  "business_discovery": {
+    "id": "17841400000000001",
+    "username": "competitor1",
+    "followers_count": 25000,
+    "media_count": 412,
+    "media": {
+      "data": [
+        {
+          "id": "17890000000000001",
+          "caption": "Hook line\n\nBody with #hashtag1 #hashtag2",
+          "timestamp": "2026-05-08T19:00:00+0000",
+          "like_count": 1500,
+          "comments_count": 80,
+          "media_type": "VIDEO",
+          "media_product_type": "REELS",
+          "permalink": "https://www.instagram.com/p/ABC/",
+          "thumbnail_url": "https://scontent.cdninstagram.com/v/thumb1.jpg",
+          "media_url": "https://scontent.cdninstagram.com/v/video1.mp4"
+        },
+        {
+          "id": "17890000000000002",
+          "caption": "Carousel post #foo",
+          "timestamp": "2026-05-07T17:00:00+0000",
+          "like_count": 800,
+          "comments_count": 30,
+          "media_type": "CAROUSEL_ALBUM",
+          "permalink": "https://www.instagram.com/p/DEF/"
+        }
+      ]
+    }
+  },
+  "id": "17841400000000099"
+}

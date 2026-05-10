@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, gte, desc } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
   brands,
   instagramAccounts,
   metaAccounts,
   scrapedAccounts,
+  scrapedPosts,
   brainSnapshots,
   metaInsightsCache,
 } from '@/lib/db/schema';
@@ -161,6 +162,28 @@ export async function POST(req: Request): Promise<Response> {
         )
       );
 
+    const sinceDate = new Date(Date.now() - 28 * 86_400_000);
+    const competitorPosts = await db
+      .select({
+        handle: scrapedAccounts.handle,
+        caption: scrapedPosts.caption,
+        likes: scrapedPosts.likes,
+        comments: scrapedPosts.comments,
+        mediaType: scrapedPosts.mediaType,
+        postedAt: scrapedPosts.postedAt,
+      })
+      .from(scrapedPosts)
+      .innerJoin(scrapedAccounts, eq(scrapedPosts.accountId, scrapedAccounts.id))
+      .where(
+        and(
+          eq(scrapedAccounts.brandId, brandId),
+          eq(scrapedAccounts.isCompetitor, true),
+          gte(scrapedPosts.postedAt, sinceDate)
+        )
+      )
+      .orderBy(desc(scrapedPosts.likes))
+      .limit(150);
+
     const result = await snapshotCompetitor({
       brandId,
       competitors,
@@ -171,8 +194,8 @@ export async function POST(req: Request): Promise<Response> {
             brandId,
             source: 'competitor_account',
             capturedAt: dayDate,
-            payload: payload as Record<string, unknown>,
-            metricsSummary: { count: payload.competitors.length },
+            payload: { ...payload, posts: competitorPosts } as Record<string, unknown>,
+            metricsSummary: { count: payload.competitors.length, postCount: competitorPosts.length },
           })
           .onConflictDoNothing();
       },

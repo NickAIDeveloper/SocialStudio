@@ -231,6 +231,8 @@ export const scrapedPosts = pgTable(
     hashtags: text('hashtags'),
     postedAt: timestamp('posted_at', { mode: 'date' }),
     scrapedAt: timestamp('scraped_at', { mode: 'date' }).notNull().defaultNow(),
+    mediaType: varchar('media_type', { length: 16 }), // REEL | CAROUSEL | IMAGE
+    permalink: text('permalink'),
   },
   (t) => [uniqueIndex('scraped_post_user_shortcode_idx').on(t.userId, t.shortcode)]
 );
