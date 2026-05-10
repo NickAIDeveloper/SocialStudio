@@ -157,3 +157,41 @@ Set in **Vercel project → Settings → Environment Variables**:
 - `BRAIN_CRON_SECRET` — any 64-char hex string (use `openssl rand -hex 32`).
 
 First manual trigger: GitHub Actions → "Daily Brain Run" → "Run workflow".
+
+---
+
+## Activate per-post competitor ingest (subsystem #2)
+
+Subsystem #2 code is shipped. Two paths exist for activation:
+
+### Path A — Add `instagram_basic` to the FB app (recommended, free)
+
+The Marketing API use case currently has: `ads_read`, `ads_management`,
+`pages_read_engagement`, `business_management`. Business Discovery requires
+`instagram_basic` ALSO — add it via:
+
+1. Meta console → Use cases → Customize the Marketing API use case → add
+   `instagram_basic` and `pages_show_list` to the requested permissions
+2. User re-authorizes FB Login at `/meta`
+3. The user's IG Business account must be linked to a Facebook Page (this
+   is automatic for IG Business/Creator accounts that connected through FB
+   originally — verify in Meta Business Suite)
+
+Once granted, `/api/competitors/sync` will use the FB token + FB-linked IG
+account ID to call Business Discovery. No code change needed; the route is
+already wired for this path.
+
+### Path B — Apify fallback (paid, ~$49/mo)
+
+Add an Apify token to Vercel env. The sync orchestrator's `fallbackScrape`
+hook can be extended to call the Apify Instagram scraper. Reliable, but
+costs money. Code change required: extend `sync-competitors.ts` to plug
+Apify into the fallback slot.
+
+### Current behavior without either
+
+`/api/competitors/sync` returns `{ status: 'skipped', reason: 'no_fb_linked_ig' }`
+gracefully. Brain's `competitor_account` snapshot continues to read
+account-level data from the existing `scrapedAccounts` table (populated by
+the legacy scrape flow). The `/competitors` page scorecards remain N/A for
+post-level metrics until Path A or B is activated.
