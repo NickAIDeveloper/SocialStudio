@@ -107,21 +107,24 @@ function ctaPatterns(captions: string[]): { pattern: string; sampleSize: number 
 
 export function computeSignals(input: ComputeSignalsInput): ComputeSignalsOutput {
   const ig = input.ig;
-  const captions = ig ? ig.media.map((m) => m.caption ?? '').filter(Boolean) : [];
-  const formatStats = ig ? computeFormatPerformance(ig.media) : [];
-  const heat = ig ? computeHeatmap(ig.media) : null;
+  // Defensive: ensure every media item has an `insights` array. The IG-analytics
+  // helpers call `post.insights.find` which throws if insights is undefined.
+  const safeMedia = ig?.media
+    ? ig.media.map((m) => ({ ...m, insights: Array.isArray(m.insights) ? m.insights : [] }))
+    : [];
+  const captions = safeMedia.map((m) => m.caption ?? '').filter(Boolean);
+  const formatStats = safeMedia.length > 0 ? computeFormatPerformance(safeMedia) : [];
+  const heat = safeMedia.length > 0 ? computeHeatmap(safeMedia) : null;
 
   const topFormat: IgFormat | null = formatStats[0]?.sampleSize
     ? (formatStats[0].format as IgFormat)
-    : ig?.media[0]
-      ? (normalizeFormat(ig.media[0]) as IgFormat)
+    : safeMedia[0]
+      ? (normalizeFormat(safeMedia[0]) as IgFormat)
       : null;
 
   const topSlot = heat?.topSlots?.[0];
 
-  const totalReach = ig
-    ? ig.media.reduce((acc, m) => acc + (m.like_count ?? 0), 0)
-    : 0;
+  const totalReach = safeMedia.reduce((acc, m) => acc + (m.like_count ?? 0), 0);
 
   return {
     windowDays: input.windowDays,
