@@ -4,7 +4,7 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
   brands,
-  instagramAccounts,
+  metaAccounts,
   scrapedAccounts,
   scrapedPosts,
 } from '@/lib/db/schema';
@@ -14,6 +14,10 @@ import { decrypt } from '@/lib/encryption';
 import type { ParsedScrapedPost } from '@/lib/competitors/business-discovery';
 
 export const dynamic = 'force-dynamic';
+
+interface MetaAssets {
+  igAccounts?: { id: string; username?: string }[];
+}
 
 export async function POST(req: Request): Promise<Response> {
   const { searchParams } = new URL(req.url);
@@ -31,16 +35,28 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ status: 'skipped', reason: 'no_ig_handle' });
   }
 
-  const [igAcct] = await db
+  // Business Discovery requires the FB-linked IG Business Account path:
+  // - Token: FB user access token (from metaAccounts) with instagram_basic
+  // - IG ID: the FB-Page-linked IG Business Account ID (from assets.igAccounts)
+  // The Instagram Login for Business path (instagramAccounts table) does NOT
+  // support business_discovery — Meta only exposes it via the FB Graph API.
+  const [meta] = await db
     .select()
-    .from(instagramAccounts)
-    .where(
-      and(
-        eq(instagramAccounts.userId, brand.userId),
-        eq(instagramAccounts.igUsername, brand.instagramHandle)
-      )
-    );
-  if (!igAcct) return NextResponse.json({ status: 'skipped', reason: 'no_ig_token' });
+    .from(metaAccounts)
+    .where(eq(metaAccounts.userId, brand.userId));
+  if (!meta) {
+    return NextResponse.json({ status: 'skipped', reason: 'no_fb_token' });
+  }
+  const assets = (meta.assets ?? {}) as MetaAssets;
+  const igAccounts = assets.igAccounts ?? [];
+  // Match by username if possible, otherwise take the first IG account.
+  const igMatch =
+    igAccounts.find(
+      (a) => a.username?.toLowerCase() === brand.instagramHandle?.toLowerCase()
+    ) ?? igAccounts[0];
+  if (!igMatch) {
+    return NextResponse.json({ status: 'skipped', reason: 'no_fb_linked_ig' });
+  }
 
   const competitors = await db
     .select({ id: scrapedAccounts.id, handle: scrapedAccounts.handle })
@@ -54,8 +70,8 @@ export async function POST(req: Request): Promise<Response> {
 
   const result = await syncCompetitors({
     brandId,
-    igUserId: igAcct.igUserId,
-    accessToken: decrypt(igAcct.accessToken),
+    igUserId: igMatch.id,
+    accessToken: decrypt(meta.accessToken),
     competitors,
     upsertPosts: async (accountId, _handle, posts: ParsedScrapedPost[]) => {
       for (const p of posts) {
