@@ -27,6 +27,7 @@ import type { ImageResult } from '@/lib/image-sources';
 import { ImageSourceSelector } from '@/components/image-source-selector';
 import type { ImageSourceSelectorHandle } from '@/components/image-source-selector';
 import { BrainBadge } from '@/components/brain/brain-badge';
+import { BrainGradeButton } from '@/components/brain/brain-grade-button';
 import { generateCaption as getCaption, extractHookText, sanitizeCaption, sanitizeHook, sanitizeHashtags } from '@/lib/caption-engine';
 
 type Brand = string;
@@ -935,7 +936,19 @@ export function PostGenerator() {
                 const matchedBrand = apiBrands.find(
                   (b) => b.slug === brand || b.name.toLowerCase() === brand,
                 );
-                return matchedBrand ? <BrainBadge brandId={matchedBrand.id} /> : null;
+                if (!matchedBrand) return null;
+                return (
+                  <>
+                    <BrainBadge brandId={matchedBrand.id} />
+                    {caption && (
+                      <BrainGradeButton
+                        brandId={matchedBrand.id}
+                        caption={caption}
+                        hookText={overlayText ?? ''}
+                      />
+                    )}
+                  </>
+                );
               })()}
               <Button
                 onClick={generateCaption}
