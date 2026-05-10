@@ -55,6 +55,11 @@ async function runOne(brandId, day) {
   console.log('  brief:', brief.status, brief.json?.status ?? '');
   const competitors = await call(`/api/competitors/sync?brandId=${brandId}`, { runId, day });
   console.log('  competitors:', competitors.status, competitors.json?.status ?? '', `(updated=${competitors.json?.updated ?? 0})`);
+  if (competitors.json?.errors?.length) {
+    for (const e of competitors.json.errors.slice(0, 5)) {
+      console.log(`    error: ${e.handle} -> ${e.reason}`);
+    }
+  }
 }
 
 (async () => {
