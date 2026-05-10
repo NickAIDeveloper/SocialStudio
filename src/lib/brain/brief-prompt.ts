@@ -34,6 +34,18 @@ RULES:
   - **CTA pattern:** phrase
   - **Caption shape:** N lines, N paragraphs, emoji density: low|medium|high`;
 
+  const cf = input.signals28d.captionShape;
+  const fingerprintBlock = `
+# Caption fingerprint (from your top ${cf.sampleSize ?? 0} posts, ${cf.sourceWindow ?? 'all_posts_fallback'})
+- Hook length: median ${cf.hookWordCountP50 ?? 0} words, p90 ${cf.hookWordCountP90 ?? 0} words
+- Paragraph rhythm (median chars per paragraph 1-5): ${(cf.paragraphLengthsP50 ?? []).join(' / ') || '—'}
+- Emoji density: ${cf.emojiDensity}, position: ${cf.emojiPosition}
+- Hashtag count: median ${cf.hashtagCountP50 ?? 0}, p90 ${cf.hashtagCountP90 ?? 0}
+- Questions per caption: ${cf.questionCountAvg ?? 0}
+- List markers: ${cf.listMarkers}
+- Top closing CTAs: ${(cf.ctaTerminalPhrases ?? []).join(', ') || '—'}
+`;
+
   const user = `Brand: ${input.brandName}
 Date: ${input.todayIso}
 
@@ -42,6 +54,7 @@ ${JSON.stringify(input.signals28d, null, 2)}
 
 # 7-day signals (compare deltas vs the 28d row)
 ${JSON.stringify(input.signals7d, null, 2)}
+${fingerprintBlock}
 
 # Previous brief (only flag changes; do not repeat unchanged guidance)
 ${input.previousBriefMd ?? '(none)'}`;
