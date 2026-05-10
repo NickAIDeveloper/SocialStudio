@@ -35,9 +35,20 @@ export async function POST(req: Request): Promise<Response> {
   const written: { id: string; windowDays: number }[] = [];
   for (const win of [28, 7] as const) {
     const rows = await loadWindow(brandId, win);
-    const ig = pickLatest(rows, 'ig') as
-      | { media: IgMediaItem[]; insightsByMediaId: Record<string, unknown> }
+    const igRaw = pickLatest(rows, 'ig') as
+      | { media: IgMediaItem[]; insightsByMediaId: Record<string, { data?: unknown[] }> }
       | null;
+    // Merge insightsByMediaId back into each media item's `insights` field so
+    // computeFormatPerformance / computeHeatmap can read post.insights.find(...).
+    const ig = igRaw
+      ? {
+          media: igRaw.media.map((m) => {
+            const data = igRaw.insightsByMediaId?.[m.id]?.data ?? [];
+            return { ...m, insights: data } as IgMediaItem;
+          }),
+          insightsByMediaId: igRaw.insightsByMediaId,
+        }
+      : null;
     const ads = pickLatest(rows, 'ads') as { hasCampaigns: boolean; insights: unknown } | null;
     const compRow = pickLatest(rows, 'competitor_account') as
       | { competitors: { handle: string; followerCount: number | null; postCount: number | null }[] }
