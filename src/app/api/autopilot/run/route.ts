@@ -9,6 +9,8 @@ import { pickNextTopic, type TopicCluster } from '@/lib/autopilot/topic-rotation
 import { cerebrasChatCompletion } from '@/lib/cerebras';
 import { createPost } from '@/lib/buffer';
 import { decrypt } from '@/lib/encryption';
+import { deriveImageQuery } from '@/lib/smart-posts/image-query';
+import { searchImages } from '@/lib/pixabay';
 
 export const dynamic = 'force-dynamic';
 
@@ -146,6 +148,52 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ status: 'failed', reason: 'empty_generation' });
   }
 
+  // Image selection — relevant and no-repeat per brand.
+  let imageUrl: string | null = null;
+  let imageQuery: string | null = null;
+  try {
+    const fallback = brand.description?.split(/\s+/).slice(0, 3).join(' ') || brand.name;
+    imageQuery = await deriveImageQuery({
+      brandName: brand.name,
+      brandDescription: brand.description ?? '',
+      hookText: caption.hookText,
+      caption: caption.caption,
+      contentType: 'tip',
+      fallback,
+    });
+
+    const pixabayKey = process.env.PIXABAY_API_KEY;
+    if (pixabayKey && imageQuery) {
+      // Fetch ~20 candidates so we have headroom for the no-repeat filter.
+      const results = await searchImages(pixabayKey, imageQuery, {
+        perPage: 20,
+        imageType: 'photo',
+        orientation: 'all',
+        minWidth: 1080,
+        minHeight: 1080,
+        order: 'popular',
+      });
+      const candidates = results.hits
+        .map((h) => h.largeImageURL || h.webformatURL)
+        .filter((u): u is string => Boolean(u));
+
+      if (candidates.length > 0) {
+        // No-repeat: load image URLs this brand has used in the last 90 days.
+        const sinceDate = new Date(now.getTime() - 90 * 86_400_000);
+        const recent = await db
+          .select({ src: posts.sourceImageUrl })
+          .from(posts)
+          .where(and(eq(posts.brandId, brandId), gte(posts.createdAt, sinceDate)));
+        const used = new Set(recent.map((r) => r.src).filter(Boolean) as string[]);
+        const fresh = candidates.find((u) => !used.has(u)) ?? candidates[0];
+        imageUrl = fresh;
+      }
+    }
+  } catch {
+    // Image failures must never block autopilot — just continue without one.
+    imageUrl = null;
+  }
+
   // Compute scheduledAt: use bestSlot if mode=auto.
   const scheduledAt = settings.mode === 'auto' && brain?.formula?.bestSlot
     ? (() => {
@@ -202,6 +250,7 @@ export async function POST(req: Request): Promise<Response> {
               text: fullText,
               mode: 'customScheduled',
               scheduledAt: scheduledAt.toISOString(),
+              imageUrls: imageUrl ? [imageUrl] : undefined,
             });
             bufferPostId = bufferPost.id;
             postStatus = 'scheduled';
@@ -230,6 +279,7 @@ export async function POST(req: Request): Promise<Response> {
       status: postStatus,
       scheduledAt,
       bufferPostId,
+      sourceImageUrl: imageUrl,
     })
     .returning({ id: posts.id });
 
@@ -260,5 +310,7 @@ export async function POST(req: Request): Promise<Response> {
     scheduledAt: scheduledAt?.toISOString() ?? null,
     nextRunAt: next.toISOString(),
     warning: lastError,
+    imageUrl,
+    imageQuery,
   });
 }
