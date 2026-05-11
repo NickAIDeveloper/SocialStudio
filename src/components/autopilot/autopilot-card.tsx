@@ -1,6 +1,114 @@
 'use client';
 import { useEffect, useState } from 'react';
 
+// ---------------------------------------------------------------------------
+// BufferChannelPicker
+// ---------------------------------------------------------------------------
+
+interface ChannelEntry {
+  id: string;
+  name: string;
+  service: string;
+  organizationId: string;
+  organizationName: string;
+}
+
+interface DefaultChannelData {
+  connected: boolean;
+  channels: ChannelEntry[];
+  selected: { channelId: string; organizationId: string; channelName: string | null } | null;
+  error?: string | null;
+}
+
+function BufferChannelPicker({ brandHint }: { brandHint: string }) {
+  const [data, setData] = useState<DefaultChannelData | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function load() {
+    setErr(null);
+    const res = await fetch('/api/buffer/default-channel');
+    if (!res.ok) { setErr(`channels: ${res.status}`); return; }
+    setData(await res.json());
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function pick(c: { id: string; name: string; organizationId: string }) {
+    setSaving(true); setErr(null);
+    try {
+      const res = await fetch('/api/buffer/default-channel', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ channelId: c.id, organizationId: c.organizationId, channelName: c.name }),
+      });
+      if (!res.ok) throw new Error(`save ${res.status}`);
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!data) return <div className="text-xs text-zinc-500 mt-3">Loading Buffer channels…</div>;
+
+  if (!data.connected) {
+    return (
+      <div className="mt-3 text-xs text-amber-300 bg-amber-950/30 border border-amber-900/50 rounded px-2 py-1.5">
+        Buffer not connected. Go to <a href="/linked-accounts" className="underline">Linked Accounts</a> to connect it.
+        Autopilot will save drafts until Buffer is set up.
+      </div>
+    );
+  }
+
+  if (data.error) {
+    return (
+      <div className="mt-3 text-xs text-red-400 bg-red-950/30 border border-red-900/50 rounded px-2 py-1.5">
+        Failed to load channels: {data.error}
+      </div>
+    );
+  }
+
+  if (data.channels.length === 0) {
+    return (
+      <div className="mt-3 text-xs text-zinc-400">
+        Buffer is connected but has no channels yet. Add one in Buffer first.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3">
+      <label className="text-xs text-zinc-400 mb-1 block">
+        Buffer channel for {brandHint} (auto-publish target)
+      </label>
+      <select
+        disabled={saving}
+        value={data.selected?.channelId ?? ''}
+        onChange={(e) => {
+          const c = data.channels.find((x) => x.id === e.target.value);
+          if (c) pick({ id: c.id, name: `${c.organizationName} · ${c.name} (${c.service})`, organizationId: c.organizationId });
+        }}
+        className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-white focus:border-teal-500 focus:outline-none disabled:opacity-50"
+      >
+        <option value="" disabled>— pick a channel —</option>
+        {data.channels.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.organizationName} · {c.name} ({c.service})
+          </option>
+        ))}
+      </select>
+      {data.selected && (
+        <div className="text-xs text-emerald-400 mt-1">
+          ✓ Posts will publish to {data.selected.channelName ?? data.selected.channelId}
+        </div>
+      )}
+      {err && <div className="text-xs text-red-400 mt-1">{err}</div>}
+    </div>
+  );
+}
+
 interface Props {
   brandId: string;
   brandName: string;
@@ -119,6 +227,10 @@ export function AutopilotCard({ brandId, brandName }: Props) {
           </select>
         </div>
       </div>
+
+      {s.enabled && s.mode === 'auto' && (
+        <BufferChannelPicker brandHint={brandName} />
+      )}
 
       <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <div>

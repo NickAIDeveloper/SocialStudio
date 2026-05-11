@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { brands, autopilotSettings, posts, brainSignals } from '@/lib/db/schema';
+import { brands, autopilotSettings, posts, brainSignals, linkedAccounts } from '@/lib/db/schema';
 import { verifyBrainSignature } from '@/lib/brain/auth';
 import { readBrandBrain } from '@/lib/brain/consume';
 import { computeNextRunAt, isDueNow, type Frequency } from '@/lib/autopilot/schedule';
 import { pickNextTopic, type TopicCluster } from '@/lib/autopilot/topic-rotation';
 import { cerebrasChatCompletion } from '@/lib/cerebras';
+import { createPost } from '@/lib/buffer';
+import { decrypt } from '@/lib/encryption';
 
 export const dynamic = 'force-dynamic';
 
@@ -144,8 +146,6 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ status: 'failed', reason: 'empty_generation' });
   }
 
-  const postStatus = settings.mode === 'auto' ? 'scheduled' : 'draft';
-
   // Compute scheduledAt: use bestSlot if mode=auto.
   const scheduledAt = settings.mode === 'auto' && brain?.formula?.bestSlot
     ? (() => {
@@ -160,6 +160,64 @@ export async function POST(req: Request): Promise<Response> {
       })()
     : null;
 
+  let bufferPostId: string | null = null;
+  let postStatus: 'draft' | 'scheduled' = 'draft';
+  let lastError: string | null = null;
+
+  if (settings.mode === 'auto' && scheduledAt) {
+    // Look up the user's Buffer integration.
+    const [link] = await db
+      .select()
+      .from(linkedAccounts)
+      .where(and(eq(linkedAccounts.userId, brand.userId), eq(linkedAccounts.provider, 'buffer')));
+
+    if (!link?.accessToken) {
+      // Buffer not connected — fall back to draft and surface the issue.
+      postStatus = 'draft';
+      lastError = 'buffer_not_connected';
+    } else {
+      let apiKey: string;
+      try {
+        apiKey = decrypt(link.accessToken);
+      } catch {
+        postStatus = 'draft';
+        lastError = 'buffer_token_decrypt_failed';
+        apiKey = '';
+      }
+
+      if (apiKey) {
+        const meta = (link.metadata ?? {}) as {
+          selectedChannelId?: string;
+          selectedOrganizationId?: string;
+        };
+        if (!meta.selectedChannelId || !meta.selectedOrganizationId) {
+          postStatus = 'draft';
+          lastError = 'buffer_channel_not_selected';
+        } else {
+          try {
+            const fullText = `${caption.caption}\n\n${caption.hashtags}`.trim();
+            const bufferPost = await createPost(apiKey, {
+              channelId: meta.selectedChannelId,
+              organizationId: meta.selectedOrganizationId,
+              text: fullText,
+              mode: 'customScheduled',
+              scheduledAt: scheduledAt.toISOString(),
+            });
+            bufferPostId = bufferPost.id;
+            postStatus = 'scheduled';
+          } catch (err) {
+            // Buffer push failed — fall back to draft. User can manually publish later.
+            postStatus = 'draft';
+            lastError = `buffer_push_failed: ${err instanceof Error ? err.message : String(err)}`;
+          }
+        }
+      }
+    }
+  } else {
+    // Queue mode (default) — always draft.
+    postStatus = 'draft';
+  }
+
   const [inserted] = await db
     .insert(posts)
     .values({
@@ -171,6 +229,7 @@ export async function POST(req: Request): Promise<Response> {
       contentType: 'tip',
       status: postStatus,
       scheduledAt,
+      bufferPostId,
     })
     .returning({ id: posts.id });
 
@@ -186,7 +245,7 @@ export async function POST(req: Request): Promise<Response> {
     .set({
       lastRunAt: now,
       nextRunAt: next,
-      lastError: null,
+      lastError,
       totalGenerated: (settings.totalGenerated ?? 0) + 1,
       updatedAt: now,
     })
@@ -196,8 +255,10 @@ export async function POST(req: Request): Promise<Response> {
     status: 'ok',
     postId: inserted.id,
     postStatus,
+    bufferPostId,
     topic,
     scheduledAt: scheduledAt?.toISOString() ?? null,
     nextRunAt: next.toISOString(),
+    warning: lastError,
   });
 }
