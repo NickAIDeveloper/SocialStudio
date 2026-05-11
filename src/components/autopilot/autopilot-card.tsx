@@ -264,6 +264,128 @@ export function AutopilotCard({ brandId, brandName }: Props) {
           ⚠️ Full auto: posts will be scheduled to Buffer at the brain&apos;s best slot without review.
         </div>
       )}
+      <AutopilotQueue brandId={brandId} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AutopilotQueue
+// ---------------------------------------------------------------------------
+
+interface QueueItem {
+  id: string;
+  caption: string;
+  hookText: string | null;
+  hashtags: string | null;
+  status: string;
+  scheduledAt: string | null;
+  publishedAt: string | null;
+  bufferPostId: string | null;
+  sourceImageUrl: string | null;
+  createdAt: string;
+}
+
+function statusBadge(status: string): { label: string; classes: string } {
+  switch (status) {
+    case 'scheduled':
+      return { label: 'Scheduled', classes: 'bg-teal-950/40 text-teal-300 border-teal-900/60' };
+    case 'published':
+      return { label: 'Published', classes: 'bg-emerald-950/40 text-emerald-300 border-emerald-900/60' };
+    case 'draft':
+      return { label: 'Draft', classes: 'bg-zinc-900 text-zinc-300 border-zinc-700' };
+    case 'failed':
+      return { label: 'Failed', classes: 'bg-red-950/40 text-red-300 border-red-900/60' };
+    default:
+      return { label: status, classes: 'bg-zinc-900 text-zinc-300 border-zinc-700' };
+  }
+}
+
+function relative(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  const ms = d.getTime() - Date.now();
+  const abs = Math.abs(ms);
+  const minutes = Math.round(abs / 60000);
+  if (minutes < 60) return `${ms > 0 ? 'in ' : ''}${minutes}m${ms > 0 ? '' : ' ago'}`;
+  const hours = Math.round(abs / 3600000);
+  if (hours < 48) return `${ms > 0 ? 'in ' : ''}${hours}h${ms > 0 ? '' : ' ago'}`;
+  const days = Math.round(abs / 86400000);
+  return `${ms > 0 ? 'in ' : ''}${days}d${ms > 0 ? '' : ' ago'}`;
+}
+
+function AutopilotQueue({ brandId }: { brandId: string }) {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<QueueItem[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function load() {
+    setErr(null);
+    const res = await fetch(`/api/autopilot/queue?brandId=${brandId}&limit=10`);
+    if (!res.ok) { setErr(`queue ${res.status}`); return; }
+    const data = (await res.json()) as { posts: QueueItem[] };
+    setItems(data.posts);
+  }
+
+  useEffect(() => { if (open) load(); }, [open, brandId]);
+
+  return (
+    <div className="mt-4 border-t border-zinc-800/60 pt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-xs text-zinc-300 hover:text-white flex items-center gap-1"
+      >
+        <span className={`inline-block transition-transform ${open ? 'rotate-90' : ''}`}>›</span>
+        Recent generated posts {items ? `(${items.length})` : ''}
+      </button>
+      {open && (
+        <div className="mt-3 space-y-2">
+          {err && <div className="text-xs text-red-400">{err}</div>}
+          {items === null && !err && <div className="text-xs text-zinc-500">Loading…</div>}
+          {items && items.length === 0 && (
+            <div className="text-xs text-zinc-500">
+              No autopilot posts yet. They&apos;ll show up here after the next cron run.
+            </div>
+          )}
+          {items && items.map((p) => {
+            const badge = statusBadge(p.status);
+            const when = p.scheduledAt ?? p.publishedAt ?? p.createdAt;
+            return (
+              <div key={p.id} className="flex gap-3 rounded-lg border border-zinc-800/60 bg-zinc-950/40 p-2.5">
+                {p.sourceImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={p.sourceImageUrl}
+                    alt=""
+                    className="w-14 h-14 rounded object-cover flex-shrink-0 bg-zinc-900"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded bg-zinc-900 flex-shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded border ${badge.classes}`}>
+                      {badge.label}
+                    </span>
+                    <span className="text-xs text-zinc-500">{relative(when)}</span>
+                    {p.bufferPostId && (
+                      <span className="text-[10px] text-zinc-500" title={p.bufferPostId}>
+                        Buffer ✓
+                      </span>
+                    )}
+                  </div>
+                  {p.hookText && (
+                    <div className="text-xs font-medium text-white truncate">{p.hookText}</div>
+                  )}
+                  <div className="text-xs text-zinc-400 line-clamp-2">{p.caption}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
