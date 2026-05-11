@@ -280,6 +280,7 @@ export async function POST(req: Request): Promise<Response> {
       scheduledAt,
       bufferPostId,
       sourceImageUrl: imageUrl,
+      source: 'autopilot',
     })
     .returning({ id: posts.id });
 
