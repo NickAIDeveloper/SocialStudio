@@ -498,9 +498,7 @@ export function SmartPostsDashboard() {
           </div>
         )}
 
-        {process.env.NEXT_PUBLIC_BRAIN_UI_ENABLED === 'true' && brandId && (
-          <BrainBadge brandId={brandId} />
-        )}
+        {brandId && <BrainBadge brandId={brandId} />}
 
         {/* Refresh only makes sense once there's data to re-derive from.
             For a brand with zero insights (e.g. a brand-new account that
