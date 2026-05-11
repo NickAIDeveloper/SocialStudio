@@ -932,7 +932,7 @@ export function PostGenerator() {
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-medium uppercase tracking-wider text-white">Caption</h3>
             <div className="flex items-center gap-2">
-              {process.env.NEXT_PUBLIC_BRAIN_UI_ENABLED === 'true' && (() => {
+              {(() => {
                 const matchedBrand = apiBrands.find(
                   (b) => b.slug === brand || b.name.toLowerCase() === brand,
                 );
