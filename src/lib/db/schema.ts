@@ -148,6 +148,7 @@ export const posts = pgTable('posts', {
   scheduledAt: timestamp('scheduled_at', { mode: 'date' }),
   publishedAt: timestamp('published_at', { mode: 'date' }),
   bufferPostId: text('buffer_post_id'),
+  source: varchar('source', { length: 32 }), // 'manual' (default null) | 'autopilot'
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow(),
 });
