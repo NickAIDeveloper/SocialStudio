@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth-helpers';
+import { verifyBrainSignature } from '@/lib/brain/auth';
 import { generateFromSeed, sanitizeMetaOverrides } from '@/lib/smart-posts/generate';
 import { buildDeepProfile } from '@/lib/meta/deep-profile';
 import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
@@ -174,10 +175,51 @@ function buildUserPrompt(profile: DeepProfile, likeOfMediaId?: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getUserId();
-    let body: { brandId?: string; igUserId?: string; likeOfMediaId?: string; learningIds?: string[] };
+    // Read body as text once so we can verify HMAC and parse JSON from same bytes.
+    let rawBody: string;
     try {
-      body = await req.json();
+      rawBody = await req.text();
+    } catch (err) {
+      console.warn('[SmartPosts/god-mode] failed to read body:', err);
+      return NextResponse.json(
+        { error: 'invalid_body', message: 'Could not read request body.' },
+        { status: 400 },
+      );
+    }
+
+    // HMAC path: server-to-server calls (e.g. autopilot) sign the body with
+    // BRAIN_CRON_SECRET and supply userId in the body — no cookie/session needed.
+    // Session path: normal browser UI calls authenticated via NextAuth cookie.
+    let userId: string;
+    const hasSig = Boolean(req.headers.get('x-brain-signature'));
+    if (hasSig) {
+      const ok = await verifyBrainSignature(req, rawBody);
+      if (!ok) {
+        return NextResponse.json({ error: 'bad_signature' }, { status: 401 });
+      }
+      let parsedForUserId: { userId?: string } = {};
+      try {
+        parsedForUserId = JSON.parse(rawBody) as { userId?: string };
+      } catch {
+        return NextResponse.json(
+          { error: 'invalid_json', message: 'Request body must be valid JSON.' },
+          { status: 400 },
+        );
+      }
+      if (!parsedForUserId.userId) {
+        return NextResponse.json(
+          { error: 'userId_required', message: 'userId required in body for HMAC-authenticated requests.' },
+          { status: 400 },
+        );
+      }
+      userId = parsedForUserId.userId;
+    } else {
+      userId = await getUserId();
+    }
+
+    let body: { brandId?: string; igUserId?: string; likeOfMediaId?: string; learningIds?: string[]; userId?: string; metaOverrides?: unknown };
+    try {
+      body = JSON.parse(rawBody) as typeof body;
     } catch (err) {
       console.warn('[SmartPosts/god-mode] invalid JSON body:', err);
       return NextResponse.json(
@@ -186,6 +228,8 @@ export async function POST(req: NextRequest) {
       );
     }
     const { brandId, igUserId, likeOfMediaId, learningIds } = body;
+    // metaOverrides may be passed by autopilot to seed format/timing from brain formula.
+    const callerMetaOverrides = body.metaOverrides ?? null;
     const cleanLearningIds = Array.isArray(learningIds)
       ? learningIds.filter((s): s is string => typeof s === 'string' && s.length > 0)
       : undefined;
@@ -263,9 +307,17 @@ export async function POST(req: NextRequest) {
     const rationale =
       typeof llmSeed.rationale === 'string' ? llmSeed.rationale.trim() : '';
 
+    // If the caller supplied metaOverrides (e.g. autopilot brain formula), merge
+    // them on top of the LLM-designed seed — caller values take precedence for
+    // format and timing, LLM fills pattern/preset.
+    const callerSanitized = callerMetaOverrides ? sanitizeMetaOverrides(callerMetaOverrides) : null;
+    const mergedOverrides = callerSanitized
+      ? { ...sanitized, ...callerSanitized }
+      : sanitized;
+
     const outcome = await generateFromSeed({
       brandId,
-      metaOverrides: sanitized,
+      metaOverrides: mergedOverrides,
       userId,
       origin,
       cookie,

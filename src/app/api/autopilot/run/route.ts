@@ -1,72 +1,15 @@
 import { NextResponse } from 'next/server';
-import { and, desc, eq, gte } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
+import { createHmac } from 'node:crypto';
 import { db } from '@/lib/db';
-import { brands, autopilotSettings, posts, brainSignals, linkedAccounts } from '@/lib/db/schema';
+import { brands, autopilotSettings, posts, linkedAccounts, instagramAccounts } from '@/lib/db/schema';
 import { verifyBrainSignature } from '@/lib/brain/auth';
 import { readBrandBrain } from '@/lib/brain/consume';
 import { computeNextRunAt, isDueNow, type Frequency } from '@/lib/autopilot/schedule';
-import { pickNextTopic, type TopicCluster } from '@/lib/autopilot/topic-rotation';
-import { cerebrasChatCompletion } from '@/lib/cerebras';
 import { createPost } from '@/lib/buffer';
 import { decrypt } from '@/lib/encryption';
-import { deriveImageQuery } from '@/lib/smart-posts/image-query';
-import { searchImages } from '@/lib/pixabay';
 
 export const dynamic = 'force-dynamic';
-
-interface CaptionPayload {
-  caption: string;
-  hookText: string;
-  hashtags: string;
-}
-
-async function generateCaptionForTopic(args: {
-  brandName: string;
-  briefMd: string | null;
-  topic: string;
-}): Promise<CaptionPayload> {
-  const system = `You write Instagram posts for the brand "${args.brandName}".
-Use the brand's strategy brief if provided. Output ONLY a JSON object.`;
-  const briefBlock = args.briefMd
-    ? `Strategy brief:\n${args.briefMd}\n\n`
-    : '';
-  const user = `${briefBlock}Topic for this post: ${args.topic}
-
-Write one Instagram post:
-- "hookText": 3-6 words, scroll-stopping
-- "caption": 60-120 words, hook line + body + CTA
-- "hashtags": 5 relevant hashtags space-separated, no commas
-
-Return JSON: {"hookText": "...", "caption": "...", "hashtags": "#a #b #c #d #e"}`;
-
-  const raw = await cerebrasChatCompletion(
-    [
-      { role: 'system', content: system },
-      { role: 'user', content: user },
-    ],
-    { temperature: 0.8, maxTokens: 600, responseFormat: 'json' }
-  );
-
-  let parsed: Partial<CaptionPayload> = {};
-  try {
-    parsed = JSON.parse(raw) as Partial<CaptionPayload>;
-  } catch {
-    // Fall back to extracting from the raw text.
-    const m = raw.match(/\{[\s\S]*\}/);
-    if (m) {
-      try { parsed = JSON.parse(m[0]) as Partial<CaptionPayload>; } catch { /* ignore */ }
-    }
-  }
-  return {
-    caption: typeof parsed.caption === 'string' ? parsed.caption.slice(0, 4000) : '',
-    hookText: typeof parsed.hookText === 'string' ? parsed.hookText.slice(0, 200) : '',
-    hashtags: typeof parsed.hashtags === 'string' ? parsed.hashtags.slice(0, 500) : '',
-  };
-}
-
-interface BrainSignalsRow {
-  topicClusters: unknown;
-}
 
 export async function POST(req: Request): Promise<Response> {
   const { searchParams } = new URL(req.url);
@@ -100,127 +43,127 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const brain = await readBrandBrain(brandId);
-  // Pull topic clusters from latest 28d signals row.
-  const [s28] = (await db
-    .select({ topicClusters: brainSignals.topicClusters })
-    .from(brainSignals)
-    .where(and(eq(brainSignals.brandId, brandId), eq(brainSignals.windowDays, 28)))
-    .orderBy(desc(brainSignals.computedAt))
-    .limit(1)) as BrainSignalsRow[];
 
-  const topics = (s28?.topicClusters ?? []) as TopicCluster[];
+  // Resolve the brand owner's connected IG account — god-mode requires igUserId.
+  // instagramAccounts are keyed by userId (not brandId); pick the first one.
+  const [igAccount] = await db
+    .select({ igUserId: instagramAccounts.igUserId })
+    .from(instagramAccounts)
+    .where(eq(instagramAccounts.userId, brand.userId))
+    .limit(1);
 
-  // Look at last 14 days of posts to avoid topic repeats.
-  const recentSinceDate = new Date(now.getTime() - 14 * 86_400_000);
-  const recentPosts = await db
-    .select({ caption: posts.caption })
-    .from(posts)
-    .where(and(eq(posts.brandId, brandId), gte(posts.createdAt, recentSinceDate)))
-    .orderBy(desc(posts.createdAt))
-    .limit(10);
-  const recentTopics: string[] = recentPosts
-    .map((p) => p.caption.split('\n')[0].slice(0, 80))
-    .filter(Boolean);
+  if (!igAccount?.igUserId) {
+    await db
+      .update(autopilotSettings)
+      .set({ lastError: 'no_ig_account', updatedAt: now })
+      .where(eq(autopilotSettings.brandId, brandId));
+    return NextResponse.json({ status: 'failed', reason: 'no_ig_account' });
+  }
 
-  const topic = pickNextTopic({ topics, recentTopics, fallback: brand.name }) ?? brand.name;
+  // Call the god-mode endpoint with HMAC auth so we get the full composited
+  // image (hook overlay + brand logo) and LLM-designed seed — same as the
+  // smart-posts UI flow.
+  const baseUrl = new URL(req.url).origin;
+  const godBody = JSON.stringify({
+    userId: brand.userId,
+    brandId,
+    igUserId: igAccount.igUserId,
+    metaOverrides: brain?.formula
+      ? {
+          format: brain.formula.format,
+          day: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][
+            brain.formula.bestSlot.dow
+          ],
+          hour: brain.formula.bestSlot.hour,
+        }
+      : null,
+  });
 
-  let caption: CaptionPayload;
+  const sig = createHmac('sha256', process.env.BRAIN_CRON_SECRET!).update(godBody).digest('hex');
+
+  let godPayload: {
+    caption?: string;
+    hashtags?: string;
+    hookText?: string;
+    sourceImageUrl?: string;
+    imageDataUrl?: string;
+    scheduledAt?: string | null;
+    godModeRationale?: string;
+    godModeFellBack?: boolean;
+  };
+
   try {
-    caption = await generateCaptionForTopic({
-      brandName: brand.name,
-      briefMd: brain?.briefMd ?? null,
-      topic,
+    const godRes = await fetch(`${baseUrl}/api/smart-posts/god-mode`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-brain-signature': sig,
+      },
+      body: godBody,
     });
+
+    if (!godRes.ok) {
+      const errText = await godRes.text().catch(() => '');
+      const errorCode = `god_mode_${godRes.status}`;
+      await db
+        .update(autopilotSettings)
+        .set({ lastError: `${errorCode}: ${errText.slice(0, 200)}`, updatedAt: now })
+        .where(eq(autopilotSettings.brandId, brandId));
+      return NextResponse.json({ status: 'failed', reason: errorCode });
+    }
+
+    godPayload = (await godRes.json()) as typeof godPayload;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await db
       .update(autopilotSettings)
-      .set({ lastError: msg, updatedAt: new Date() })
+      .set({ lastError: `god_mode_fetch_failed: ${msg}`, updatedAt: now })
       .where(eq(autopilotSettings.brandId, brandId));
-    return NextResponse.json({ status: 'failed', reason: msg });
+    return NextResponse.json({ status: 'failed', reason: 'god_mode_fetch_failed' });
   }
 
-  if (!caption.caption || !caption.hookText) {
+  const caption = godPayload.caption ?? '';
+  const hashtags = godPayload.hashtags ?? '';
+  const hookText = godPayload.hookText ?? '';
+  // god-mode returns a base64 imageDataUrl for the composited image and the
+  // raw sourceImageUrl. Buffer requires a hosted URL, so we use sourceImageUrl
+  // for the Buffer push. The composited imageDataUrl is stored for the queue UI.
+  const sourceImageUrl = godPayload.sourceImageUrl ?? null;
+
+  if (!caption || !hookText) {
     await db
       .update(autopilotSettings)
-      .set({ lastError: 'empty_generation', updatedAt: new Date() })
+      .set({ lastError: 'empty_generation', updatedAt: now })
       .where(eq(autopilotSettings.brandId, brandId));
     return NextResponse.json({ status: 'failed', reason: 'empty_generation' });
   }
 
-  // Image selection — relevant and no-repeat per brand.
-  let imageUrl: string | null = null;
-  let imageQuery: string | null = null;
-  try {
-    const fallback = brand.description?.split(/\s+/).slice(0, 3).join(' ') || brand.name;
-    imageQuery = await deriveImageQuery({
-      brandName: brand.name,
-      brandDescription: brand.description ?? '',
-      hookText: caption.hookText,
-      caption: caption.caption,
-      contentType: 'tip',
-      fallback,
-    });
-
-    const pixabayKey = process.env.PIXABAY_API_KEY;
-    if (pixabayKey && imageQuery) {
-      // Fetch ~20 candidates so we have headroom for the no-repeat filter.
-      const results = await searchImages(pixabayKey, imageQuery, {
-        perPage: 20,
-        imageType: 'photo',
-        orientation: 'all',
-        minWidth: 1080,
-        minHeight: 1080,
-        order: 'popular',
-      });
-      const candidates = results.hits
-        .map((h) => h.largeImageURL || h.webformatURL)
-        .filter((u): u is string => Boolean(u));
-
-      if (candidates.length > 0) {
-        // No-repeat: load image URLs this brand has used in the last 90 days.
-        const sinceDate = new Date(now.getTime() - 90 * 86_400_000);
-        const recent = await db
-          .select({ src: posts.sourceImageUrl })
-          .from(posts)
-          .where(and(eq(posts.brandId, brandId), gte(posts.createdAt, sinceDate)));
-        const used = new Set(recent.map((r) => r.src).filter(Boolean) as string[]);
-        const fresh = candidates.find((u) => !used.has(u)) ?? candidates[0];
-        imageUrl = fresh;
-      }
-    }
-  } catch {
-    // Image failures must never block autopilot — just continue without one.
-    imageUrl = null;
-  }
-
-  // Compute scheduledAt: use bestSlot if mode=auto.
-  const scheduledAt = settings.mode === 'auto' && brain?.formula?.bestSlot
-    ? (() => {
-        const out = new Date(now.getTime());
-        const desiredDow = brain.formula!.bestSlot.dow;
-        const hour = brain.formula!.bestSlot.hour;
-        out.setUTCHours(hour, 0, 0, 0);
-        let delta = (desiredDow - out.getUTCDay() + 7) % 7;
-        if (delta === 0 && out.getTime() <= now.getTime()) delta = 7;
-        out.setUTCDate(out.getUTCDate() + delta);
-        return out;
-      })()
-    : null;
+  // Compute scheduledAt from brain bestSlot when mode=auto.
+  const scheduledAt =
+    settings.mode === 'auto' && brain?.formula?.bestSlot
+      ? (() => {
+          const out = new Date(now.getTime());
+          const desiredDow = brain.formula!.bestSlot.dow;
+          const hour = brain.formula!.bestSlot.hour;
+          out.setUTCHours(hour, 0, 0, 0);
+          let delta = (desiredDow - out.getUTCDay() + 7) % 7;
+          if (delta === 0 && out.getTime() <= now.getTime()) delta = 7;
+          out.setUTCDate(out.getUTCDate() + delta);
+          return out;
+        })()
+      : null;
 
   let bufferPostId: string | null = null;
   let postStatus: 'draft' | 'scheduled' = 'draft';
   let lastError: string | null = null;
 
   if (settings.mode === 'auto' && scheduledAt) {
-    // Look up the user's Buffer integration.
     const [link] = await db
       .select()
       .from(linkedAccounts)
       .where(and(eq(linkedAccounts.userId, brand.userId), eq(linkedAccounts.provider, 'buffer')));
 
     if (!link?.accessToken) {
-      // Buffer not connected — fall back to draft and surface the issue.
       postStatus = 'draft';
       lastError = 'buffer_not_connected';
     } else {
@@ -243,28 +186,24 @@ export async function POST(req: Request): Promise<Response> {
           lastError = 'buffer_channel_not_selected';
         } else {
           try {
-            const fullText = `${caption.caption}\n\n${caption.hashtags}`.trim();
+            const fullText = `${caption}\n\n${hashtags}`.trim();
             const bufferPost = await createPost(apiKey, {
               channelId: meta.selectedChannelId,
               organizationId: meta.selectedOrganizationId,
               text: fullText,
               mode: 'customScheduled',
               scheduledAt: scheduledAt.toISOString(),
-              imageUrls: imageUrl ? [imageUrl] : undefined,
+              imageUrls: sourceImageUrl ? [sourceImageUrl] : undefined,
             });
             bufferPostId = bufferPost.id;
             postStatus = 'scheduled';
           } catch (err) {
-            // Buffer push failed — fall back to draft. User can manually publish later.
             postStatus = 'draft';
             lastError = `buffer_push_failed: ${err instanceof Error ? err.message : String(err)}`;
           }
         }
       }
     }
-  } else {
-    // Queue mode (default) — always draft.
-    postStatus = 'draft';
   }
 
   const [inserted] = await db
@@ -272,19 +211,19 @@ export async function POST(req: Request): Promise<Response> {
     .values({
       userId: brand.userId,
       brandId,
-      caption: caption.caption,
-      hashtags: caption.hashtags,
-      hookText: caption.hookText,
+      caption,
+      hashtags,
+      hookText,
       contentType: 'tip',
       status: postStatus,
       scheduledAt,
       bufferPostId,
-      sourceImageUrl: imageUrl,
+      sourceImageUrl,
       source: 'autopilot',
     })
     .returning({ id: posts.id });
 
-  // Update settings.
+  // Update autopilot settings.
   const next = computeNextRunAt({
     frequency: settings.frequency as Frequency,
     lastRunAt: now,
@@ -307,11 +246,9 @@ export async function POST(req: Request): Promise<Response> {
     postId: inserted.id,
     postStatus,
     bufferPostId,
-    topic,
     scheduledAt: scheduledAt?.toISOString() ?? null,
     nextRunAt: next.toISOString(),
     warning: lastError,
-    imageUrl,
-    imageQuery,
+    godModeFellBack: godPayload.godModeFellBack ?? false,
   });
 }
