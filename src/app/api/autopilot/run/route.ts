@@ -11,6 +11,9 @@ import { createPost } from '@/lib/buffer';
 import { decrypt } from '@/lib/encryption';
 import { deriveImageQuery } from '@/lib/smart-posts/image-query';
 import { searchImages } from '@/lib/pixabay';
+import { createInstagramImageWithText } from '@/lib/image-processing';
+import { uploadImageToGitHub } from '@/lib/github-images';
+import type { Brand } from '@/lib/domain-types';
 
 export const dynamic = 'force-dynamic';
 
@@ -212,6 +215,34 @@ export async function POST(req: Request): Promise<Response> {
   let postStatus: 'draft' | 'scheduled' = 'draft';
   let lastError: string | null = null;
 
+  // Composite the image (brand overlay + hook text) and upload to GitHub so
+  // Buffer receives a public URL of the final composited image — not the raw
+  // stock photo. Falls back to the stock URL if compositing fails.
+  let compositedImageUrl: string | null = imageUrl;
+  if (imageUrl) {
+    try {
+      const brandSlug = brand.slug as Brand;
+      const logoUrl = brand.logoUrl ?? null;
+      const processedBuffer = await createInstagramImageWithText(
+        imageUrl,
+        brandSlug,
+        caption.hookText,
+        'center',
+        '#FFFFFF',
+        64,
+        'editorial',
+        logoUrl,
+      );
+      const fileName = `autopilot-${Date.now()}.jpg`;
+      const upload = await uploadImageToGitHub(processedBuffer, fileName);
+      compositedImageUrl = upload.url;
+    } catch (compErr) {
+      // Compositing must never block autopilot — fall back to the raw stock URL.
+      console.warn('[autopilot] image compositing failed, using raw stock URL:', compErr instanceof Error ? compErr.message : String(compErr));
+      compositedImageUrl = imageUrl;
+    }
+  }
+
   if (settings.mode === 'auto' && scheduledAt) {
     // Look up the user's Buffer integration.
     const [link] = await db
@@ -250,7 +281,9 @@ export async function POST(req: Request): Promise<Response> {
               text: fullText,
               mode: 'customScheduled',
               scheduledAt: scheduledAt.toISOString(),
-              imageUrls: imageUrl ? [imageUrl] : undefined,
+              // Use the composited image (with hook overlay + brand logo).
+              // Falls back to raw stock URL if compositing failed above.
+              imageUrls: compositedImageUrl ? [compositedImageUrl] : undefined,
             });
             bufferPostId = bufferPost.id;
             postStatus = 'scheduled';
@@ -279,7 +312,10 @@ export async function POST(req: Request): Promise<Response> {
       status: postStatus,
       scheduledAt,
       bufferPostId,
+      // sourceImageUrl: the raw Pixabay stock photo we picked from.
       sourceImageUrl: imageUrl,
+      // processedImageUrl: the composited version (with overlay) that was sent to Buffer.
+      processedImageUrl: compositedImageUrl !== imageUrl ? compositedImageUrl : null,
       source: 'autopilot',
     })
     .returning({ id: posts.id });
@@ -312,6 +348,7 @@ export async function POST(req: Request): Promise<Response> {
     nextRunAt: next.toISOString(),
     warning: lastError,
     imageUrl,
+    compositedImageUrl,
     imageQuery,
   });
 }
