@@ -8,6 +8,7 @@ import { readBrandBrain } from '@/lib/brain/consume';
 import { computeNextRunAt, isDueNow, type Frequency } from '@/lib/autopilot/schedule';
 import { createPost } from '@/lib/buffer';
 import { decrypt } from '@/lib/encryption';
+import { uploadImageToGitHub } from '@/lib/github-images';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,7 +63,8 @@ export async function POST(req: Request): Promise<Response> {
 
   // Call the god-mode endpoint with HMAC auth so we get the full composited
   // image (hook overlay + brand logo) and LLM-designed seed — same as the
-  // smart-posts UI flow.
+  // smart-posts UI flow. brandId is explicitly included in the body so
+  // generateFromSeed uses the correct brand and never bleeds into another.
   const baseUrl = new URL(req.url).origin;
   const godBody = JSON.stringify({
     userId: brand.userId,
@@ -125,10 +127,12 @@ export async function POST(req: Request): Promise<Response> {
   const caption = godPayload.caption ?? '';
   const hashtags = godPayload.hashtags ?? '';
   const hookText = godPayload.hookText ?? '';
-  // god-mode returns a base64 imageDataUrl for the composited image and the
-  // raw sourceImageUrl. Buffer requires a hosted URL, so we use sourceImageUrl
-  // for the Buffer push. The composited imageDataUrl is stored for the queue UI.
+  // sourceImageUrl: the raw stock photo god-mode picked from Pixabay.
   const sourceImageUrl = godPayload.sourceImageUrl ?? null;
+  // imageDataUrl: the composited image (hook overlay + brand logo) as a
+  // base64 data-URL. Buffer requires a publicly hosted URL, so upload it to
+  // GitHub first. Falls back to sourceImageUrl if upload fails.
+  const imageDataUrl = godPayload.imageDataUrl ?? null;
 
   if (!caption || !hookText) {
     await db
@@ -137,6 +141,28 @@ export async function POST(req: Request): Promise<Response> {
       .where(eq(autopilotSettings.brandId, brandId));
     return NextResponse.json({ status: 'failed', reason: 'empty_generation' });
   }
+
+  // Upload the composited image to GitHub to get a public URL for Buffer.
+  let processedImageUrl: string | null = null;
+  if (imageDataUrl) {
+    try {
+      // imageDataUrl is "data:image/jpeg;base64,<data>" — strip the prefix.
+      const base64Data = imageDataUrl.replace(/^data:image\/\w+;base64,/, '');
+      const imageBuffer = Buffer.from(base64Data, 'base64');
+      const fileName = `autopilot-${Date.now()}.jpg`;
+      const upload = await uploadImageToGitHub(imageBuffer, fileName);
+      processedImageUrl = upload.url;
+    } catch (uploadErr) {
+      // Upload failures must never block autopilot — fall back to stock URL.
+      console.warn(
+        '[autopilot] composited image upload failed, falling back to stock URL:',
+        uploadErr instanceof Error ? uploadErr.message : String(uploadErr),
+      );
+    }
+  }
+
+  // The URL we pass to Buffer: composited image if available, else stock photo.
+  const bufferImageUrl = processedImageUrl ?? sourceImageUrl;
 
   // Compute scheduledAt from brain bestSlot when mode=auto.
   const scheduledAt =
@@ -193,7 +219,9 @@ export async function POST(req: Request): Promise<Response> {
               text: fullText,
               mode: 'customScheduled',
               scheduledAt: scheduledAt.toISOString(),
-              imageUrls: sourceImageUrl ? [sourceImageUrl] : undefined,
+              // Use the composited image (with hook overlay + brand logo) that
+              // was uploaded to GitHub. Falls back to raw stock URL if upload failed.
+              imageUrls: bufferImageUrl ? [bufferImageUrl] : undefined,
             });
             bufferPostId = bufferPost.id;
             postStatus = 'scheduled';
@@ -218,7 +246,11 @@ export async function POST(req: Request): Promise<Response> {
       status: postStatus,
       scheduledAt,
       bufferPostId,
+      // sourceImageUrl: the raw stock photo god-mode picked from Pixabay.
       sourceImageUrl,
+      // processedImageUrl: the composited version (hook overlay + brand logo)
+      // hosted on GitHub — this is what was actually sent to Buffer.
+      processedImageUrl,
       source: 'autopilot',
     })
     .returning({ id: posts.id });
@@ -249,6 +281,8 @@ export async function POST(req: Request): Promise<Response> {
     scheduledAt: scheduledAt?.toISOString() ?? null,
     nextRunAt: next.toISOString(),
     warning: lastError,
+    sourceImageUrl,
+    processedImageUrl,
     godModeFellBack: godPayload.godModeFellBack ?? false,
   });
 }
