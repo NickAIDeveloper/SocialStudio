@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, gte } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { brands, scrapedPosts, posts } from '@/lib/db/schema';
 import { seedFromInsight, mergePerfectSeed } from '@/lib/smart-posts';
@@ -437,7 +437,29 @@ export async function generateFromSeed(
     }))
     .filter((c) => Boolean(c.url));
 
-  const candidates: ImageCandidate[] = [...stockCandidates, ...pastCandidates];
+  const combinedCandidates: ImageCandidate[] = [...stockCandidates, ...pastCandidates];
+
+  // No-repeat filter: 90-day window per brand.
+  // Loads sourceImageUrl + processedImageUrl from posts for this brand and
+  // filters them out of candidates so the same Pixabay #1 doesn't get reused.
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 86_400_000);
+  const recentImageRows = await db
+    .select({
+      src: posts.sourceImageUrl,
+      processed: posts.processedImageUrl,
+    })
+    .from(posts)
+    .where(and(eq(posts.brandId, brandId), gte(posts.createdAt, ninetyDaysAgo)));
+
+  const usedUrls = new Set<string>();
+  for (const r of recentImageRows) {
+    if (r.src) usedUrls.add(r.src);
+    if (r.processed) usedUrls.add(r.processed);
+  }
+
+  const freshCandidates = combinedCandidates.filter((c) => !usedUrls.has(c.url));
+  const candidates: ImageCandidate[] = freshCandidates.length > 0 ? freshCandidates : combinedCandidates;
+
   const sourceImageUrl = candidates[0]?.url;
   if (!sourceImageUrl) {
     return {
