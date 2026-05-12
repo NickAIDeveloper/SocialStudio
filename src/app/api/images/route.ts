@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth-helpers';
+import { verifyBrainSignature } from '@/lib/brain/auth';
 import { decrypt } from '@/lib/encryption';
 import { db } from '@/lib/db';
 import { linkedAccounts } from '@/lib/db/schema';
@@ -48,7 +49,16 @@ async function getDecryptedKey(userId: string, provider: string): Promise<{ key:
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = await getUserId();
+    let userId: string | null = null;
+    if (request.headers.get('x-brain-signature')) {
+      if (await verifyBrainSignature(request, '')) {
+        const uid = new URL(request.url).searchParams.get('_uid');
+        if (uid) userId = uid;
+      }
+    }
+    if (!userId) {
+      userId = await getUserId();
+    }
     const { searchParams } = new URL(request.url);
     const source = searchParams.get('source');
     const query = searchParams.get('q');
@@ -133,8 +143,23 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getUserId();
-    const body = await request.json();
+    let userId: string | null = null;
+    let rawBody: string;
+    if (request.headers.get('x-brain-signature')) {
+      rawBody = await request.text();
+      if (await verifyBrainSignature(request, rawBody)) {
+        try {
+          const parsed = JSON.parse(rawBody) as { userId?: string };
+          if (parsed.userId && typeof parsed.userId === 'string') userId = parsed.userId;
+        } catch { /* ignore */ }
+      }
+    } else {
+      rawBody = await request.text();
+    }
+    if (!userId) {
+      userId = await getUserId();
+    }
+    const body = JSON.parse(rawBody) as { source?: string; prompt?: string; userId?: string };
     const { source, prompt } = body;
 
     if (source !== 'gemini') {

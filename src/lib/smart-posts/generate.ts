@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { eq, and } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { brands, scrapedPosts, posts } from '@/lib/db/schema';
@@ -87,12 +88,22 @@ export interface GenerateFromSeedInput {
   origin: string;
   /** Forwarded cookie header for internal API auth. */
   cookie: string;
+  /** When set, sub-route fetches are signed with HMAC instead of using cookie. */
+  cronSecret?: string;
   /** Optional connected IG account id; when present, top past posts join the candidate list. */
   igUserId?: string;
   /** Optional learning IDs from the cart. When non-empty, only insights with
    * matching ids contribute to the merged seed. Empty/undefined = every
    * actionable insight contributes (pre-cart behavior). */
   learningIds?: string[];
+}
+
+function authHeaders(body: string, cronSecret?: string, cookie?: string): Record<string, string> {
+  if (cronSecret) {
+    const sig = createHmac('sha256', cronSecret).update(body).digest('hex');
+    return { 'Content-Type': 'application/json', 'x-brain-signature': sig };
+  }
+  return { 'Content-Type': 'application/json', cookie: cookie ?? '' };
 }
 
 export interface ImageCandidate {
@@ -144,7 +155,7 @@ export type GenerateFromSeedOutcome =
 export async function generateFromSeed(
   input: GenerateFromSeedInput,
 ): Promise<GenerateFromSeedOutcome> {
-  const { insightId, brandId, metaOverrides: rawMetaOverrides, userId, origin, cookie, igUserId, learningIds } = input;
+  const { insightId, brandId, metaOverrides: rawMetaOverrides, userId, origin, cookie, cronSecret, igUserId, learningIds } = input;
   const metaOverrides = sanitizeMetaOverrides(rawMetaOverrides);
 
   if (!brandId) {
@@ -197,10 +208,15 @@ export async function generateFromSeed(
     };
   }
 
-  const insightsRes = await fetch(
-    `${origin}/api/insights?type=analytics&brandId=${encodeURIComponent(brandId)}`,
-    { headers: { cookie } },
-  );
+  const insightsUrl = cronSecret
+    ? `${origin}/api/insights?type=analytics&brandId=${encodeURIComponent(brandId)}&_uid=${encodeURIComponent(userId)}`
+    : `${origin}/api/insights?type=analytics&brandId=${encodeURIComponent(brandId)}`;
+  const insightsSig = cronSecret ? createHmac('sha256', cronSecret).update('').digest('hex') : '';
+  const insightsRes = await fetch(insightsUrl, {
+    headers: cronSecret
+      ? { 'x-brain-signature': insightsSig }
+      : { cookie },
+  });
   if (!insightsRes.ok) {
     return {
       ok: false,
@@ -320,20 +336,23 @@ export async function generateFromSeed(
     }
   }
 
+  const captionBodyObj = {
+    brandSlug: brand.slug,
+    contentType: seed.contentType,
+    avoidTopics: seed.avoidTopics,
+    hookPattern: seed.hookPattern ?? '',
+    captionLengthHint: seed.captionLengthHint,
+    captionPatternHint: seed.captionPatternHint,
+    toneHint: seed.toneHint,
+    variationSeed: Math.floor(Math.random() * 100000),
+    brainBriefMd: brainCtx?.briefMd ?? null,
+    ...(cronSecret ? { userId } : {}),
+  };
+  const captionBodyStr = JSON.stringify(captionBodyObj);
   const captionRes = await fetch(`${origin}/api/captions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', cookie },
-    body: JSON.stringify({
-      brandSlug: brand.slug,
-      contentType: seed.contentType,
-      avoidTopics: seed.avoidTopics,
-      hookPattern: seed.hookPattern ?? '',
-      captionLengthHint: seed.captionLengthHint,
-      captionPatternHint: seed.captionPatternHint,
-      toneHint: seed.toneHint,
-      variationSeed: Math.floor(Math.random() * 100000),
-      brainBriefMd: brainCtx?.briefMd ?? null,
-    }),
+    headers: authHeaders(captionBodyStr, cronSecret, cookie),
+    body: captionBodyStr,
   });
   if (!captionRes.ok) {
     const err = (await captionRes.json().catch(() => ({}))) as { error?: string; message?: string };
@@ -362,9 +381,13 @@ export async function generateFromSeed(
     contentType: seed.contentType,
     fallback: fallbackQuery,
   });
+  const imagesUrl = cronSecret
+    ? `${origin}/api/images?source=all&q=${encodeURIComponent(topicQuery)}&_uid=${encodeURIComponent(userId)}`
+    : `${origin}/api/images?source=all&q=${encodeURIComponent(topicQuery)}`;
+  const imagesSig = cronSecret ? createHmac('sha256', cronSecret).update('').digest('hex') : '';
   const [imagesRes, pastRes] = await Promise.all([
-    fetch(`${origin}/api/images?source=all&q=${encodeURIComponent(topicQuery)}`, {
-      headers: { cookie },
+    fetch(imagesUrl, {
+      headers: cronSecret ? { 'x-brain-signature': imagesSig } : { cookie },
     }),
     fetchTopPerformingPastImages({ igUserId, limit: 2, origin, cookie }),
   ]);

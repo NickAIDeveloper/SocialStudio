@@ -3,13 +3,40 @@ import { eq, and, desc } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { brands, scrapedAccounts, scrapedPosts, insightsCache } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
+import { verifyBrainSignature } from '@/lib/brain/auth';
 import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
 import { sanitizeCaption, sanitizeHook, sanitizeHashtags, reconcileCountClaim } from '@/lib/caption-engine';
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getUserId();
-    const body = await request.json();
+    let userId: string | null = null;
+    let rawBody: string;
+    if (request.headers.get('x-brain-signature')) {
+      rawBody = await request.text();
+      if (await verifyBrainSignature(request, rawBody)) {
+        try {
+          const parsed = JSON.parse(rawBody) as { userId?: string };
+          if (parsed.userId && typeof parsed.userId === 'string') userId = parsed.userId;
+        } catch { /* ignore */ }
+      }
+    } else {
+      rawBody = await request.text();
+    }
+    if (!userId) {
+      userId = await getUserId();
+    }
+    const body = JSON.parse(rawBody) as {
+      brandSlug?: string;
+      contentType?: string;
+      avoidTopics?: string[];
+      variationSeed?: number;
+      hookPattern?: string;
+      captionLengthHint?: string;
+      captionPatternHint?: { type?: string; label?: string };
+      toneHint?: string;
+      brainBriefMd?: string;
+      userId?: string;
+    };
     const { brandSlug, contentType } = body;
 
     const avoidTopics: string[] = body.avoidTopics || [];

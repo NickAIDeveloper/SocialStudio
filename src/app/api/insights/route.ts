@@ -11,6 +11,7 @@ import {
   healthScoreSnapshots,
 } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
+import { verifyBrainSignature } from '@/lib/brain/auth';
 import { generateAnalyticsInsights } from '@/lib/insights-engine';
 import { generateCompetitorInsights } from '@/lib/competitor-engine';
 import { getHealthSummary } from '@/lib/health-score';
@@ -410,7 +411,16 @@ async function computeCompetitors(userId: string, brandId?: string | null): Prom
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = await getUserId();
+    let userId: string | null = null;
+    if (request.headers.get('x-brain-signature')) {
+      if (await verifyBrainSignature(request, '')) {
+        const uid = new URL(request.url).searchParams.get('_uid');
+        if (uid) userId = uid;
+      }
+    }
+    if (!userId) {
+      userId = await getUserId();
+    }
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
 
@@ -462,7 +472,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getUserId();
+    let userId: string | null = null;
+    if (request.headers.get('x-brain-signature')) {
+      const rawBody = await request.text();
+      if (await verifyBrainSignature(request, rawBody)) {
+        try {
+          const parsed = JSON.parse(rawBody) as { userId?: string };
+          if (parsed.userId && typeof parsed.userId === 'string') userId = parsed.userId;
+        } catch { /* ignore */ }
+      }
+    }
+    if (!userId) {
+      userId = await getUserId();
+    }
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
 

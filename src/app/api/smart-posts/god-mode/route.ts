@@ -93,6 +93,7 @@ async function generateFallback(opts: {
   userId: string;
   origin: string;
   cookie: string;
+  cronSecret?: string;
   profile: DeepProfile;
   reason: string;
   raw: string;
@@ -108,6 +109,7 @@ async function generateFallback(opts: {
     userId: opts.userId,
     origin: opts.origin,
     cookie: opts.cookie,
+    cronSecret: opts.cronSecret,
     igUserId: opts.igUserId,
     learningIds: opts.learningIds,
   });
@@ -290,16 +292,17 @@ export async function POST(req: NextRequest) {
 
     const origin = req.nextUrl.origin;
     const cookie = req.headers.get('cookie') ?? '';
+    const cronSecret = hasSig ? (process.env.BRAIN_CRON_SECRET ?? undefined) : undefined;
 
     const parsed = parseLlmJson(raw);
     if (!parsed.ok) {
-      return generateFallback({ brandId, userId, origin, cookie, profile, reason: 'parse_failed', raw, igUserId, learningIds: cleanLearningIds });
+      return generateFallback({ brandId, userId, origin, cookie, cronSecret, profile, reason: 'parse_failed', raw, igUserId, learningIds: cleanLearningIds });
     }
 
     const llmSeed = parsed.data as { overrides?: unknown; rationale?: unknown };
     const sanitized = sanitizeMetaOverrides(llmSeed.overrides);
     if (!sanitized || Object.keys(sanitized).length === 0) {
-      return generateFallback({ brandId, userId, origin, cookie, profile, reason: 'empty_overrides', raw, igUserId, learningIds: cleanLearningIds });
+      return generateFallback({ brandId, userId, origin, cookie, cronSecret, profile, reason: 'empty_overrides', raw, igUserId, learningIds: cleanLearningIds });
     }
 
     // Empty rationale is non-fatal — caller can still see contributions and
@@ -321,6 +324,7 @@ export async function POST(req: NextRequest) {
       userId,
       origin,
       cookie,
+      cronSecret,
       igUserId,
       learningIds: cleanLearningIds,
     });
