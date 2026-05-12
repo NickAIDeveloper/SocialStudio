@@ -114,7 +114,7 @@ export async function createPost(apiKey: string, params: SchedulePostParams): Pr
     ? `dueAt: ${JSON.stringify(params.scheduledAt)}`
     : '';
   const assetsField = params.imageUrls?.length
-    ? `assets: { photos: [${params.imageUrls.map(url => `{ url: ${JSON.stringify(url)} }`).join(', ')}] }`
+    ? `assets: [${params.imageUrls.map(url => `{ image: { url: ${JSON.stringify(url)} } }`).join(', ')}]`
     : '';
 
   const query = `mutation {
