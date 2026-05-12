@@ -35,7 +35,8 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const now = new Date();
-  if (!isDueNow(settings.nextRunAt, now)) {
+  const force = searchParams.get('force') === '1';
+  if (!force && !isDueNow(settings.nextRunAt, now)) {
     return NextResponse.json({
       status: 'skipped',
       reason: 'not_due',
