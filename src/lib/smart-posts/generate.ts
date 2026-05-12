@@ -371,8 +371,22 @@ export async function generateFromSeed(
     hookText?: string;
   };
 
+  // Build a concrete scene fallback rather than the bare brand name / description
+  // words, which produce poor Pixabay results for brands like Affectly.
+  const { brandCategories } = await import('@/lib/pixabay');
+  const hookFallback = (captionPayload.hookText ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 3)
+    .slice(0, 4)
+    .join(' ');
+  const categoryFallback = brandCategories[brand.slug] ?? '';
   const fallbackQuery =
-    seed.topicHint ?? brand.description?.split(/\s+/).slice(0, 3).join(' ') ?? brand.name;
+    hookFallback ||
+    seed.topicHint ||
+    categoryFallback ||
+    'person desk laptop';
   let topicQuery = await deriveImageQuery({
     brandName: brand.name,
     brandDescription: brand.description ?? '',
@@ -421,27 +435,10 @@ export async function generateFromSeed(
 
   const TARGET = 6;
   const PAST_CAP = 2;
-  const pastCandidates: ImageCandidate[] = pastRes
-    .slice(0, PAST_CAP)
-    .map((m) => ({
-      url: (m.media_url ?? m.thumbnail_url) as string,
-      source: 'past' as const,
-      permalink: m.permalink,
-    }))
-    .filter((c) => Boolean(c.url));
-  const stockCandidates: ImageCandidate[] = (imagesPayload.images ?? [])
-    .slice(0, TARGET - pastCandidates.length)
-    .map((img) => ({
-      url: (img.largeImageURL ?? img.url) as string,
-      source: 'stock' as const,
-    }))
-    .filter((c) => Boolean(c.url));
-
-  const combinedCandidates: ImageCandidate[] = [...stockCandidates, ...pastCandidates];
 
   // No-repeat filter: 90-day window per brand.
-  // Loads sourceImageUrl + processedImageUrl from posts for this brand and
-  // filters them out of candidates so the same Pixabay #1 doesn't get reused.
+  // Build usedUrls FIRST so we can filter the full Pixabay pool BEFORE slicing,
+  // preventing the same top-N images from being reused across every batch.
   const ninetyDaysAgo = new Date(Date.now() - 90 * 86_400_000);
   const recentImageRows = await db
     .select({
@@ -457,8 +454,56 @@ export async function generateFromSeed(
     if (r.processed) usedUrls.add(r.processed);
   }
 
-  const freshCandidates = combinedCandidates.filter((c) => !usedUrls.has(c.url));
-  const candidates: ImageCandidate[] = freshCandidates.length > 0 ? freshCandidates : combinedCandidates;
+  // Past candidates — filter used URLs first.
+  const allPastCandidates: ImageCandidate[] = pastRes
+    .slice(0, PAST_CAP)
+    .map((m) => ({
+      url: (m.media_url ?? m.thumbnail_url) as string,
+      source: 'past' as const,
+      permalink: m.permalink,
+    }))
+    .filter((c) => Boolean(c.url));
+  const freshPast = allPastCandidates.filter((c) => !usedUrls.has(c.url));
+  const pastCandidates: ImageCandidate[] = freshPast.length > 0 ? freshPast : allPastCandidates;
+
+  // Stock candidates — filter the FULL Pixabay pool first, then slice.
+  const allStock: ImageCandidate[] = (imagesPayload.images ?? [])
+    .map((img) => ({
+      url: (img.largeImageURL ?? img.url) as string,
+      source: 'stock' as const,
+    }))
+    .filter((c) => Boolean(c.url));
+  const freshStock = allStock.filter((c) => !usedUrls.has(c.url));
+  const stockPool = freshStock.length > 0 ? freshStock : allStock;
+  const stockCandidates: ImageCandidate[] = stockPool.slice(0, TARGET - pastCandidates.length);
+
+  const combinedCandidates: ImageCandidate[] = [...stockCandidates, ...pastCandidates];
+
+  // Safety net: if Pixabay returned 0 results for the topic query, retry with
+  // the brand's category as a generic fallback so posts always have an image.
+  if (combinedCandidates.length === 0) {
+    try {
+      const { brandCategories } = await import('@/lib/pixabay');
+      const category = brandCategories[brand.slug] ?? 'lifestyle';
+      const fallbackImagesUrl = cronSecret
+        ? `${origin}/api/images?source=all&q=${encodeURIComponent(category)}&_uid=${encodeURIComponent(userId)}`
+        : `${origin}/api/images?source=all&q=${encodeURIComponent(category)}`;
+      const fallbackImagesRes = await fetch(fallbackImagesUrl, {
+        headers: cronSecret ? { 'x-brain-signature': imagesSig } : { cookie },
+      });
+      if (fallbackImagesRes.ok) {
+        const fb = (await fallbackImagesRes.json()) as {
+          images?: Array<{ largeImageURL?: string; url?: string }>;
+        };
+        const fallbackPool = (fb.images ?? [])
+          .map((img) => ({ url: (img.largeImageURL ?? img.url) as string, source: 'stock' as const }))
+          .filter((c) => c.url && !usedUrls.has(c.url));
+        combinedCandidates.push(...fallbackPool.slice(0, 3));
+      }
+    } catch { /* swallow — final fallback is no image */ }
+  }
+
+  const candidates: ImageCandidate[] = combinedCandidates;
 
   const sourceImageUrl = candidates[0]?.url;
   if (!sourceImageUrl) {
