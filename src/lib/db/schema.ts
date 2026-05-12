@@ -456,6 +456,9 @@ export const autopilotSettings = pgTable('autopilot_settings', {
   lastError: text('last_error'),
   // Brief audit: how many posts autopilot has produced for this brand.
   totalGenerated: integer('total_generated').notNull().default(0),
+  bufferChannelId: varchar('buffer_channel_id', { length: 128 }),
+  bufferOrganizationId: varchar('buffer_organization_id', { length: 128 }),
+  bufferChannelName: varchar('buffer_channel_name', { length: 255 }),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });

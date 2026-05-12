@@ -3,17 +3,10 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { getUserId } from '@/lib/auth-helpers';
 import { decrypt } from '@/lib/encryption';
-import { linkedAccounts } from '@/lib/db/schema';
+import { linkedAccounts, brands, autopilotSettings } from '@/lib/db/schema';
 import { getOrganizationsAndChannels } from '@/lib/buffer';
 
 export const dynamic = 'force-dynamic';
-
-interface MetadataShape {
-  selectedChannelId?: string;
-  selectedOrganizationId?: string;
-  selectedChannelName?: string;
-  [key: string]: unknown;
-}
 
 async function loadLink(userId: string) {
   const [link] = await db
@@ -24,8 +17,28 @@ async function loadLink(userId: string) {
   return link ?? null;
 }
 
-export async function GET(): Promise<Response> {
+async function validateBrand(userId: string, brandId: string) {
+  const [brand] = await db
+    .select()
+    .from(brands)
+    .where(and(eq(brands.id, brandId), eq(brands.userId, userId)))
+    .limit(1);
+  return brand ?? null;
+}
+
+export async function GET(req: Request): Promise<Response> {
   const userId = await getUserId();
+  const { searchParams } = new URL(req.url);
+  const brandId = searchParams.get('brandId');
+  if (!brandId) {
+    return NextResponse.json({ error: 'missing_brandId' }, { status: 400 });
+  }
+
+  const brand = await validateBrand(userId, brandId);
+  if (!brand) {
+    return NextResponse.json({ error: 'brand_not_found' }, { status: 404 });
+  }
+
   const link = await loadLink(userId);
   if (!link?.accessToken) {
     return NextResponse.json({ connected: false, channels: [], selected: null });
@@ -57,23 +70,47 @@ export async function GET(): Promise<Response> {
     listError = err instanceof Error ? err.message : String(err);
   }
 
-  const meta = (link.metadata ?? {}) as MetadataShape;
+  // Read selected channel from per-brand autopilotSettings row.
+  const [apSettings] = await db
+    .select({
+      bufferChannelId: autopilotSettings.bufferChannelId,
+      bufferOrganizationId: autopilotSettings.bufferOrganizationId,
+      bufferChannelName: autopilotSettings.bufferChannelName,
+    })
+    .from(autopilotSettings)
+    .where(eq(autopilotSettings.brandId, brandId))
+    .limit(1);
+
+  const selected =
+    apSettings?.bufferChannelId && apSettings?.bufferOrganizationId
+      ? {
+          channelId: apSettings.bufferChannelId,
+          organizationId: apSettings.bufferOrganizationId,
+          channelName: apSettings.bufferChannelName ?? null,
+        }
+      : null;
+
   return NextResponse.json({
     connected: true,
     channels,
-    selected: meta.selectedChannelId
-      ? {
-          channelId: meta.selectedChannelId,
-          organizationId: meta.selectedOrganizationId ?? null,
-          channelName: meta.selectedChannelName ?? null,
-        }
-      : null,
+    selected,
     error: listError,
   });
 }
 
 export async function PATCH(req: Request): Promise<Response> {
   const userId = await getUserId();
+  const { searchParams } = new URL(req.url);
+  const brandId = searchParams.get('brandId');
+  if (!brandId) {
+    return NextResponse.json({ error: 'missing_brandId' }, { status: 400 });
+  }
+
+  const brand = await validateBrand(userId, brandId);
+  if (!brand) {
+    return NextResponse.json({ error: 'brand_not_found' }, { status: 404 });
+  }
+
   const link = await loadLink(userId);
   if (!link) {
     return NextResponse.json({ error: 'buffer_not_connected' }, { status: 400 });
@@ -88,17 +125,24 @@ export async function PATCH(req: Request): Promise<Response> {
     return NextResponse.json({ error: 'missing_channelId_or_organizationId' }, { status: 400 });
   }
 
-  const prevMeta = (link.metadata ?? {}) as MetadataShape;
-  const nextMeta: MetadataShape = {
-    ...prevMeta,
-    selectedChannelId: body.channelId,
-    selectedOrganizationId: body.organizationId,
-    selectedChannelName: body.channelName ?? prevMeta.selectedChannelName,
-  };
+  // Upsert per-brand channel selection into autopilotSettings.
   await db
-    .update(linkedAccounts)
-    .set({ metadata: nextMeta, updatedAt: new Date() })
-    .where(eq(linkedAccounts.id, link.id));
+    .insert(autopilotSettings)
+    .values({
+      brandId,
+      bufferChannelId: body.channelId,
+      bufferOrganizationId: body.organizationId,
+      bufferChannelName: body.channelName ?? null,
+    })
+    .onConflictDoUpdate({
+      target: autopilotSettings.brandId,
+      set: {
+        bufferChannelId: body.channelId,
+        bufferOrganizationId: body.organizationId,
+        bufferChannelName: body.channelName ?? null,
+        updatedAt: new Date(),
+      },
+    });
 
   return NextResponse.json({
     ok: true,

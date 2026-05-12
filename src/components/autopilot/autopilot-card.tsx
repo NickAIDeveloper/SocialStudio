@@ -20,24 +20,24 @@ interface DefaultChannelData {
   error?: string | null;
 }
 
-function BufferChannelPicker({ brandHint }: { brandHint: string }) {
+function BufferChannelPicker({ brandId, brandHint }: { brandId: string; brandHint: string }) {
   const [data, setData] = useState<DefaultChannelData | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   async function load() {
     setErr(null);
-    const res = await fetch('/api/buffer/default-channel');
+    const res = await fetch(`/api/buffer/default-channel?brandId=${brandId}`);
     if (!res.ok) { setErr(`channels: ${res.status}`); return; }
     setData(await res.json());
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [brandId]);
 
   async function pick(c: { id: string; name: string; organizationId: string }) {
     setSaving(true); setErr(null);
     try {
-      const res = await fetch('/api/buffer/default-channel', {
+      const res = await fetch(`/api/buffer/default-channel?brandId=${brandId}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ channelId: c.id, organizationId: c.organizationId, channelName: c.name }),
@@ -229,7 +229,7 @@ export function AutopilotCard({ brandId, brandName }: Props) {
       </div>
 
       {s.enabled && s.mode === 'auto' && (
-        <BufferChannelPicker brandHint={brandName} />
+        <BufferChannelPicker brandId={brandId} brandHint={brandName} />
       )}
 
       <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">

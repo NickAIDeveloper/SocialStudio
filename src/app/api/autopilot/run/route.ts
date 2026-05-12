@@ -204,19 +204,15 @@ export async function POST(req: Request): Promise<Response> {
       }
 
       if (apiKey) {
-        const meta = (link.metadata ?? {}) as {
-          selectedChannelId?: string;
-          selectedOrganizationId?: string;
-        };
-        if (!meta.selectedChannelId || !meta.selectedOrganizationId) {
+        if (!settings.bufferChannelId || !settings.bufferOrganizationId) {
           postStatus = 'draft';
           lastError = 'buffer_channel_not_selected';
         } else {
           try {
             const fullText = `${caption}\n\n${hashtags}`.trim();
             const bufferPost = await createPost(apiKey, {
-              channelId: meta.selectedChannelId,
-              organizationId: meta.selectedOrganizationId,
+              channelId: settings.bufferChannelId,
+              organizationId: settings.bufferOrganizationId,
               text: fullText,
               mode: 'customScheduled',
               scheduledAt: scheduledAt.toISOString(),
