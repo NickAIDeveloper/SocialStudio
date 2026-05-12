@@ -350,6 +350,26 @@ function AutopilotQueue({ brandId, brandName }: { brandId: string; brandName: st
     }
   }
 
+  async function scheduleOne(postId: string): Promise<{ ok: true } | { ok: false; message: string }> {
+    const res = await fetch(`/api/autopilot/schedule?postId=${postId}`, { method: 'POST' });
+    const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+    if (!res.ok) {
+      return { ok: false, message: body.message ?? body.error ?? `HTTP ${res.status}` };
+    }
+    await load();
+    return { ok: true };
+  }
+
+  async function deleteOne(postId: string): Promise<{ ok: true } | { ok: false; message: string }> {
+    const res = await fetch(`/api/autopilot/queue?postId=${postId}`, { method: 'DELETE' });
+    const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+    if (!res.ok) {
+      return { ok: false, message: body.message ?? body.error ?? `HTTP ${res.status}` };
+    }
+    await load();
+    return { ok: true };
+  }
+
   useEffect(() => { if (open) load(); }, [open, brandId]);
 
   return (
@@ -435,9 +455,20 @@ function AutopilotQueue({ brandId, brandName }: { brandId: string; brandName: st
         </div>
       )}
       <PostPreviewModal
+        key={preview?.id ?? 'closed'}
         post={preview}
         brandName={brandName}
         onClose={() => setPreview(null)}
+        onSchedule={async (postId) => {
+          const result = await scheduleOne(postId);
+          if (result.ok) setPreview(null);
+          return result;
+        }}
+        onDelete={async (postId) => {
+          const result = await deleteOne(postId);
+          if (result.ok) setPreview(null);
+          return result;
+        }}
       />
     </div>
   );
@@ -449,15 +480,27 @@ function AutopilotQueue({ brandId, brandName }: { brandId: string; brandName: st
 // caption with paragraph breaks intact, hashtags, status/timing meta.
 // ---------------------------------------------------------------------------
 
+type PreviewActionResult = { ok: true } | { ok: false; message: string };
+
 function PostPreviewModal({
   post,
   brandName,
   onClose,
+  onSchedule,
+  onDelete,
 }: {
   post: QueueItem | null;
   brandName: string;
   onClose: () => void;
+  onSchedule: (postId: string) => Promise<PreviewActionResult>;
+  onDelete: (postId: string) => Promise<PreviewActionResult>;
 }) {
+  // Note: AutopilotQueue mounts this with a `key={post?.id}` so the component
+  // remounts (and state resets) cleanly when the selected post changes — no
+  // setState-in-effect reset needed.
+  const [busy, setBusy] = useState<'schedule' | 'delete' | null>(null);
+  const [actionErr, setActionErr] = useState<string | null>(null);
+
   // Close on Escape — base UI dialog handles this, but the modal here is a
   // light-weight overlay so we wire it up directly.
   useEffect(() => {
@@ -475,6 +518,34 @@ function PostPreviewModal({
   const badge = statusBadge(post.status);
   const when = post.scheduledAt ?? post.publishedAt ?? post.createdAt;
   const handle = brandName.toLowerCase().replace(/\s+/g, '');
+  const canSchedule = post.status === 'draft';
+
+  async function handleSchedule() {
+    if (!post || busy) return;
+    setBusy('schedule');
+    setActionErr(null);
+    const result = await onSchedule(post.id);
+    if (!result.ok) {
+      setActionErr(result.message);
+      setBusy(null);
+    }
+    // If ok, parent closes the modal — no need to reset busy.
+  }
+
+  async function handleDelete() {
+    if (!post || busy) return;
+    const ok = window.confirm(
+      'Delete this draft? It will be removed from the listing and its image can be picked again. Anything already in Buffer is untouched.',
+    );
+    if (!ok) return;
+    setBusy('delete');
+    setActionErr(null);
+    const result = await onDelete(post.id);
+    if (!result.ok) {
+      setActionErr(result.message);
+      setBusy(null);
+    }
+  }
 
   return (
     <div
@@ -548,6 +619,45 @@ function PostPreviewModal({
               Hook: <span className="text-zinc-300">{post.hookText}</span>
             </span>
           )}
+        </div>
+
+        {/* Action bar */}
+        <div className="px-3 pb-3 pt-1 border-t border-zinc-800 mt-0 flex flex-col gap-2">
+          {actionErr && (
+            <div className="text-[11px] text-red-400 bg-red-950/30 border border-red-900/50 rounded px-2 py-1">
+              {actionErr}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSchedule}
+              disabled={!canSchedule || busy !== null}
+              title={canSchedule ? 'Push this draft to Buffer at the brain best slot' : `Post is "${post.status}" — nothing to schedule.`}
+              className="flex-1 rounded-lg bg-teal-600 hover:bg-teal-500 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white text-sm font-medium py-2 transition-colors"
+            >
+              {busy === 'schedule'
+                ? 'Scheduling…'
+                : canSchedule
+                  ? 'Schedule to Buffer'
+                  : post.status === 'scheduled'
+                    ? 'Already scheduled'
+                    : `Status: ${post.status}`}
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={busy !== null}
+              className="rounded-lg border border-zinc-700 hover:border-red-700 text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm px-3 py-2 transition-colors"
+            >
+              {busy === 'delete' ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+          <p className="text-[10px] text-zinc-500 leading-snug">
+            {canSchedule
+              ? 'Scheduling sends this post to your selected Buffer channel at the brain best slot (24h from now if no best slot yet).'
+              : 'Once a post is scheduled, manage it from inside Buffer.'}
+          </p>
         </div>
       </div>
     </div>

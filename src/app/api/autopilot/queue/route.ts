@@ -60,13 +60,39 @@ export async function GET(req: Request): Promise<Response> {
   return NextResponse.json({ posts: rows });
 }
 
-// Wipes every autopilot-generated row for this brand. Used by the "Clear all"
-// button in the queue UI when the user wants to start fresh after quality
-// fixes (or just to clear cruft). Note: this does not unpublish anything that
-// already shipped to Buffer/Instagram — those external posts remain — it only
-// clears the local listing AND the no-reuse image set, which lets future
-// generations pull from previously-used Pixabay images again.
+// DELETE has two modes — both authenticated via the user's session:
+//   1. ?postId=X    — delete a single autopilot post the caller owns (used by
+//                     the "Delete this post" button on the preview modal).
+//   2. ?brandId=X   — wipe every autopilot row for this brand (used by the
+//                     "Clear all" button to start fresh).
+// Neither mode unpublishes anything already shipped to Buffer/Instagram — it
+// only removes our local rows and frees those images from the no-reuse set.
 export async function DELETE(req: Request): Promise<Response> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'unauth' }, { status: 401 });
+  }
+  const userId = session.user.id;
+
+  const { searchParams } = new URL(req.url);
+  const postId = searchParams.get('postId');
+  if (postId) {
+    const deleted = await db
+      .delete(posts)
+      .where(
+        and(
+          eq(posts.id, postId),
+          eq(posts.userId, userId),
+          eq(posts.source, 'autopilot'),
+        ),
+      )
+      .returning({ id: posts.id });
+    if (deleted.length === 0) {
+      return NextResponse.json({ error: 'post_not_found' }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true, deleted: 1 });
+  }
+
   const guard = await authorizeBrand(req);
   if (!guard.ok) return guard.res;
   const { brandId } = guard;
