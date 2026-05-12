@@ -76,7 +76,70 @@ export function sanitizeCaption(text: string): string {
   // Re-strip wrapping quotes that may have been hidden behind the leading meta.
   out = out.replace(/^["'\u201C\u201D]+|["'\u201C\u201D]+$/g, '').trim();
   for (const rx of LLM_TRAILING_COMMENTARY) out = out.replace(rx, '').trim();
-  return out;
+  // Enforce multi-paragraph structure \u2014 Instagram strips dense walls of text
+  // and the LLM occasionally produces one long paragraph instead of the
+  // hook/body/CTA shape we asked for. Runs LAST so all the cleanup above
+  // doesn't undo the paragraph breaks we inject.
+  return enforceCaptionParagraphs(out);
+}
+
+// A caption is "dense" enough to warrant auto-splitting only if it's long AND
+// has multiple sentences. Short 1-2 sentence outputs (e.g. "Train smarter.
+// Link in bio.") read fine on one line — splitting them creates awkward
+// fragments. The threshold is calibrated so real Instagram-length walls of
+// text (autopilot's failure mode) trigger the split, but short polish-pass
+// outputs and unit-test snippets do not.
+const DENSE_CAPTION_MIN_CHARS = 160;
+const DENSE_CAPTION_MIN_SENTENCES = 3;
+
+/**
+ * Ensures a caption is structured as multiple paragraphs separated by blank
+ * lines (\n\n). Instagram strips visual hierarchy when captions are a single
+ * dense paragraph, which is what was happening with autopilot output.
+ *
+ * Rules:
+ *   - If the caption already has at least one \n\n separator, normalize 3+
+ *     consecutive newlines to two and return.
+ *   - If it has only single-\n separators between non-empty lines, upgrade
+ *     them to \n\n.
+ *   - If it is a single line: only force-split when it is genuinely dense
+ *     (>= DENSE_CAPTION_MIN_CHARS AND >= DENSE_CAPTION_MIN_SENTENCES). Short
+ *     captions are left alone.
+ */
+export function enforceCaptionParagraphs(caption: string): string {
+  if (!caption.trim()) return caption;
+
+  if (/\n\s*\n/.test(caption)) {
+    return caption.replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  const nonEmptyLines = caption.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (nonEmptyLines.length === 0) return caption;
+  if (nonEmptyLines.length >= 2) {
+    return nonEmptyLines.join('\n\n');
+  }
+
+  const single = nonEmptyLines[0];
+  if (single.length < DENSE_CAPTION_MIN_CHARS) return single;
+
+  const matches = single.match(/[^.!?]+[.!?]+(?:\s|$)/g);
+  if (!matches) return single;
+  const sentences = matches.map((s) => s.trim()).filter(Boolean);
+  if (sentences.length < DENSE_CAPTION_MIN_SENTENCES) return single;
+
+  const paragraphs: string[] = [];
+  paragraphs.push(sentences[0]);
+  if (sentences.length === 3) {
+    paragraphs.push(sentences[1]);
+    paragraphs.push(sentences[2]);
+  } else {
+    const body = sentences.slice(1, -1);
+    for (let i = 0; i < body.length; i += 2) {
+      paragraphs.push(body.slice(i, i + 2).join(' '));
+    }
+    paragraphs.push(sentences[sentences.length - 1]);
+  }
+  return paragraphs.join('\n\n');
 }
 
 export function sanitizeHook(text: string): string {

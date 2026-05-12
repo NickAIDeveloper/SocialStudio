@@ -63,23 +63,18 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   // Call the god-mode endpoint with HMAC auth so we get the full composited
-  // image (hook overlay + brand logo) and LLM-designed seed — same as the
-  // smart-posts UI flow. brandId is explicitly included in the body so
-  // generateFromSeed uses the correct brand and never bleeds into another.
+  // image (hook overlay + brand logo) and LLM-designed seed — same shape as the
+  // smart-posts UI flow. We intentionally DO NOT forward metaOverrides: god-mode
+  // already picks the optimal format/day/hour from the deep profile via its LLM
+  // designer, and forwarding the brain's bestSlot was producing lower-quality
+  // output than the UI path (which never sends metaOverrides). The brain's
+  // bestSlot is still consulted below for scheduledAt — that's a scheduling
+  // decision, separate from the LLM design.
   const baseUrl = new URL(req.url).origin;
   const godBody = JSON.stringify({
     userId: brand.userId,
     brandId,
     igUserId: igAccount.igUserId,
-    metaOverrides: brain?.formula
-      ? {
-          format: brain.formula.format,
-          day: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][
-            brain.formula.bestSlot.dow
-          ],
-          hour: brain.formula.bestSlot.hour,
-        }
-      : null,
   });
 
   const sig = createHmac('sha256', process.env.BRAIN_CRON_SECRET!).update(godBody).digest('hex');

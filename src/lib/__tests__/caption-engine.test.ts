@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeCaption, sanitizeHook, reconcileCountClaim } from '../caption-engine';
+import {
+  sanitizeCaption,
+  sanitizeHook,
+  reconcileCountClaim,
+  enforceCaptionParagraphs,
+} from '../caption-engine';
 
 describe('sanitizeCaption — LLM trailing commentary', () => {
   it('strips ": I removed the hashtag as per your instructions" tail', () => {
@@ -179,5 +184,56 @@ describe('reconcileCountClaim — hook number vs list count mismatch', () => {
     const out = reconcileCountClaim(hookText, caption);
     expect(out.caption).toContain('Try these 3 tips today');
     expect(out.caption).toContain('See 5 tips daily');
+  });
+});
+
+describe('enforceCaptionParagraphs', () => {
+  it('preserves existing \\n\\n paragraph separators', () => {
+    const input = 'Hook line.\n\nBody paragraph.\n\nCTA line.';
+    expect(enforceCaptionParagraphs(input)).toBe(input);
+  });
+
+  it('normalizes 3+ consecutive newlines to exactly two', () => {
+    const input = 'Hook line.\n\n\n\nBody paragraph.\n\n\nCTA line.';
+    expect(enforceCaptionParagraphs(input)).toBe(
+      'Hook line.\n\nBody paragraph.\n\nCTA line.',
+    );
+  });
+
+  it('upgrades single-\\n separators between non-empty lines to \\n\\n', () => {
+    const input = 'Hook line.\nBody paragraph.\nCTA line.';
+    expect(enforceCaptionParagraphs(input)).toBe(
+      'Hook line.\n\nBody paragraph.\n\nCTA line.',
+    );
+  });
+
+  it('does NOT split a short two-sentence single line', () => {
+    const input = 'Train smarter with Affectly. Link in bio.';
+    expect(enforceCaptionParagraphs(input)).toBe(input);
+  });
+
+  it('splits a long dense paragraph with 3+ sentences into hook + body + CTA', () => {
+    const input =
+      'Your study method is broken. Most people read until they forget then read again. That is not learning that is procrastination dressed up. Affectly adapts every session to your mood and pace. Try it free link in bio.';
+    const out = enforceCaptionParagraphs(input);
+    expect(out).toContain('\n\n');
+    // First paragraph should be the first sentence (hook)
+    const paragraphs = out.split('\n\n');
+    expect(paragraphs[0]).toBe('Your study method is broken.');
+    // Last paragraph should be the last sentence (CTA)
+    expect(paragraphs[paragraphs.length - 1]).toBe('Try it free link in bio.');
+    // Should have 3+ paragraphs
+    expect(paragraphs.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('returns empty/whitespace input unchanged', () => {
+    expect(enforceCaptionParagraphs('')).toBe('');
+    expect(enforceCaptionParagraphs('   ')).toBe('   ');
+  });
+
+  it('leaves a long single sentence alone (cannot split without sentence boundaries)', () => {
+    const input =
+      'This is one very very long single sentence that does not contain any sentence-ending punctuation and just keeps going without ever stopping or providing any natural break point that we could use';
+    expect(enforceCaptionParagraphs(input)).toBe(input);
   });
 });

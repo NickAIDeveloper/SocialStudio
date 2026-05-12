@@ -319,6 +319,16 @@ CAPTION RULES:
 - No hashtags in caption body. No dashes or hyphens. No markdown. No emojis.
 - Write like a human who actually cares, not a marketing robot.
 
+CAPTION FORMATTING (CRITICAL — Instagram strips squashed text):
+- Output the caption as MULTIPLE PARAGRAPHS separated by blank lines (\\n\\n).
+- The HOOK LINE must be the first paragraph on its own (one line, then a blank line).
+- The BODY must be split into 2-4 short paragraphs, each separated by a blank line.
+- Numbered lists ("1. ...", "2. ...") must each be on their own line.
+- The CTA must be the final paragraph on its own, preceded by a blank line.
+- NEVER concatenate the whole caption into one wall of text. A dense paragraph is a hard reject.
+- Example of correct shape (note the blank lines between paragraphs):
+  Your study method is broken.\\n\\nMost people read until they forget, then read again. That is not learning. That is procrastination dressed up.\\n\\n${brandName} adapts every session to your mood and pace. Stressed brain gets simpler material. Energized brain goes deeper.\\n\\nTry it free. Link in bio.
+
 HASHTAG RULES:
 - Return EXACTLY 5 hashtags in the "hashtags" field. Not fewer. Not more.
 - All 5 must be relevant to the post topic and brand niche.

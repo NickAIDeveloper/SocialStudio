@@ -264,7 +264,7 @@ export function AutopilotCard({ brandId, brandName }: Props) {
           ⚠️ Full auto: posts will be scheduled to Buffer at the brain&apos;s best slot without review.
         </div>
       )}
-      <AutopilotQueue brandId={brandId} />
+      <AutopilotQueue brandId={brandId} brandName={brandName} />
     </div>
   );
 }
@@ -283,6 +283,7 @@ interface QueueItem {
   publishedAt: string | null;
   bufferPostId: string | null;
   sourceImageUrl: string | null;
+  processedImageUrl: string | null;
   createdAt: string;
 }
 
@@ -315,77 +316,240 @@ function relative(iso: string | null): string {
   return `${ms > 0 ? 'in ' : ''}${days}d${ms > 0 ? '' : ' ago'}`;
 }
 
-function AutopilotQueue({ brandId }: { brandId: string }) {
+function AutopilotQueue({ brandId, brandName }: { brandId: string; brandName: string }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<QueueItem[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const [preview, setPreview] = useState<QueueItem | null>(null);
 
   async function load() {
     setErr(null);
-    const res = await fetch(`/api/autopilot/queue?brandId=${brandId}&limit=10`);
+    const res = await fetch(`/api/autopilot/queue?brandId=${brandId}&limit=24`);
     if (!res.ok) { setErr(`queue ${res.status}`); return; }
     const data = (await res.json()) as { posts: QueueItem[] };
     setItems(data.posts);
+  }
+
+  async function clearAll() {
+    if (!items || items.length === 0) return;
+    const ok = window.confirm(
+      `Delete all ${items.length} autopilot post${items.length === 1 ? '' : 's'} for this brand? This wipes the local listing and the no-reuse image set. Posts already published to Buffer or Instagram are untouched.`,
+    );
+    if (!ok) return;
+    setClearing(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/autopilot/queue?brandId=${brandId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`clear ${res.status}`);
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setClearing(false);
+    }
   }
 
   useEffect(() => { if (open) load(); }, [open, brandId]);
 
   return (
     <div className="mt-4 border-t border-zinc-800/60 pt-3">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="text-xs text-zinc-300 hover:text-white flex items-center gap-1"
-      >
-        <span className={`inline-block transition-transform ${open ? 'rotate-90' : ''}`}>›</span>
-        Recent generated posts {items ? `(${items.length})` : ''}
-      </button>
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="text-xs text-zinc-300 hover:text-white flex items-center gap-1"
+        >
+          <span className={`inline-block transition-transform ${open ? 'rotate-90' : ''}`}>›</span>
+          Recent generated posts {items ? `(${items.length})` : ''}
+        </button>
+        {open && items && items.length > 0 && (
+          <button
+            type="button"
+            onClick={clearAll}
+            disabled={clearing}
+            className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
+          >
+            {clearing ? 'Clearing…' : 'Clear all'}
+          </button>
+        )}
+      </div>
       {open && (
-        <div className="mt-3 space-y-2">
-          {err && <div className="text-xs text-red-400">{err}</div>}
+        <div className="mt-3">
+          {err && <div className="text-xs text-red-400 mb-2">{err}</div>}
           {items === null && !err && <div className="text-xs text-zinc-500">Loading…</div>}
           {items && items.length === 0 && (
             <div className="text-xs text-zinc-500">
               No autopilot posts yet. They&apos;ll show up here after the next cron run.
             </div>
           )}
-          {items && items.map((p) => {
-            const badge = statusBadge(p.status);
-            const when = p.scheduledAt ?? p.publishedAt ?? p.createdAt;
-            return (
-              <div key={p.id} className="flex gap-3 rounded-lg border border-zinc-800/60 bg-zinc-950/40 p-2.5">
-                {p.sourceImageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={p.sourceImageUrl}
-                    alt=""
-                    className="w-14 h-14 rounded object-cover flex-shrink-0 bg-zinc-900"
-                  />
-                ) : (
-                  <div className="w-14 h-14 rounded bg-zinc-900 flex-shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded border ${badge.classes}`}>
-                      {badge.label}
-                    </span>
-                    <span className="text-xs text-zinc-500">{relative(when)}</span>
-                    {p.bufferPostId && (
-                      <span className="text-[10px] text-zinc-500" title={p.bufferPostId}>
-                        Buffer ✓
-                      </span>
+          {items && items.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {items.map((p) => {
+                const badge = statusBadge(p.status);
+                const when = p.scheduledAt ?? p.publishedAt ?? p.createdAt;
+                // Prefer the composited image (with hook overlay + brand logo)
+                // when present; fall back to the raw stock photo.
+                const thumb = p.processedImageUrl ?? p.sourceImageUrl;
+                return (
+                  <button
+                    type="button"
+                    key={p.id}
+                    onClick={() => setPreview(p)}
+                    className="text-left rounded-lg border border-zinc-800/60 bg-zinc-950/40 overflow-hidden flex flex-col hover:border-zinc-700 hover:bg-zinc-900/40 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+                  >
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={thumb}
+                        alt=""
+                        className="w-full aspect-square object-cover bg-zinc-900"
+                      />
+                    ) : (
+                      <div className="w-full aspect-square bg-zinc-900" />
                     )}
-                  </div>
-                  {p.hookText && (
-                    <div className="text-xs font-medium text-white truncate">{p.hookText}</div>
-                  )}
-                  <div className="text-xs text-zinc-400 line-clamp-2">{p.caption}</div>
-                </div>
-              </div>
-            );
-          })}
+                    <div className="p-2.5 flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded border ${badge.classes}`}>
+                          {badge.label}
+                        </span>
+                        <span className="text-[10px] text-zinc-500">{relative(when)}</span>
+                        {p.bufferPostId && (
+                          <span className="text-[10px] text-zinc-500" title={p.bufferPostId}>
+                            Buffer ✓
+                          </span>
+                        )}
+                      </div>
+                      {p.hookText && (
+                        <div className="text-xs font-medium text-white line-clamp-2">{p.hookText}</div>
+                      )}
+                      <div className="text-[11px] text-zinc-400 line-clamp-3 whitespace-pre-line">
+                        {p.caption}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
+      <PostPreviewModal
+        post={preview}
+        brandName={brandName}
+        onClose={() => setPreview(null)}
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PostPreviewModal — Instagram-style preview of an autopilot-generated post.
+// Shows what the post will look like once it publishes: composited image,
+// caption with paragraph breaks intact, hashtags, status/timing meta.
+// ---------------------------------------------------------------------------
+
+function PostPreviewModal({
+  post,
+  brandName,
+  onClose,
+}: {
+  post: QueueItem | null;
+  brandName: string;
+  onClose: () => void;
+}) {
+  // Close on Escape — base UI dialog handles this, but the modal here is a
+  // light-weight overlay so we wire it up directly.
+  useEffect(() => {
+    if (!post) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [post, onClose]);
+
+  if (!post) return null;
+
+  const image = post.processedImageUrl ?? post.sourceImageUrl;
+  const badge = statusBadge(post.status);
+  const when = post.scheduledAt ?? post.publishedAt ?? post.createdAt;
+  const handle = brandName.toLowerCase().replace(/\s+/g, '');
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 supports-backdrop-filter:backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-zinc-950 border border-zinc-800 rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Instagram-style header */}
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-zinc-800">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-fuchsia-500 via-pink-500 to-yellow-500 p-0.5">
+              <div className="w-full h-full rounded-full bg-zinc-950 flex items-center justify-center text-[11px] font-semibold text-white">
+                {brandName.slice(0, 1).toUpperCase()}
+              </div>
+            </div>
+            <div className="text-sm font-semibold text-white">{handle}</div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-zinc-400 hover:text-white text-xl leading-none px-1"
+            aria-label="Close preview"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Image */}
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={image} alt="" className="w-full aspect-square object-cover bg-zinc-900" />
+        ) : (
+          <div className="w-full aspect-square bg-zinc-900 flex items-center justify-center text-xs text-zinc-600">
+            no image
+          </div>
+        )}
+
+        {/* Mock action row (visual only — no functionality) */}
+        <div className="px-3 pt-3 flex items-center gap-4 text-white">
+          <span aria-hidden className="text-xl">♡</span>
+          <span aria-hidden className="text-xl">💬</span>
+          <span aria-hidden className="text-xl">↗</span>
+          <span aria-hidden className="ml-auto text-xl">⌒</span>
+        </div>
+
+        {/* Caption + hashtags */}
+        <div className="px-3 py-3 text-sm text-white">
+          <span className="font-semibold mr-2">{handle}</span>
+          <span className="whitespace-pre-line text-zinc-100">{post.caption}</span>
+          {post.hashtags && (
+            <div className="mt-2 text-sky-400 whitespace-pre-line text-xs">{post.hashtags}</div>
+          )}
+        </div>
+
+        {/* Status footer */}
+        <div className="px-3 pb-3 border-t border-zinc-800 pt-2.5 flex items-center justify-between gap-2 text-xs text-zinc-500 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded border ${badge.classes}`}>
+              {badge.label}
+            </span>
+            <span>{relative(when)}</span>
+            {post.bufferPostId && (
+              <span title={post.bufferPostId}>Buffer ✓</span>
+            )}
+          </div>
+          {post.hookText && (
+            <span className="text-zinc-500" title="Hook (image overlay text)">
+              Hook: <span className="text-zinc-300">{post.hookText}</span>
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

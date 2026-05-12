@@ -1,11 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Drizzle's query objects are simultaneously chainable AND thenable, so the
+// mock has to support both patterns:
+//   await db.select().from(t).where(...).limit(1)   // brand/exists lookups
+//   await db.select().from(t).where(...)            // image-row no-reuse query
+// We return the same dual-purpose object from .where() so both shapes work.
+function makeQueryChain(rows: unknown[]) {
+  const chain: Record<string, unknown> = {
+    limit: vi.fn().mockResolvedValue(rows),
+    then: (resolve: (value: unknown) => void) => resolve(rows),
+  };
+  return chain;
+}
+
 vi.mock('@/lib/db', () => ({
   db: {
     select: vi.fn().mockImplementation(() => ({
       from: vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue([{
+        where: vi.fn().mockReturnValue(
+          makeQueryChain([{
             id: 'b1',
             slug: 'affectly',
             name: 'Affectly',
@@ -13,13 +26,13 @@ vi.mock('@/lib/db', () => ({
             logoUrl: null,
             userId: 'u1',
           }]),
-        }),
+        ),
       }),
     })),
   },
 }));
 vi.mock('@/lib/db/schema', () => ({ brands: {}, scrapedPosts: {}, posts: {}, instagramAccounts: {} }));
-vi.mock('drizzle-orm', () => ({ eq: vi.fn(), and: vi.fn() }));
+vi.mock('drizzle-orm', () => ({ eq: vi.fn(), and: vi.fn(), gte: vi.fn() }));
 vi.mock('@/lib/image-processing', () => ({
   createInstagramImageWithText: vi.fn().mockResolvedValue(Buffer.from('fakeimg')),
 }));

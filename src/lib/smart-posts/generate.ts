@@ -1,11 +1,12 @@
 import { createHmac } from 'node:crypto';
-import { eq, and, gte } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { brands, scrapedPosts, posts } from '@/lib/db/schema';
 import { seedFromInsight, mergePerfectSeed } from '@/lib/smart-posts';
 import { fetchTopPerformingPastImages } from './past-images';
 import { createInstagramImageWithText } from '@/lib/image-processing';
 import { deriveImageQuery, deriveImageQueryFromHook } from './image-query';
+import { rankCandidates } from './image-scoring';
 import type { InsightCard } from '@/lib/health-score';
 import type { Brand } from '@/lib/domain-types';
 
@@ -110,6 +111,10 @@ export interface ImageCandidate {
   url: string;
   source: 'stock' | 'past';
   permalink?: string;
+  /** Stock photo tags (Pixabay returns a comma-separated string). Used by
+   *  the relevance ranker to demote landscape candidates and pick the best
+   *  topical match — not surfaced to the UI. */
+  tags?: string;
 }
 
 export interface RenderParams {
@@ -430,26 +435,25 @@ export async function generateFromSeed(
     };
   }
   const imagesPayload = (await imagesRes.json()) as {
-    images?: Array<{ largeImageURL?: string; url?: string }>;
+    images?: Array<{ largeImageURL?: string; url?: string; tags?: string }>;
   };
 
   const TARGET = 6;
   const PAST_CAP = 2;
 
-  // No-repeat filter: 90-day window per brand.
-  // Build usedUrls FIRST so we can filter the full Pixabay pool BEFORE slicing,
-  // preventing the same top-N images from being reused across every batch.
-  const ninetyDaysAgo = new Date(Date.now() - 90 * 86_400_000);
-  const recentImageRows = await db
+  // No-repeat filter: ALL-TIME per brand. Once an image has been used in any
+  // post for this brand, it never appears again — the user explicitly asked
+  // for permanent uniqueness, not a rolling window.
+  const allImageRows = await db
     .select({
       src: posts.sourceImageUrl,
       processed: posts.processedImageUrl,
     })
     .from(posts)
-    .where(and(eq(posts.brandId, brandId), gte(posts.createdAt, ninetyDaysAgo)));
+    .where(eq(posts.brandId, brandId));
 
   const usedUrls = new Set<string>();
-  for (const r of recentImageRows) {
+  for (const r of allImageRows) {
     if (r.src) usedUrls.add(r.src);
     if (r.processed) usedUrls.add(r.processed);
   }
@@ -466,21 +470,73 @@ export async function generateFromSeed(
   const freshPast = allPastCandidates.filter((c) => !usedUrls.has(c.url));
   const pastCandidates: ImageCandidate[] = freshPast.length > 0 ? freshPast : allPastCandidates;
 
-  // Stock candidates — filter the FULL Pixabay pool first, then slice.
-  const allStock: ImageCandidate[] = (imagesPayload.images ?? [])
-    .map((img) => ({
-      url: (img.largeImageURL ?? img.url) as string,
-      source: 'stock' as const,
-    }))
-    .filter((c) => Boolean(c.url));
-  const freshStock = allStock.filter((c) => !usedUrls.has(c.url));
-  const stockPool = freshStock.length > 0 ? freshStock : allStock;
-  const stockCandidates: ImageCandidate[] = stockPool.slice(0, TARGET - pastCandidates.length);
+  // Stock candidates — capture tags so we can rank by topic relevance below.
+  // Filter the full Pixabay pool by used-URL set first so the ranker sees
+  // only fresh material.
+  const buildStock = (
+    payload: { images?: Array<{ largeImageURL?: string; url?: string; tags?: string }> },
+  ): ImageCandidate[] =>
+    (payload.images ?? [])
+      .map((img) => ({
+        url: (img.largeImageURL ?? img.url) as string,
+        source: 'stock' as const,
+        tags: img.tags,
+      }))
+      .filter((c) => Boolean(c.url) && !usedUrls.has(c.url));
+
+  const stockPool: ImageCandidate[] = buildStock(imagesPayload);
+
+  // Tag-overlap relevance ranking. If NONE of the candidates share any token
+  // with the hook+caption (i.e. top score is 0), re-search Pixabay using the
+  // hook-only derived query — the hook is usually more topically concentrated
+  // than the caption and tends to produce a different pool. Append those
+  // results, dedupe by URL, and re-rank.
+  const relevanceContext = `${captionPayload.hookText ?? ''} ${captionPayload.caption ?? ''}`;
+  let ranked = rankCandidates(stockPool, relevanceContext);
+  const topScore = ranked.length > 0 ? ranked[0].score : 0;
+
+  if (topScore === 0 && (captionPayload.hookText ?? '').trim().length > 0) {
+    const hookOnlyQuery = await deriveImageQueryFromHook(
+      captionPayload.hookText ?? '',
+      fallbackQuery,
+    );
+    if (hookOnlyQuery && hookOnlyQuery !== topicQuery) {
+      try {
+        const retryUrl = cronSecret
+          ? `${origin}/api/images?source=all&q=${encodeURIComponent(hookOnlyQuery)}&_uid=${encodeURIComponent(userId)}`
+          : `${origin}/api/images?source=all&q=${encodeURIComponent(hookOnlyQuery)}`;
+        const retryRes = await fetch(retryUrl, {
+          headers: cronSecret ? { 'x-brain-signature': imagesSig } : { cookie },
+        });
+        if (retryRes.ok) {
+          const retryPayload = (await retryRes.json()) as {
+            images?: Array<{ largeImageURL?: string; url?: string; tags?: string }>;
+          };
+          const retryStock = buildStock(retryPayload);
+          const seen = new Set(stockPool.map((c) => c.url));
+          for (const c of retryStock) {
+            if (!seen.has(c.url)) {
+              stockPool.push(c);
+              seen.add(c.url);
+            }
+          }
+          ranked = rankCandidates(stockPool, relevanceContext);
+        }
+      } catch {
+        // Retry is best-effort — fall through with the original pool.
+      }
+    }
+  }
+
+  const stockCandidates: ImageCandidate[] = ranked
+    .map((r) => r.candidate)
+    .slice(0, TARGET - pastCandidates.length);
 
   const combinedCandidates: ImageCandidate[] = [...stockCandidates, ...pastCandidates];
 
-  // Safety net: if Pixabay returned 0 results for the topic query, retry with
-  // the brand's category as a generic fallback so posts always have an image.
+  // Safety net: if Pixabay returned 0 fresh results, retry with the brand's
+  // category as a generic fallback so posts always have an image. Still
+  // respects the all-time no-reuse set.
   if (combinedCandidates.length === 0) {
     try {
       const { brandCategories } = await import('@/lib/pixabay');
@@ -493,12 +549,11 @@ export async function generateFromSeed(
       });
       if (fallbackImagesRes.ok) {
         const fb = (await fallbackImagesRes.json()) as {
-          images?: Array<{ largeImageURL?: string; url?: string }>;
+          images?: Array<{ largeImageURL?: string; url?: string; tags?: string }>;
         };
-        const fallbackPool = (fb.images ?? [])
-          .map((img) => ({ url: (img.largeImageURL ?? img.url) as string, source: 'stock' as const }))
-          .filter((c) => c.url && !usedUrls.has(c.url));
-        combinedCandidates.push(...fallbackPool.slice(0, 3));
+        const fallbackPool = buildStock(fb);
+        const fallbackRanked = rankCandidates(fallbackPool, relevanceContext);
+        combinedCandidates.push(...fallbackRanked.map((r) => r.candidate).slice(0, 3));
       }
     } catch { /* swallow — final fallback is no image */ }
   }
