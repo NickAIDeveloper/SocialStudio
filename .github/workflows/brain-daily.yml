@@ -2,7 +2,14 @@ name: Daily Brain Run
 on:
   schedule:
     - cron: '0 3 * * *'   # 03:00 UTC daily
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force_autopilot:
+        description: 'Bypass autopilot isDueNow check (for manual testing)'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
 
 jobs:
   run:
@@ -17,4 +24,5 @@ jobs:
         env:
           BRAIN_CRON_SECRET: ${{ secrets.BRAIN_CRON_SECRET }}
           BRAIN_BASE_URL: https://goviraleza.com
+          FORCE_AUTOPILOT: ${{ inputs.force_autopilot || 'false' }}
         run: node scripts/brain/run-daily.mjs
