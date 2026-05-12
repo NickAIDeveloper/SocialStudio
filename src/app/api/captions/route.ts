@@ -288,6 +288,9 @@ Save this for exam season."`,
       : '';
 
     const prompt = `You are a world-class Instagram copywriter for "${brandName}" (${handle || brandName}). Your captions consistently go viral.
+
+THIS POST IS FOR: ${brandName}
+RULE: Never mention any other brand name. Only refer to "${brandName}"${handle ? ` or its handle ${handle}` : ''}. If you need a product example, use ${brandName}'s own. If you reference an app or product, it MUST be ${brandName} — never a competitor or sibling brand.
 ${brandContext}
 
 ${contentTypeGuide[contentType] || contentTypeGuide.promo}

@@ -84,9 +84,58 @@ Return ONLY the query: 3–5 words, lowercase, no quotes, no punctuation.`;
       return args.fallback;
     }
     const contextTexts = [args.brandName, args.brandDescription, args.hookText, args.caption];
-    if (!hasContextOverlap(cleaned, contextTexts)) return args.fallback;
+    if (!hasContextOverlap(cleaned, contextTexts)) {
+      // Context overlap failed against brand description. Try a narrower check:
+      // does the query overlap with just the hook+caption text? The brand
+      // description may be about a different topic than this specific post
+      // (e.g. a running-app brand posting about productivity). If the hook/
+      // caption overlap confirms relevance, use the query anyway.
+      const postTexts = [args.hookText, args.caption];
+      if (hasContextOverlap(cleaned, postTexts)) return cleaned;
+      return args.fallback;
+    }
     return cleaned;
   } catch {
     return args.fallback;
+  }
+}
+
+/**
+ * Derives an image query from hook text alone — used as a secondary attempt
+ * when the primary caption-based query falls back to the brand name.
+ */
+export async function deriveImageQueryFromHook(hookText: string, fallback: string): Promise<string> {
+  if (!isCerebrasAvailable() || !hookText.trim()) return fallback;
+  try {
+    const prompt = `Pick the best 3–5 word stock-photo search query for an Instagram post with this hook text:
+
+HOOK: ${hookText}
+
+Extract the most CONCRETE VISUAL SUBJECT implied by the hook and turn it into a stock-photo query (people + activity + setting). No silhouettes, no sunsets, no abstract nature. Return ONLY the query: 3–5 words, lowercase, no quotes, no punctuation.`;
+
+    const content = await cerebrasChatCompletion(
+      [
+        { role: 'system', content: 'You are a visual editor. Reply with ONLY the stock-photo search query.' },
+        { role: 'user', content: prompt },
+      ],
+      { temperature: 0.3, maxTokens: 20 },
+    );
+    const cleaned = content
+      .replace(/["'`]/g, '')
+      .replace(/[.!?,;:]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .slice(0, 6)
+      .join(' ');
+    if (cleaned.length < 6 || cleaned.length > 80) return fallback;
+    if (/query|reply|only|search|caption|hook/.test(cleaned)) return fallback;
+    if (/silhouette|sunset|contemplation|reflection|journey\b/.test(cleaned)) return fallback;
+    // Require at least one hook token to appear in the query
+    if (!hasContextOverlap(cleaned, [hookText])) return fallback;
+    return cleaned;
+  } catch {
+    return fallback;
   }
 }

@@ -295,8 +295,13 @@ const COUNT_PROMISE_RX =
   /(\b(?:[1-9]|1[0-9]|20)\b)(\s+(?:[\w-]+\s+){0,2})(ways|hacks|tips|tricks|things|reasons|signs|steps|ideas|secrets|rules|lessons|mistakes|truths|habits|methods|strategies)\b/i;
 
 function countNumberedListItems(caption: string): number {
-  const matches = caption.match(/(?:^|\n)\s*\d+\.\s+\S/g);
-  return matches ? matches.length : 0;
+  // Primary: standard numbered list items ("1. text", optionally after newline/start)
+  const numbered = caption.match(/(?:^|\n)\s*\d+\.\s+\S/g);
+  if (numbered && numbered.length > 0) return numbered.length;
+  // Secondary: inline numbered references like "1. text 2. text" on same line
+  // (LLMs sometimes don't add newlines between items)
+  const inline = caption.match(/\b\d+\.\s+\S/g);
+  return inline ? inline.length : 0;
 }
 
 export function reconcileCountClaim(

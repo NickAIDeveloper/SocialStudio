@@ -5,7 +5,7 @@ import { brands, scrapedPosts, posts } from '@/lib/db/schema';
 import { seedFromInsight, mergePerfectSeed } from '@/lib/smart-posts';
 import { fetchTopPerformingPastImages } from './past-images';
 import { createInstagramImageWithText } from '@/lib/image-processing';
-import { deriveImageQuery } from './image-query';
+import { deriveImageQuery, deriveImageQueryFromHook } from './image-query';
 import type { InsightCard } from '@/lib/health-score';
 import type { Brand } from '@/lib/domain-types';
 
@@ -373,7 +373,7 @@ export async function generateFromSeed(
 
   const fallbackQuery =
     seed.topicHint ?? brand.description?.split(/\s+/).slice(0, 3).join(' ') ?? brand.name;
-  const topicQuery = await deriveImageQuery({
+  let topicQuery = await deriveImageQuery({
     brandName: brand.name,
     brandDescription: brand.description ?? '',
     hookText: captionPayload.hookText ?? '',
@@ -381,6 +381,19 @@ export async function generateFromSeed(
     contentType: seed.contentType,
     fallback: fallbackQuery,
   });
+  // If primary query fell back to the brand-generic fallback, try deriving from
+  // hook text alone — the hook is often more topically concentrated than the
+  // full caption and may produce a better query even when the caption-based
+  // query failed the context-overlap check against the brand description.
+  if (topicQuery === fallbackQuery && (captionPayload.hookText ?? '').trim().length > 0) {
+    const hookQuery = await deriveImageQueryFromHook(
+      captionPayload.hookText ?? '',
+      fallbackQuery,
+    );
+    if (hookQuery !== fallbackQuery) {
+      topicQuery = hookQuery;
+    }
+  }
   const imagesUrl = cronSecret
     ? `${origin}/api/images?source=all&q=${encodeURIComponent(topicQuery)}&_uid=${encodeURIComponent(userId)}`
     : `${origin}/api/images?source=all&q=${encodeURIComponent(topicQuery)}`;
