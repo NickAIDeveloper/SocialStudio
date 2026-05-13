@@ -537,24 +537,31 @@ export async function generateFromSeed(
 
   // Recovery path 2 — brand-domain hard floor. If we have a brand-domain
   // vocabulary configured AND no candidate in the current pool matches it,
-  // do an extra Pixabay search using one of the brand's hand-picked
-  // suggestedQueries (e.g. "runner road morning" for PaceBrain). This is the
-  // fix for metaphorical hooks like "Most runners hit a wall…" — the LLM-
-  // derived query can miss the brand niche entirely, and tag-overlap alone
-  // can't recover because the caption text contains no overlap with on-topic
-  // image tags. Brand-anchored queries reliably return on-topic photos.
-  const topMatchesDomain = ranked.length > 0 ? ranked[0].brandDomainMatch : false;
-  if (!topMatchesDomain && hasBrandDomainConfig(brand.slug)) {
+  // do extra Pixabay searches using the brand's hand-picked suggestedQueries.
+  // A single anchored query can starve once the all-time no-reuse set
+  // depletes the popular tag pool (PaceBrain saw this at ~13 used posts —
+  // every "runner road morning" hit was banned, leaving only off-topic
+  // Pexels alt-text noise like "white storks on grass field" or "child
+  // reading book"). Rotating through several queries combines sub-pools
+  // until the ranker has at least one on-topic fresh photo to surface.
+  if (hasBrandDomainConfig(brand.slug)) {
     try {
       const { suggestedQueries } = await import('@/lib/pixabay');
-      const pool = suggestedQueries[brand.slug as keyof typeof suggestedQueries];
-      if (pool && pool.length > 0) {
-        // Deterministic pick by day-of-year so the same day produces stable
-        // results — avoids flapping between runs if you re-trigger.
+      const queriesPool = suggestedQueries[brand.slug as keyof typeof suggestedQueries];
+      if (queriesPool && queriesPool.length > 0) {
+        // Deterministic start by day-of-year keeps re-runs of the same day
+        // stable, then we walk forward through neighbouring queries when
+        // the first one fails to surface a brand-domain match.
         const day = Math.floor(Date.now() / 86_400_000);
-        const brandAnchored = pool[day % pool.length];
-        await extendPool(brandAnchored);
-        ranked = rankCandidates(stockPool, relevanceContext, brand.slug);
+        const start = day % queriesPool.length;
+        const maxQueries = Math.min(4, queriesPool.length);
+        for (let i = 0; i < maxQueries; i++) {
+          const topMatchesDomain = ranked.length > 0 && ranked[0].brandDomainMatch;
+          if (topMatchesDomain) break;
+          const brandAnchored = queriesPool[(start + i) % queriesPool.length];
+          await extendPool(brandAnchored);
+          ranked = rankCandidates(stockPool, relevanceContext, brand.slug);
+        }
       }
     } catch {
       // Best-effort — brand anchor failure should never block generation.
