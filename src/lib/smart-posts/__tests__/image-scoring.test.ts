@@ -5,6 +5,8 @@ import {
   scoreCandidate,
   isPureLandscape,
   rankCandidates,
+  hasBrandDomainMatch,
+  hasBrandDomainConfig,
 } from '../image-scoring';
 
 describe('tokenizeForScoring', () => {
@@ -118,5 +120,90 @@ describe('rankCandidates', () => {
   it('handles empty candidate list', () => {
     const ranked = rankCandidates([], 'student studying');
     expect(ranked).toEqual([]);
+  });
+});
+
+describe('hasBrandDomainMatch', () => {
+  it('returns true when no brandSlug is passed (domain filtering opt-in)', () => {
+    expect(hasBrandDomainMatch('mountain sunset')).toBe(true);
+    expect(hasBrandDomainMatch('')).toBe(true);
+    expect(hasBrandDomainMatch(undefined)).toBe(true);
+  });
+
+  it('returns true when brand has no domain config', () => {
+    expect(hasBrandDomainMatch('mountain sunset', 'unknown-brand')).toBe(true);
+  });
+
+  it('matches pacebrain photos with running tokens', () => {
+    expect(hasBrandDomainMatch('runner, training, marathon', 'pacebrain')).toBe(true);
+    expect(hasBrandDomainMatch('young woman jogging in park', 'pacebrain')).toBe(true);
+  });
+
+  it('rejects pacebrain photos without running tokens', () => {
+    expect(hasBrandDomainMatch('child, phone, indoor', 'pacebrain')).toBe(false);
+    expect(hasBrandDomainMatch('food, kitchen, recipe', 'pacebrain')).toBe(false);
+  });
+
+  it('matches affectly photos with study tokens', () => {
+    expect(hasBrandDomainMatch('student, desk, laptop', 'affectly')).toBe(true);
+    expect(hasBrandDomainMatch('book, reading, library', 'affectly')).toBe(true);
+  });
+
+  it('rejects affectly photos without study tokens', () => {
+    expect(hasBrandDomainMatch('runner, marathon, athlete', 'affectly')).toBe(false);
+  });
+});
+
+describe('hasBrandDomainConfig', () => {
+  it('returns true for configured brands', () => {
+    expect(hasBrandDomainConfig('pacebrain')).toBe(true);
+    expect(hasBrandDomainConfig('affectly')).toBe(true);
+  });
+  it('returns false for unconfigured brands or missing slug', () => {
+    expect(hasBrandDomainConfig('newbrand')).toBe(false);
+    expect(hasBrandDomainConfig(undefined)).toBe(false);
+    expect(hasBrandDomainConfig('')).toBe(false);
+  });
+});
+
+describe('rankCandidates — brand-domain priority', () => {
+  it('puts a domain-matching candidate ahead of a higher-scoring non-match', () => {
+    const candidates = [
+      // High caption overlap but NOT running-related (e.g. metaphorical
+      // "wall" caption matched the literal wall photo)
+      { url: 'wall-photo', tags: 'wall, brick, urban, graffiti' },
+      // No caption overlap but IS running-related — should win
+      { url: 'runner-photo', tags: 'runner, marathon, athlete' },
+    ];
+    const ranked = rankCandidates(
+      candidates,
+      'most runners hit a wall before they quit',
+      'pacebrain',
+    );
+    expect(ranked[0].candidate.url).toBe('runner-photo');
+    expect(ranked[0].brandDomainMatch).toBe(true);
+    expect(ranked[1].brandDomainMatch).toBe(false);
+  });
+
+  it('still uses score to break ties when both candidates match domain', () => {
+    const candidates = [
+      { url: 'low', tags: 'runner, gym' },
+      { url: 'high', tags: 'runner, training, marathon' },
+    ];
+    const ranked = rankCandidates(
+      candidates,
+      'runner training marathon',
+      'pacebrain',
+    );
+    expect(ranked[0].candidate.url).toBe('high');
+  });
+
+  it('falls back to score-only ranking when brand has no domain config', () => {
+    const candidates = [
+      { url: 'a', tags: 'wall, brick' },
+      { url: 'b', tags: 'runner, athlete' },
+    ];
+    const ranked = rankCandidates(candidates, 'wall brick', 'unknown-brand');
+    expect(ranked[0].candidate.url).toBe('a');
   });
 });

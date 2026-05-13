@@ -6,7 +6,7 @@ import { seedFromInsight, mergePerfectSeed } from '@/lib/smart-posts';
 import { fetchTopPerformingPastImages } from './past-images';
 import { createInstagramImageWithText } from '@/lib/image-processing';
 import { deriveImageQuery, deriveImageQueryFromHook } from './image-query';
-import { rankCandidates } from './image-scoring';
+import { rankCandidates, hasBrandDomainConfig } from './image-scoring';
 import type { InsightCard } from '@/lib/health-score';
 import type { Brand } from '@/lib/domain-types';
 
@@ -486,45 +486,78 @@ export async function generateFromSeed(
 
   const stockPool: ImageCandidate[] = buildStock(imagesPayload);
 
-  // Tag-overlap relevance ranking. If NONE of the candidates share any token
-  // with the hook+caption (i.e. top score is 0), re-search Pixabay using the
-  // hook-only derived query — the hook is usually more topically concentrated
-  // than the caption and tends to produce a different pool. Append those
-  // results, dedupe by URL, and re-rank.
+  // Helper: extend the pool with extra Pixabay results from a given query,
+  // dedupe by URL, never include images in the brand's no-reuse set.
+  async function extendPool(extraQuery: string): Promise<void> {
+    if (!extraQuery) return;
+    try {
+      const url = cronSecret
+        ? `${origin}/api/images?source=all&q=${encodeURIComponent(extraQuery)}&_uid=${encodeURIComponent(userId)}`
+        : `${origin}/api/images?source=all&q=${encodeURIComponent(extraQuery)}`;
+      const res = await fetch(url, {
+        headers: cronSecret ? { 'x-brain-signature': imagesSig } : { cookie },
+      });
+      if (!res.ok) return;
+      const payload = (await res.json()) as {
+        images?: Array<{ largeImageURL?: string; url?: string; tags?: string }>;
+      };
+      const extra = buildStock(payload);
+      const seen = new Set(stockPool.map((c) => c.url));
+      for (const c of extra) {
+        if (!seen.has(c.url)) {
+          stockPool.push(c);
+          seen.add(c.url);
+        }
+      }
+    } catch {
+      // Extra searches are best-effort — never block the post.
+    }
+  }
+
+  // Tag-overlap relevance ranking. Brand slug enables the brand-domain HARD
+  // floor: a "kid with phone" candidate never beats a "runner training"
+  // candidate for PaceBrain, even when neither shares words with the
+  // metaphorical hook ("Most runners hit a wall…").
   const relevanceContext = `${captionPayload.hookText ?? ''} ${captionPayload.caption ?? ''}`;
-  let ranked = rankCandidates(stockPool, relevanceContext);
+  let ranked = rankCandidates(stockPool, relevanceContext, brand.slug);
   const topScore = ranked.length > 0 ? ranked[0].score : 0;
 
+  // Recovery path 1 — generic caption/hook-only re-search when nothing
+  // shared any words with the LLM-derived query. Same as before.
   if (topScore === 0 && (captionPayload.hookText ?? '').trim().length > 0) {
     const hookOnlyQuery = await deriveImageQueryFromHook(
       captionPayload.hookText ?? '',
       fallbackQuery,
     );
     if (hookOnlyQuery && hookOnlyQuery !== topicQuery) {
-      try {
-        const retryUrl = cronSecret
-          ? `${origin}/api/images?source=all&q=${encodeURIComponent(hookOnlyQuery)}&_uid=${encodeURIComponent(userId)}`
-          : `${origin}/api/images?source=all&q=${encodeURIComponent(hookOnlyQuery)}`;
-        const retryRes = await fetch(retryUrl, {
-          headers: cronSecret ? { 'x-brain-signature': imagesSig } : { cookie },
-        });
-        if (retryRes.ok) {
-          const retryPayload = (await retryRes.json()) as {
-            images?: Array<{ largeImageURL?: string; url?: string; tags?: string }>;
-          };
-          const retryStock = buildStock(retryPayload);
-          const seen = new Set(stockPool.map((c) => c.url));
-          for (const c of retryStock) {
-            if (!seen.has(c.url)) {
-              stockPool.push(c);
-              seen.add(c.url);
-            }
-          }
-          ranked = rankCandidates(stockPool, relevanceContext);
-        }
-      } catch {
-        // Retry is best-effort — fall through with the original pool.
+      await extendPool(hookOnlyQuery);
+      ranked = rankCandidates(stockPool, relevanceContext, brand.slug);
+    }
+  }
+
+  // Recovery path 2 — brand-domain hard floor. If we have a brand-domain
+  // vocabulary configured AND no candidate in the current pool matches it,
+  // do an extra Pixabay search using one of the brand's hand-picked
+  // suggestedQueries (e.g. "runner road morning" for PaceBrain). This is the
+  // fix for metaphorical hooks like "Most runners hit a wall…" — the LLM-
+  // derived query can miss the brand niche entirely, and tag-overlap alone
+  // can't recover because the caption text contains no overlap with on-topic
+  // image tags. Brand-anchored queries reliably return on-topic photos.
+  const topMatchesDomain = ranked.length > 0 ? ranked[0].brandDomainMatch : false;
+  if (!topMatchesDomain && hasBrandDomainConfig(brand.slug)) {
+    try {
+      const { suggestedQueries } = await import('@/lib/pixabay');
+      const pool = suggestedQueries[brand.slug as keyof typeof suggestedQueries];
+      if (pool && pool.length > 0) {
+        // Deterministic pick by day-of-year so the same day produces stable
+        // results — avoids flapping between runs if you re-trigger.
+        const day = Math.floor(Date.now() / 86_400_000);
+        const brandAnchored = pool[day % pool.length];
+        await extendPool(brandAnchored);
+        ranked = rankCandidates(stockPool, relevanceContext, brand.slug);
       }
+    } catch {
+      // Best-effort — brand anchor failure should never block generation.
     }
   }
 

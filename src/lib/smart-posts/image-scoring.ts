@@ -35,6 +35,31 @@ const LANDSCAPE_TAGS = new Set([
   'dusk', 'rural', 'countryside', 'panorama', 'horizon', 'cliff', 'valley',
 ]);
 
+// Per-brand "domain tokens" — Pixabay tag words that signal the photo is
+// actually on-topic for the brand's niche. The hook+caption tokens alone
+// often fail to overlap with image tags when the copy is metaphorical
+// (e.g. "Most runners hit a wall" — no Pixabay tag says "wall" for running
+// photos). The brand-domain set is the literal vocabulary an on-topic
+// photo would use. Used as a HARD floor: candidates with zero brand-domain
+// overlap are demoted below those with any overlap.
+const BRAND_DOMAIN_TOKENS: Record<string, Set<string>> = {
+  pacebrain: new Set([
+    'run', 'runner', 'runners', 'running', 'jog', 'jogger', 'jogging',
+    'marathon', 'sprint', 'sprinter', 'athlete', 'athletic', 'athletics',
+    'sport', 'sports', 'fitness', 'workout', 'training', 'cardio', 'treadmill',
+    'racing', 'race', 'track', 'trail', 'outdoor', 'exercise', 'stamina',
+    'endurance', 'pace', 'shoe', 'shoes', 'sneaker', 'sneakers', 'gym',
+  ]),
+  affectly: new Set([
+    'student', 'students', 'study', 'studying', 'studies', 'learn', 'learner',
+    'learning', 'education', 'educational', 'school', 'university', 'college',
+    'classroom', 'class', 'library', 'book', 'books', 'reading', 'read',
+    'note', 'notes', 'notebook', 'desk', 'laptop', 'pen', 'pencil', 'focus',
+    'focused', 'concentration', 'homework', 'lecture', 'campus', 'academic',
+    'exam', 'studying', 'tutor', 'tutoring',
+  ]),
+};
+
 export function tokenizeForScoring(text: string): Set<string> {
   const out = new Set<string>();
   for (const raw of text.toLowerCase().replace(/[^\p{L}\s]/gu, ' ').split(/\s+/)) {
@@ -89,29 +114,72 @@ export function isPureLandscape(tags: string | undefined | null): boolean {
   return true;
 }
 
+/**
+ * Returns true when the candidate has at least one tag token that matches
+ * the brand's domain vocabulary (e.g. "runner" for pacebrain, "student" for
+ * affectly). When the brand has no entry in BRAND_DOMAIN_TOKENS we return
+ * true for every candidate — domain filtering is opt-in per brand.
+ */
+export function hasBrandDomainMatch(
+  tags: string | undefined | null,
+  brandSlug?: string,
+): boolean {
+  if (!brandSlug) return true;
+  const domain = BRAND_DOMAIN_TOKENS[brandSlug];
+  if (!domain || domain.size === 0) return true;
+  if (!tags) return false;
+  const tokens = tagTokens(tags);
+  for (const t of tokens) {
+    if (domain.has(t)) return true;
+  }
+  return false;
+}
+
+/**
+ * Returns true when the brand has a configured domain vocabulary at all.
+ * Callers use this to decide whether to do a brand-anchored fallback search
+ * when no candidate in the current pool matches.
+ */
+export function hasBrandDomainConfig(brandSlug?: string): boolean {
+  if (!brandSlug) return false;
+  const domain = BRAND_DOMAIN_TOKENS[brandSlug];
+  return Boolean(domain && domain.size > 0);
+}
+
 export interface ScoredCandidate<T extends ScorableCandidate> {
   candidate: T;
   score: number;
   isLandscape: boolean;
+  brandDomainMatch: boolean;
 }
 
 /**
- * Scores and sorts candidates by relevance descending. Pure-landscape
- * candidates are demoted to the end of the list so non-landscape options
- * are preferred — but landscape candidates aren't removed entirely (we'd
- * rather show a landscape than no image at all).
+ * Scores and sorts candidates by relevance descending. The sort priority:
+ *   1. brand-domain-match candidates first (HARD floor — guarantees the
+ *      picked photo is on-topic for the brand, even when the caption uses
+ *      metaphorical language whose tokens won't appear in image tags)
+ *   2. non-landscape before landscape
+ *   3. higher caption/hook overlap score before lower
+ *
+ * Brand-domain mismatches and landscape candidates are demoted but never
+ * removed entirely — we'd rather show a sub-optimal image than nothing.
+ * Callers should check `ranked[0].brandDomainMatch` and trigger a fallback
+ * search when it is false.
  */
 export function rankCandidates<T extends ScorableCandidate>(
   candidates: T[],
   contextText: string,
+  brandSlug?: string,
 ): ScoredCandidate<T>[] {
   const ctx = tokenizeForScoring(contextText);
   const scored = candidates.map((c) => ({
     candidate: c,
     score: scoreCandidate(c, ctx),
     isLandscape: isPureLandscape(c.tags),
+    brandDomainMatch: hasBrandDomainMatch(c.tags, brandSlug),
   }));
   scored.sort((a, b) => {
+    if (a.brandDomainMatch !== b.brandDomainMatch) return a.brandDomainMatch ? -1 : 1;
     if (a.isLandscape !== b.isLandscape) return a.isLandscape ? 1 : -1;
     return b.score - a.score;
   });
