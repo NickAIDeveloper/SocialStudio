@@ -9,6 +9,7 @@ import { computeNextRunAt, isDueNow, type Frequency } from '@/lib/autopilot/sche
 import { createPost } from '@/lib/buffer';
 import { decrypt } from '@/lib/encryption';
 import { uploadImageToGitHub } from '@/lib/github-images';
+import { auth } from '@/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,25 +18,47 @@ export async function POST(req: Request): Promise<Response> {
   const brandId = searchParams.get('brandId');
   if (!brandId) return NextResponse.json({ error: 'missing_brandId' }, { status: 400 });
 
+  // Dual auth: HMAC for cron (preserves the existing /api/cron flow), cookie
+  // for the "Run now" button in /settings autopilot card. Cookie auth still
+  // requires the session user to own the brand — verified after the brand row
+  // is loaded below.
   const rawBody = await req.text();
-  if (!(await verifyBrainSignature(req, rawBody))) {
-    return NextResponse.json({ error: 'bad_signature' }, { status: 401 });
+  const sigHeader = req.headers.get('x-brain-signature');
+  let sessionUserId: string | null = null;
+  if (sigHeader) {
+    if (!(await verifyBrainSignature(req, rawBody))) {
+      return NextResponse.json({ error: 'bad_signature' }, { status: 401 });
+    }
+  } else {
+    const session = await auth();
+    sessionUserId = session?.user?.id ?? null;
+    if (!sessionUserId) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
   }
 
   const [brand] = await db.select().from(brands).where(eq(brands.id, brandId));
   if (!brand) return NextResponse.json({ error: 'brand_not_found' }, { status: 404 });
+  if (sessionUserId && brand.userId !== sessionUserId) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
 
   const [settings] = await db
     .select()
     .from(autopilotSettings)
     .where(eq(autopilotSettings.brandId, brandId));
 
-  if (!settings || !settings.enabled) {
-    return NextResponse.json({ status: 'skipped', reason: 'autopilot_disabled' });
+  if (!settings) {
+    return NextResponse.json({ status: 'skipped', reason: 'autopilot_not_configured' });
   }
 
   const now = new Date();
   const force = searchParams.get('force') === '1';
+  // force=1 (set by the UI Run now button) bypasses both the paused state and
+  // the next-run schedule. Cron requests must respect both.
+  if (!force && !settings.enabled) {
+    return NextResponse.json({ status: 'skipped', reason: 'autopilot_disabled' });
+  }
   if (!force && !isDueNow(settings.nextRunAt, now)) {
     return NextResponse.json({
       status: 'skipped',

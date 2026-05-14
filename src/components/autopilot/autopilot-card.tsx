@@ -142,6 +142,11 @@ export function AutopilotCard({ brandId, brandName }: Props) {
   const [s, setS] = useState<Settings | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+  const [runMsg, setRunMsg] = useState<string | null>(null);
+  // Bumped on every successful manual run so AutopilotQueue reloads the
+  // grid without the user having to collapse + re-expand it.
+  const [queueRefresh, setQueueRefresh] = useState(0);
 
   async function load() {
     setErr(null);
@@ -169,6 +174,37 @@ export function AutopilotCard({ brandId, brandName }: Props) {
     }
   }
 
+  async function runNow() {
+    if (running) return;
+    setRunning(true);
+    setRunMsg(null);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/autopilot/run?brandId=${brandId}&force=1`, {
+        method: 'POST',
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        status?: string;
+        reason?: string;
+        warning?: string | null;
+      };
+      if (!res.ok) {
+        throw new Error(body.reason ?? `HTTP ${res.status}`);
+      }
+      if (body.status === 'ok') {
+        setRunMsg(body.warning ? `Generated · ${body.warning}` : 'Generated a new post.');
+      } else {
+        setRunMsg(`Skipped: ${body.reason ?? 'unknown'}`);
+      }
+      await load();
+      setQueueRefresh((n) => n + 1);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRunning(false);
+    }
+  }
+
   if (!s) {
     return (
       <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5">
@@ -179,26 +215,42 @@ export function AutopilotCard({ brandId, brandName }: Props) {
 
   return (
     <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5">
-      <div className="flex items-center justify-between mb-3">
-        <div>
+      <div className="flex items-center justify-between mb-3 gap-3">
+        <div className="min-w-0">
           <div className="font-medium text-white">🧠 Autopilot · {brandName}</div>
           <div className="text-xs text-zinc-500 mt-0.5">
             Generate posts automatically using your brand brain.
           </div>
         </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            className="sr-only peer"
-            checked={s.enabled}
-            onChange={(e) => patch({ enabled: e.target.checked })}
-            disabled={saving}
-          />
-          <div className="w-11 h-6 bg-zinc-700 rounded-full peer peer-checked:bg-teal-600 transition-colors relative">
-            <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform ${s.enabled ? 'translate-x-5' : ''}`} />
-          </div>
-        </label>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={runNow}
+            disabled={running}
+            title="Generate one post right now (ignores schedule and paused state)"
+            className="rounded-lg border border-teal-700/60 hover:border-teal-500 bg-teal-950/30 hover:bg-teal-900/40 text-teal-300 hover:text-teal-200 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium px-2.5 py-1 transition-colors"
+          >
+            {running ? 'Running…' : 'Run now'}
+          </button>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={s.enabled}
+              onChange={(e) => patch({ enabled: e.target.checked })}
+              disabled={saving}
+            />
+            <div className="w-11 h-6 bg-zinc-700 rounded-full peer peer-checked:bg-teal-600 transition-colors relative">
+              <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform ${s.enabled ? 'translate-x-5' : ''}`} />
+            </div>
+          </label>
+        </div>
       </div>
+      {runMsg && (
+        <div className="mb-3 text-xs text-teal-300 bg-teal-950/30 border border-teal-900/50 rounded px-2 py-1">
+          {runMsg}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
         <div>
@@ -264,7 +316,7 @@ export function AutopilotCard({ brandId, brandName }: Props) {
           ⚠️ Full auto: posts will be scheduled to Buffer at the brain&apos;s best slot without review.
         </div>
       )}
-      <AutopilotQueue brandId={brandId} brandName={brandName} />
+      <AutopilotQueue brandId={brandId} brandName={brandName} refreshKey={queueRefresh} />
     </div>
   );
 }
@@ -316,7 +368,18 @@ function relative(iso: string | null): string {
   return `${ms > 0 ? 'in ' : ''}${days}d${ms > 0 ? '' : ' ago'}`;
 }
 
-function AutopilotQueue({ brandId, brandName }: { brandId: string; brandName: string }) {
+function AutopilotQueue({
+  brandId,
+  brandName,
+  refreshKey,
+}: {
+  brandId: string;
+  brandName: string;
+  /** Bumped by the parent after a manual run so the grid reloads even when the
+   *  panel is already open. Also auto-opens the panel on first bump so the
+   *  freshly generated post is visible without an extra click. */
+  refreshKey: number;
+}) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<QueueItem[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -371,6 +434,13 @@ function AutopilotQueue({ brandId, brandName }: { brandId: string; brandName: st
   }
 
   useEffect(() => { if (open) load(); }, [open, brandId]);
+  // After a manual run, auto-open the panel and reload so the new draft
+  // appears without the user having to expand the section themselves.
+  useEffect(() => {
+    if (refreshKey === 0) return;
+    setOpen(true);
+    load();
+  }, [refreshKey]);
 
   return (
     <div className="mt-4 border-t border-zinc-800/60 pt-3">
