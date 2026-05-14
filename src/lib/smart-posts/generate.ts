@@ -600,8 +600,7 @@ export async function generateFromSeed(
 
   const candidates: ImageCandidate[] = combinedCandidates;
 
-  const sourceImageUrl = candidates[0]?.url;
-  if (!sourceImageUrl) {
+  if (candidates.length === 0) {
     return {
       ok: false,
       err: {
@@ -616,16 +615,49 @@ export async function generateFromSeed(
   const hookText = captionPayload.hookText ?? seed.hookPattern ?? 'Save this';
   const renderBrand: Brand =
     brand.slug === 'affectly' || brand.slug === 'pacebrain' ? (brand.slug as Brand) : 'affectly';
-  const imageBuffer = await createInstagramImageWithText(
-    sourceImageUrl,
-    renderBrand,
-    hookText.slice(0, 60),
-    seed.textPosition,
-    '#FFFFFF',
-    64,
-    seed.overlayStyle,
-    brand.logoUrl ?? null,
-  );
+
+  // Candidate failover: image CDNs (Pixabay/Unsplash/Pexels) periodically
+  // rate-limit Vercel's shared egress IPs with a 429. fetchImageBuffer
+  // already retries 3× with backoff, but if the chosen URL stays throttled
+  // we'd kill the whole generation while 5+ other ranked candidates sit
+  // unused. Walk the list until one downloads cleanly. Non-rate-limit
+  // errors (bad URL, sharp failure, etc.) still abort immediately — those
+  // aren't recoverable by picking another URL.
+  let imageBuffer: Buffer | null = null;
+  let sourceImageUrl: string | null = null;
+  let lastImageError: Error | null = null;
+  for (const candidate of candidates) {
+    try {
+      imageBuffer = await createInstagramImageWithText(
+        candidate.url,
+        renderBrand,
+        hookText.slice(0, 60),
+        seed.textPosition,
+        '#FFFFFF',
+        64,
+        seed.overlayStyle,
+        brand.logoUrl ?? null,
+      );
+      sourceImageUrl = candidate.url;
+      break;
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      lastImageError = e;
+      if (!/rate-limit/i.test(e.message)) throw e;
+    }
+  }
+  if (!imageBuffer || !sourceImageUrl) {
+    return {
+      ok: false,
+      err: {
+        error: 'image_rate_limited',
+        message:
+          lastImageError?.message ??
+          'Every candidate image was rate-limited. Try again in a moment.',
+        status: 503,
+      },
+    };
+  }
   const imageDataUrl = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
 
   const scheduledAt = seed.suggestedPostTime
