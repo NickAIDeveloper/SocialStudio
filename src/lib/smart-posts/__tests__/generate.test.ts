@@ -13,26 +13,44 @@ function makeQueryChain(rows: unknown[]) {
   return chain;
 }
 
+// Per-table mock rows. Brand lookup returns the affectly row; everything else
+// (used-image lookups, no-reuse JIT re-check on posts, scrapedPosts existence
+// check) returns []. The from() call routes by table identity so each query
+// gets the right shape without depending on call order.
+const BRAND_ROW = {
+  id: 'b1',
+  slug: 'affectly',
+  name: 'Affectly',
+  description: 'Test brand',
+  logoUrl: null,
+  userId: 'u1',
+};
 vi.mock('@/lib/db', () => ({
   db: {
     select: vi.fn().mockImplementation(() => ({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue(
-          makeQueryChain([{
-            id: 'b1',
-            slug: 'affectly',
-            name: 'Affectly',
-            description: 'Test brand',
-            logoUrl: null,
-            userId: 'u1',
-          }]),
-        ),
+      from: vi.fn().mockImplementation((table: { _name?: string }) => {
+        // Brand lookup returns the affectly row.
+        // scrapedPosts existence gate returns a row (so `no_data` doesn't fire).
+        // posts table returns [] for both the existence gate and the no-reuse
+        // queries — meaning the brand has no prior posts, so every candidate is
+        // fresh and the JIT re-check finds no conflict.
+        let rows: unknown[] = [];
+        if (table?._name === 'brands') rows = [BRAND_ROW];
+        else if (table?._name === 'scrapedPosts') rows = [{ id: 'sp1' }];
+        return {
+          where: vi.fn().mockReturnValue(makeQueryChain(rows)),
+        };
       }),
     })),
   },
 }));
-vi.mock('@/lib/db/schema', () => ({ brands: {}, scrapedPosts: {}, posts: {}, instagramAccounts: {} }));
-vi.mock('drizzle-orm', () => ({ eq: vi.fn(), and: vi.fn(), gte: vi.fn() }));
+vi.mock('@/lib/db/schema', () => ({
+  brands: { _name: 'brands' },
+  scrapedPosts: { _name: 'scrapedPosts' },
+  posts: { _name: 'posts', sourceImageUrl: 'source_image_url', processedImageUrl: 'processed_image_url', brandId: 'brand_id', id: 'id' },
+  instagramAccounts: { _name: 'instagramAccounts' },
+}));
+vi.mock('drizzle-orm', () => ({ eq: vi.fn(), and: vi.fn(), or: vi.fn(), gte: vi.fn() }));
 vi.mock('@/lib/image-processing', () => ({
   createInstagramImageWithText: vi.fn().mockResolvedValue(Buffer.from('fakeimg')),
 }));

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, or } from 'drizzle-orm';
 import { createHmac } from 'node:crypto';
 import { db } from '@/lib/db';
 import { brands, autopilotSettings, posts, linkedAccounts, instagramAccounts } from '@/lib/db/schema';
@@ -246,6 +246,39 @@ export async function POST(req: Request): Promise<Response> {
           }
         }
       }
+    }
+  }
+
+  // Final no-reuse backstop. generateFromSeed already filters and JIT-rechecks
+  // candidates against the brand's used-image set, but a truly-simultaneous run
+  // (both requests composite in parallel, neither sees the other's insert) can
+  // still slip through. Re-check here right before insert and discard this
+  // generation if the URL is already on file. Better to skip than ship a dupe.
+  if (sourceImageUrl) {
+    const [dup] = await db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(
+        and(
+          eq(posts.brandId, brandId),
+          or(
+            eq(posts.sourceImageUrl, sourceImageUrl),
+            eq(posts.processedImageUrl, sourceImageUrl),
+          ),
+        ),
+      )
+      .limit(1);
+    if (dup) {
+      await db
+        .update(autopilotSettings)
+        .set({ lastError: 'race_duplicate_image_avoided', updatedAt: now })
+        .where(eq(autopilotSettings.brandId, brandId));
+      return NextResponse.json({
+        status: 'skipped',
+        reason: 'race_duplicate_image_avoided',
+        message:
+          'Another autopilot run just used this photo — skipping to avoid a duplicate. Click Run now again.',
+      });
     }
   }
 

@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { brands, scrapedPosts, posts } from '@/lib/db/schema';
 import { seedFromInsight, mergePerfectSeed } from '@/lib/smart-posts';
@@ -627,6 +627,27 @@ export async function generateFromSeed(
   let sourceImageUrl: string | null = null;
   let lastImageError: Error | null = null;
   for (const candidate of candidates) {
+    // JIT no-reuse re-check. `usedUrls` was built at the top of this function
+    // — between then and now a concurrent autopilot run (manual "Run now" +
+    // cron tick, or two rapid clicks) may have committed a post that picked
+    // this same candidate. Without this re-check both runs see an empty
+    // no-reuse set for the URL and ship the same photo twice. Re-querying
+    // here is cheap (one indexed lookup per candidate considered) and closes
+    // the race for any commit that landed before this point.
+    const [conflict] = await db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(
+        and(
+          eq(posts.brandId, brandId),
+          or(
+            eq(posts.sourceImageUrl, candidate.url),
+            eq(posts.processedImageUrl, candidate.url),
+          ),
+        ),
+      )
+      .limit(1);
+    if (conflict) continue;
     try {
       imageBuffer = await createInstagramImageWithText(
         candidate.url,
