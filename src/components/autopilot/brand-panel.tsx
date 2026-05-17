@@ -139,145 +139,183 @@ function DeltaBadge({ thisWeek, lastWeek }: { thisWeek: number; lastWeek: number
   );
 }
 
-function Chip({ children, variant }: { children: React.ReactNode; variant: 'lean' | 'drop' | 'neutral' }) {
+function Chip({ children, variant }: { children: React.ReactNode; variant: 'lean' | 'drop' | 'neutral' | 'good' | 'bad' }) {
   const styles = {
     lean: 'bg-teal-950/40 text-teal-300 border-teal-900/50',
     drop: 'bg-zinc-900 text-zinc-500 border-zinc-800 line-through',
     neutral: 'bg-zinc-900 text-zinc-300 border-zinc-800',
+    good: 'bg-emerald-950/40 text-emerald-300 border-emerald-900/50',
+    bad: 'bg-rose-950/30 text-rose-300 border-rose-900/40',
   }[variant];
   return <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${styles}`}>{children}</span>;
 }
 
+const NOISE_PHRASES = [
+  /,?\s*with no change from the previous brief\.?/gi,
+  /,?\s*based on (the|your) [^.,]+\.?/gi,
+  /,?\s*indicating[^.,]+\.?/gi,
+  /,?\s*suggesting[^.,]+\.?/gi,
+  /,?\s*potentially [^.,]+\.?/gi,
+];
+const BOLD_RE = /\*\*([^*]+)\*\*/g;
+
+function stripMarkdown(s: string): string {
+  return s.replace(BOLD_RE, '$1').replace(/[*_`]+/g, '').trim();
+}
+
+function extractBoldTerms(s: string): string[] {
+  const out: string[] = [];
+  for (const m of s.matchAll(BOLD_RE)) {
+    const term = m[1].trim();
+    if (term.length > 0 && term.length < 40 && !out.includes(term)) out.push(term);
+  }
+  return out;
+}
+
+function denoise(s: string): string {
+  let out = s;
+  for (const re of NOISE_PHRASES) out = out.replace(re, '');
+  return stripMarkdown(out).replace(/\s+/g, ' ').replace(/\s+\./g, '.').trim();
+}
+
+function shorten(s: string, max = 90): string {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const lastSpace = cut.lastIndexOf(' ');
+  return cut.slice(0, lastSpace > 60 ? lastSpace : max) + '…';
+}
+
+function bulletsToChips(bullets: string[], max = 3): string[] {
+  const chips: string[] = [];
+  for (const raw of bullets) {
+    const bold = extractBoldTerms(raw);
+    if (bold.length > 0) {
+      for (const term of bold) {
+        if (!chips.includes(term)) chips.push(term);
+        if (chips.length >= max) return chips;
+      }
+    } else {
+      const short = shorten(denoise(raw), 50);
+      if (short && !chips.includes(short)) chips.push(short);
+      if (chips.length >= max) return chips;
+    }
+  }
+  return chips;
+}
+
 function BrainTab({ data }: { data: InsightsData }) {
   const hasBrain = data.brain !== null;
-  const hasAny =
-    data.sections.working.length > 0 ||
-    data.sections.notWorking.length > 0 ||
-    data.sections.leanInto.length > 0 ||
-    data.sections.drop.length > 0;
   const ci = data.competitorIntel;
 
   if (!hasBrain) {
     return (
       <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/30 p-4 text-sm text-zinc-400">
-        <span className="text-amber-300">Brain hasn't run yet.</span> Daily cron fires at 03:00 UTC — once it has data, your discoveries land here.
+        <span className="text-amber-300">Brain hasn't run yet.</span> Daily cron fires at 03:00 UTC — discoveries land here once it has data.
       </div>
     );
   }
 
+  const winChips = bulletsToChips(data.sections.working, 3);
+  const loseChips = bulletsToChips(data.sections.notWorking, 3);
+  const leanChips = bulletsToChips(data.sections.leanInto, 4);
+  const dropChips = bulletsToChips(data.sections.drop, 4);
+
+  const yourTopHook = winChips[0] ?? null;
+  const compHook = ci?.topHookPatterns[0];
+  const compSlot = ci?.topPostingSlots[0];
+  const compMedia = ci?.topMediaTypes[0];
+
   return (
     <div className="space-y-4">
       {data.formula && (
-        <div className="rounded-lg border border-teal-900/40 bg-teal-950/20 p-4">
+        <div className="rounded-xl border border-teal-900/40 bg-gradient-to-br from-teal-950/30 to-zinc-950 p-4">
           <div className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-teal-300">
             <Sparkles className="h-3 w-3" />
-            <span>Next post formula</span>
+            <span>Next post will be</span>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="Format" value={data.formula.format} />
             <Stat label="Best slot" value={`${data.formula.bestSlot.day} ${formatHour(data.formula.bestSlot.hour)}`} />
-            <Stat label="Caption shape" value={`${data.formula.captionShape.lines}L · ${data.formula.captionShape.paragraphs}p`} />
+            <Stat label="Caption" value={`${data.formula.captionShape.lines}L · ${data.formula.captionShape.paragraphs}p`} />
             <Stat label="Emoji" value={data.formula.captionShape.emojiDensity} />
           </div>
         </div>
       )}
 
-      {hasAny && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {data.sections.working.length > 0 && (
-            <BulletList icon={<Check className="h-3 w-3 text-emerald-400" />} title="Discovered" items={data.sections.working} color="emerald" />
+      {(winChips.length > 0 || loseChips.length > 0) && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {winChips.length > 0 && (
+            <PillBlock title="What's working" icon={<Check className="h-3 w-3 text-emerald-400" />}>
+              {winChips.map((c) => <Chip key={c} variant="good">{c}</Chip>)}
+            </PillBlock>
           )}
-          {data.sections.notWorking.length > 0 && (
-            <BulletList icon={<AlertTriangle className="h-3 w-3 text-rose-400" />} title="Not working" items={data.sections.notWorking} color="rose" />
+          {loseChips.length > 0 && (
+            <PillBlock title="What's not" icon={<AlertTriangle className="h-3 w-3 text-rose-400" />}>
+              {loseChips.map((c) => <Chip key={c} variant="bad">{c}</Chip>)}
+            </PillBlock>
           )}
         </div>
       )}
 
-      {(data.sections.leanInto.length > 0 || data.sections.drop.length > 0) && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {data.sections.leanInto.length > 0 && (
-            <div>
-              <SectionLabel icon={<TrendingUp className="h-3 w-3 text-teal-400" />} text="Will lean into" />
-              <div className="flex flex-wrap gap-1.5">
-                {data.sections.leanInto.slice(0, 8).map((b, i) => (
-                  <Chip key={i} variant="lean">{b}</Chip>
-                ))}
-              </div>
-            </div>
+      {(leanChips.length > 0 || dropChips.length > 0) && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {leanChips.length > 0 && (
+            <PillBlock title="Will lean into" icon={<TrendingUp className="h-3 w-3 text-teal-400" />}>
+              {leanChips.map((c) => <Chip key={c} variant="lean">{c}</Chip>)}
+            </PillBlock>
           )}
-          {data.sections.drop.length > 0 && (
-            <div>
-              <SectionLabel icon={<TrendingDown className="h-3 w-3 text-zinc-500" />} text="Won't do anymore" />
-              <div className="flex flex-wrap gap-1.5">
-                {data.sections.drop.slice(0, 8).map((b, i) => (
-                  <Chip key={i} variant="drop">{b}</Chip>
-                ))}
-              </div>
-            </div>
+          {dropChips.length > 0 && (
+            <PillBlock title="Won't do" icon={<TrendingDown className="h-3 w-3 text-zinc-500" />}>
+              {dropChips.map((c) => <Chip key={c} variant="drop">{c}</Chip>)}
+            </PillBlock>
           )}
         </div>
       )}
 
       {ci && ci.sampleSize > 0 && (
-        <div className="rounded-lg border border-amber-900/30 bg-amber-950/10 p-4">
+        <div className="rounded-xl border border-amber-900/30 bg-gradient-to-br from-amber-950/15 to-zinc-950 p-4">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-300">
               <Target className="h-3 w-3" />
-              <span>What competitors win on</span>
+              <span>Stealing from competitors</span>
             </div>
-            <span className="text-[10px] text-zinc-500">{ci.sampleSize} posts · {ci.competitorCount} competitors</span>
+            <span className="text-[10px] text-zinc-500">{ci.sampleSize} posts · {ci.competitorCount} accounts</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {ci.topHookPatterns[0] && (
-              <CompStat label="Winning hook style" value={ci.topHookPatterns[0].pattern} detail={`${ci.topHookPatterns[0].avgEngagement.toLocaleString()} avg eng`} />
-            )}
-            {ci.topMediaTypes[0] && (
-              <CompStat label="Top media type" value={ci.topMediaTypes[0].mediaType} detail={`${ci.topMediaTypes[0].avgEngagement.toLocaleString()} avg eng`} />
-            )}
-            {ci.topPostingSlots[0] && (
-              <CompStat label="Hottest slot" value={`${ci.topPostingSlots[0].day} ${formatHour(ci.topPostingSlots[0].hour)}`} detail={`${ci.topPostingSlots[0].avgEngagement.toLocaleString()} avg eng`} />
-            )}
-            {ci.topHashtags.length > 0 && (
-              <div>
-                <div className="mb-1.5 text-[10px] uppercase tracking-wider text-zinc-500">Hashtags worth borrowing</div>
-                <div className="flex flex-wrap gap-1">
-                  {ci.topHashtags.slice(0, 4).map((h) => (
-                    <Chip key={h.tag} variant="neutral">
-                      {h.tag} <span className="text-zinc-500">·{h.avgEngagement.toLocaleString()}</span>
-                    </Chip>
-                  ))}
-                </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            {compHook && <VsStat label="Hook style" you={yourTopHook ?? '—'} them={compHook.pattern} themDetail={`${compHook.avgEngagement.toLocaleString()} avg`} />}
+            {compSlot && <VsStat label="Hot slot" you={data.formula ? `${data.formula.bestSlot.day.slice(0, 3)} ${formatHour(data.formula.bestSlot.hour)}` : '—'} them={`${compSlot.day.slice(0, 3)} ${formatHour(compSlot.hour)}`} themDetail={`${compSlot.avgEngagement.toLocaleString()} avg`} />}
+            {compMedia && <VsStat label="Media" you={data.formula?.format ?? '—'} them={compMedia.mediaType} themDetail={`${compMedia.avgEngagement.toLocaleString()} avg`} />}
+          </div>
+
+          {ci.topHashtags.length > 0 && (
+            <div className="mt-4 border-t border-zinc-800/60 pt-3">
+              <div className="mb-1.5 text-[10px] uppercase tracking-wider text-zinc-500">
+                Hashtags worth borrowing
               </div>
-            )}
-          </div>
+              <div className="flex flex-wrap gap-1">
+                {ci.topHashtags.slice(0, 5).map((h) => (
+                  <Chip key={h.tag} variant="neutral">
+                    {h.tag} <span className="text-zinc-500">·{h.avgEngagement.toLocaleString()}</span>
+                  </Chip>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function BulletList({ icon, title, items, color }: { icon: React.ReactNode; title: string; items: string[]; color: 'emerald' | 'rose' }) {
-  const mark = color === 'emerald' ? 'text-emerald-400' : 'text-rose-400';
+function PillBlock({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/30 p-4">
-      <SectionLabel icon={icon} text={title} count={items.length} />
-      <ul className="space-y-1.5">
-        {items.slice(0, 5).map((b, i) => (
-          <li key={i} className="text-xs leading-relaxed text-zinc-300">
-            <span className={mark}>{color === 'emerald' ? '✓' : '✗'}</span> {b}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function SectionLabel({ icon, text, count }: { icon: React.ReactNode; text: string; count?: number }) {
-  return (
-    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-      {icon}
-      <span>{text}</span>
-      {count !== undefined && count > 0 && <span className="text-zinc-500">({count})</span>}
+    <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4">
+      <div className="mb-2.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+        {icon}
+        <span>{title}</span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   );
 }
@@ -291,12 +329,21 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function CompStat({ label, value, detail }: { label: string; value: string; detail: string }) {
+function VsStat({ label, you, them, themDetail }: { label: string; you: string; them: string; themDetail: string }) {
   return (
-    <div>
-      <div className="mb-0.5 text-[10px] uppercase tracking-wider text-zinc-500">{label}</div>
-      <div className="text-sm font-semibold text-white">{value}</div>
-      <div className="text-[11px] text-zinc-500">{detail}</div>
+    <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/40 p-3">
+      <div className="mb-2 text-[10px] uppercase tracking-wider text-zinc-500">{label}</div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <div className="text-[9px] uppercase text-zinc-500">You</div>
+          <div className="truncate text-sm font-medium text-zinc-300">{you}</div>
+        </div>
+        <div className="border-l border-zinc-800 pl-2">
+          <div className="text-[9px] uppercase text-amber-400/80">Them</div>
+          <div className="truncate text-sm font-semibold text-amber-200">{them}</div>
+          <div className="text-[10px] text-zinc-500">{themDetail}</div>
+        </div>
+      </div>
     </div>
   );
 }
