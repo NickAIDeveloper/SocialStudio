@@ -3,6 +3,7 @@ import { getUserId } from '@/lib/auth-helpers';
 import { verifyBrainSignature } from '@/lib/brain/auth';
 import { generateFromSeed, sanitizeMetaOverrides } from '@/lib/smart-posts/generate';
 import { buildDeepProfile } from '@/lib/meta/deep-profile';
+import { buildCompetitorIntel, type CompetitorIntel } from '@/lib/brain/competitor-intel';
 import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
 import type { DeepProfile } from '@/lib/meta/deep-profile.types';
 
@@ -149,18 +150,33 @@ function compactProfileForPrompt(profile: DeepProfile) {
   };
 }
 
-function buildUserPrompt(profile: DeepProfile, likeOfMediaId?: string): string {
+function buildUserPrompt(
+  profile: DeepProfile,
+  competitorIntel: CompetitorIntel | null,
+  likeOfMediaId?: string,
+): string {
   const compact = compactProfileForPrompt(profile);
   const likeOfLine = likeOfMediaId
     ? `The user wants this new post to be similar in style and angle to their existing top performer with media id ${likeOfMediaId}. Use that post's apparent format and topic as the anchor, not the account medians.\n\n`
     : '';
+  const competitorBlock =
+    competitorIntel && competitorIntel.sampleSize > 0
+      ? [
+          '',
+          `COMPETITOR_INTEL_JSON (${competitorIntel.sampleSize} posts across ${competitorIntel.competitorCount} competitors, ranked by engagement):`,
+          JSON.stringify(competitorIntel, null, 2),
+          '',
+          'Use COMPETITOR_INTEL_JSON to spot patterns that win in this niche but the account is not yet using. If a competitor hook pattern (question/stat/imperative) or media type beats the account medians, lean toward it. Borrow the angle — never copy a hook verbatim. If a competitor hashtag has high engagement and is not branded to them, it is a candidate keyword for the caption.',
+        ].join('\n')
+      : '';
   return [
     "Below is the account's full performance profile. Use the actual numbers.",
     '',
     'PROFILE_JSON:',
     JSON.stringify(compact, null, 2),
+    competitorBlock,
     '',
-    likeOfLine + 'Design ONE Instagram post that has the best chance of beating this account\'s median reach.',
+    likeOfLine + 'Design ONE Instagram post that has the best chance of beating this account\'s median reach AND outperforming what competitors are shipping in this niche.',
     'Reply with this exact JSON shape, and nothing else:',
     '{',
     '  "overrides": {',
@@ -170,7 +186,7 @@ function buildUserPrompt(profile: DeepProfile, likeOfMediaId?: string): string {
     '    "pattern": "<short caption hook pattern, max 60 chars>",',
     '    "preset": "<short topic or angle seed, max 200 chars>"',
     '  },',
-    '  "rationale": "<4 to 6 plain English sentences citing specific numbers from the profile, e.g. \'Carousels reach 2.3x your median\' instead of \'carousels work well\'>"',
+    '  "rationale": "<4 to 6 plain English sentences. Cite specific numbers from PROFILE_JSON AND, when relevant, from COMPETITOR_INTEL_JSON, e.g. \'Carousels reach 2.3x your median and competitors get 4.1k avg engagement on stat-led hooks vs your 800\'>"',
     '}',
   ].join('\n');
 }
@@ -282,10 +298,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Competitor intel is best-effort — a failure here must never block design.
+    // Returns an empty-sample shape when the brand has no scraped competitors yet.
+    let competitorIntel: CompetitorIntel | null = null;
+    try {
+      competitorIntel = await buildCompetitorIntel(brandId);
+    } catch (err) {
+      console.warn('[SmartPosts/god-mode] buildCompetitorIntel failed:', err instanceof Error ? err.message : err);
+    }
+
     const raw = await cerebrasChatCompletion(
       [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: buildUserPrompt(profile, likeOfMediaId) },
+        { role: 'user', content: buildUserPrompt(profile, competitorIntel, likeOfMediaId) },
       ],
       { temperature: LLM_TEMP, maxTokens: LLM_MAX_TOKENS },
     );

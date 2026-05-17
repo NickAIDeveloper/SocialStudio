@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { AutopilotCard } from './autopilot-card';
+import { AutopilotInsightsCard } from './autopilot-insights-card';
 
 interface Brand {
   id: string;
@@ -70,7 +71,10 @@ export function AutopilotSection() {
         </p>
       </div>
       {brands.map((brand) => (
-        <AutopilotCard key={brand.id} brandId={brand.id} brandName={brand.name} />
+        <div key={brand.id} className="space-y-3">
+          <AutopilotInsightsCard brandId={brand.id} brandName={brand.name} />
+          <AutopilotCard brandId={brand.id} brandName={brand.name} />
+        </div>
       ))}
     </div>
   );

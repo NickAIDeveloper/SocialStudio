@@ -1,7 +1,6 @@
 import { SettingsPanel } from '@/components/settings-panel';
 import { BrandManager } from '@/components/brand-manager';
 import { BrandVoiceSettings } from '@/components/brand-voice-settings';
-import { AutopilotSection } from '@/components/autopilot/autopilot-section';
 
 export default function SettingsPage() {
   return (
@@ -15,8 +14,6 @@ export default function SettingsPage() {
       <SettingsPanel />
       <div className="border-t border-white/5" />
       <BrandVoiceSettings />
-      <div className="border-t border-white/5" />
-      <AutopilotSection />
       <div className="border-t border-white/5" />
       <BrandManager />
     </div>
