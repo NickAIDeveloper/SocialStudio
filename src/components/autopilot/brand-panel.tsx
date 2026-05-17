@@ -34,6 +34,7 @@ interface InsightsData {
     captionShape: { lines: number; paragraphs: number; emojiDensity: 'low' | 'medium' | 'high' };
   } | null;
   yourHookPattern: string | null;
+  yourPostsReviewed: number;
   competitorIntel: {
     competitorCount: number;
     sampleSize: number;
@@ -205,7 +206,17 @@ function bulletsToChips(bullets: string[], max = 3): string[] {
   return chips;
 }
 
+function buildDecisionSentence(data: InsightsData): string | null {
+  if (!data.formula) return null;
+  const f = data.formula;
+  const type = humanFormat(f.format).toLowerCase();
+  const when = `${f.bestSlot.day} at ${formatHour(f.bestSlot.hour)}`;
+  const hook = data.yourHookPattern ? humanHook(data.yourHookPattern).toLowerCase() : 'a hook tuned to your top performers';
+  return `The brain wants to ship a ${type} on ${when}, opening with ${hook}.`;
+}
+
 function BrainTab({ data }: { data: InsightsData }) {
+  const [showDetails, setShowDetails] = useState(false);
   const hasBrain = data.brain !== null;
   const ci = data.competitorIntel;
 
@@ -226,15 +237,32 @@ function BrainTab({ data }: { data: InsightsData }) {
   const compSlot = ci?.topPostingSlots[0];
   const compMedia = ci?.topMediaTypes[0];
 
+  const decision = buildDecisionSentence(data);
+  const hasDetails =
+    winChips.length > 0 ||
+    loseChips.length > 0 ||
+    leanChips.length > 0 ||
+    dropChips.length > 0 ||
+    (ci?.sampleSize ?? 0) > 0;
+
   return (
     <div className="space-y-4">
-      {data.formula && (
+      {decision && (
         <div className="rounded-xl border border-teal-900/40 bg-gradient-to-br from-teal-950/30 to-zinc-950 p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-teal-300">
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-teal-300">
+            The brain's decision
+          </div>
+          <p className="text-sm leading-relaxed text-white">{decision}</p>
+        </div>
+      )}
+
+      {data.formula && (
+        <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4">
+          <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
             <Sparkles className="h-3 w-3" />
             <span>What the next post will look like</span>
           </div>
-          <p className="mb-3 text-xs text-zinc-400">Designed from what's worked on your account so far.</p>
+          <p className="mb-3 text-xs text-zinc-500">Picked from what worked on your account.</p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="Type" value={humanFormat(data.formula.format)} />
             <Stat label="When it'll post" value={`${data.formula.bestSlot.day} ${formatHour(data.formula.bestSlot.hour)}`} />
@@ -244,7 +272,18 @@ function BrainTab({ data }: { data: InsightsData }) {
         </div>
       )}
 
-      {(winChips.length > 0 || loseChips.length > 0) && (
+      {hasDetails && (
+        <button
+          type="button"
+          onClick={() => setShowDetails((v) => !v)}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-800/60 bg-zinc-900/30 px-3 py-2 text-xs font-medium text-zinc-400 transition-colors hover:bg-zinc-900/60 hover:text-zinc-200"
+        >
+          {showDetails ? 'Hide full breakdown' : 'Show full breakdown'}
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
+        </button>
+      )}
+
+      {showDetails && (winChips.length > 0 || loseChips.length > 0) && (
         <div className="grid gap-3 sm:grid-cols-2">
           {winChips.length > 0 && (
             <PillBlock title="What's working for you" hint="Patterns the brain noticed in your top posts" icon={<Check className="h-3 w-3 text-emerald-400" />}>
@@ -259,7 +298,7 @@ function BrainTab({ data }: { data: InsightsData }) {
         </div>
       )}
 
-      {(leanChips.length > 0 || dropChips.length > 0) && (
+      {showDetails && (leanChips.length > 0 || dropChips.length > 0) && (
         <div className="grid gap-3 sm:grid-cols-2">
           {leanChips.length > 0 && (
             <PillBlock title="More of this" hint="Topics the brain will write about more often" icon={<TrendingUp className="h-3 w-3 text-teal-400" />}>
@@ -274,7 +313,7 @@ function BrainTab({ data }: { data: InsightsData }) {
         </div>
       )}
 
-      {ci && ci.sampleSize > 0 && (
+      {showDetails && ci && ci.sampleSize > 0 && (
         <div className="rounded-xl border border-amber-900/30 bg-gradient-to-br from-amber-950/15 to-zinc-950 p-4">
           <div className="mb-1 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-300">
@@ -523,6 +562,7 @@ export function BrandPanel({ brandId, brandName }: { brandId: string; brandName:
 
       {open && (
         <div className="border-t border-zinc-800/60 bg-zinc-950/40">
+          <LearningLedger data={data} />
           <div className="flex gap-1 border-b border-zinc-800/60 px-4">
             <TabButton active={tab === 'brain'} onClick={() => setTab('brain')} icon={<Brain className="h-3.5 w-3.5" />}>
               What it learned
@@ -546,6 +586,46 @@ export function BrandPanel({ brandId, brandName }: { brandId: string; brandName:
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function fmtAnalyzedAt(iso: string | undefined | null): string {
+  if (!iso) return 'never';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return 'never';
+  const date = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return `${date} at ${time}`;
+}
+
+function LearningLedger({ data }: { data: InsightsData }) {
+  if (!data.brain) {
+    return (
+      <div className="border-b border-zinc-800/60 bg-zinc-900/30 px-5 py-3 text-xs text-zinc-400">
+        <span className="text-amber-300">Brain hasn't analyzed yet.</span> Next analysis runs nightly at 03:00 UTC.
+      </div>
+    );
+  }
+  const reviewedOwn = data.yourPostsReviewed ?? 0;
+  const reviewedComp = data.competitorIntel?.sampleSize ?? 0;
+  const compCount = data.competitorIntel?.competitorCount ?? 0;
+  return (
+    <div className="border-b border-zinc-800/60 bg-gradient-to-r from-teal-950/20 to-zinc-950/40 px-5 py-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+        <span className="inline-flex items-center gap-1.5 font-medium text-teal-300">
+          <Brain className="h-3.5 w-3.5" />
+          Last analyzed {fmtAnalyzedAt(data.brain.generatedAt)} ({timeAgo(data.brain.generatedAt)})
+        </span>
+        <span className="text-zinc-500">
+          Reviewed <span className="text-zinc-200">{reviewedOwn}</span> of your posts
+          {reviewedComp > 0 && <> + <span className="text-zinc-200">{reviewedComp}</span> competitor posts across <span className="text-zinc-200">{compCount}</span> accounts</>}
+        </span>
+        <span className="text-zinc-500">Brain v{data.brain.briefVersion}</span>
+      </div>
+      <p className="mt-1 text-[11px] text-zinc-500">
+        Each new post is designed from these findings — what got the most likes, comments, and reach on your account and on theirs.
+      </p>
     </div>
   );
 }
