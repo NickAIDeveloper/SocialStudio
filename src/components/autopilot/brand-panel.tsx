@@ -35,6 +35,11 @@ interface InsightsData {
   } | null;
   yourHookPattern: string | null;
   yourPostsReviewed: number;
+  narrative: {
+    narrative: string;
+    bullets: string[];
+    lastAnalysisAt: string;
+  } | null;
   competitorIntel: {
     competitorCount: number;
     sampleSize: number;
@@ -623,9 +628,29 @@ function LearningLedger({ data }: { data: InsightsData }) {
         </span>
         <span className="text-zinc-500">Brain v{data.brain.briefVersion}</span>
       </div>
-      <p className="mt-1 text-[11px] text-zinc-500">
-        Each new post is designed from these findings — what got the most likes, comments, and reach on your account and on theirs.
-      </p>
+
+      {data.narrative ? (
+        <div className="mt-2.5 rounded-lg border border-teal-900/40 bg-zinc-950/60 p-3">
+          <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-teal-300">
+            <Sparkles className="h-3 w-3" />
+            <span>What changed this run</span>
+          </div>
+          <p className="text-xs leading-relaxed text-zinc-200">{data.narrative.narrative}</p>
+          {data.narrative.bullets.length > 0 && (
+            <ul className="mt-2 space-y-0.5">
+              {data.narrative.bullets.map((b, i) => (
+                <li key={i} className="text-[11px] text-zinc-400">
+                  <span className="text-teal-400">→</span> {b}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="mt-1 text-[11px] text-zinc-500">
+          Each new post is designed from these findings — what got the most likes, comments, and reach on your account and on theirs.
+        </p>
+      )}
     </div>
   );
 }

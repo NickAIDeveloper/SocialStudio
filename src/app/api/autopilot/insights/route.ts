@@ -6,6 +6,7 @@ import { brands, autopilotSettings, brainSignals, posts } from '@/lib/db/schema'
 import { readBrandBrain } from '@/lib/brain/consume';
 import { parseBriefSections } from '@/lib/brain/brief-sections';
 import { buildCompetitorIntel } from '@/lib/brain/competitor-intel';
+import { buildBrainNarrative } from '@/lib/autopilot/narrative';
 import { SUPPORTED_FORMATS, isSupportedFormat } from '@/lib/autopilot/capabilities';
 
 interface StoredHookPattern { pattern: string; sampleSize: number; medianReach?: number }
@@ -146,6 +147,21 @@ export async function GET(req: Request): Promise<Response> {
   const weekly = computeWeekly(autopilotPosts, settings?.frequency ?? null);
   const ownSignals = await fetchOwnSignals(brandId);
 
+  // Narrative is best-effort and cached by briefVersion — a failure here
+  // (Cerebras down, parse error) must never block the rest of the response.
+  let narrative = null;
+  if (brain) {
+    try {
+      narrative = await buildBrainNarrative({
+        brandId,
+        briefVersion: brain.briefVersion,
+        competitorIntel,
+      });
+    } catch (err) {
+      console.warn('[autopilot/insights] narrative failed:', err instanceof Error ? err.message : err);
+    }
+  }
+
   return NextResponse.json({
     brain: brain
       ? { briefVersion: brain.briefVersion, generatedAt: brain.generatedAt }
@@ -155,6 +171,7 @@ export async function GET(req: Request): Promise<Response> {
     competitorIntel,
     yourHookPattern: ownSignals.hookPattern,
     yourPostsReviewed: ownSignals.postsReviewed,
+    narrative,
     weekly,
     autopilot: settings
       ? {
