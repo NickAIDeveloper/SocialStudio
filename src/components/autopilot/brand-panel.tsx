@@ -16,6 +16,7 @@ import {
   Minus,
 } from 'lucide-react';
 import { AutopilotCard } from './autopilot-card';
+import { humanCaptionShape, humanEmoji, humanEngagementAvg, humanFormat, humanHook } from '@/lib/autopilot/humanize';
 
 interface InsightsData {
   brain: { briefVersion: number; generatedAt: string } | null;
@@ -32,6 +33,7 @@ interface InsightsData {
     bestSlot: { day: string; hour: number };
     captionShape: { lines: number; paragraphs: number; emojiDensity: 'low' | 'medium' | 'high' };
   } | null;
+  yourHookPattern: string | null;
   competitorIntel: {
     competitorCount: number;
     sampleSize: number;
@@ -89,9 +91,9 @@ function formatHour(h: number): string {
 }
 
 const STATUS_META = {
-  on_track: { label: 'On track', dot: 'bg-emerald-400', text: 'text-emerald-300', ring: 'ring-emerald-500/30', icon: Check },
-  close: { label: 'Close', dot: 'bg-amber-400', text: 'text-amber-300', ring: 'ring-amber-500/30', icon: Minus },
-  behind: { label: 'Behind', dot: 'bg-rose-400', text: 'text-rose-300', ring: 'ring-rose-500/30', icon: AlertTriangle },
+  on_track: { label: 'Hitting your goal', dot: 'bg-emerald-400', text: 'text-emerald-300', ring: 'ring-emerald-500/30', icon: Check },
+  close: { label: 'Almost there', dot: 'bg-amber-400', text: 'text-amber-300', ring: 'ring-amber-500/30', icon: Minus },
+  behind: { label: 'Falling behind', dot: 'bg-rose-400', text: 'text-rose-300', ring: 'ring-rose-500/30', icon: AlertTriangle },
   paused: { label: 'Paused', dot: 'bg-zinc-500', text: 'text-zinc-400', ring: 'ring-zinc-700/30', icon: PauseCircle },
 } as const;
 
@@ -220,7 +222,6 @@ function BrainTab({ data }: { data: InsightsData }) {
   const leanChips = bulletsToChips(data.sections.leanInto, 4);
   const dropChips = bulletsToChips(data.sections.drop, 4);
 
-  const yourTopHook = winChips[0] ?? null;
   const compHook = ci?.topHookPatterns[0];
   const compSlot = ci?.topPostingSlots[0];
   const compMedia = ci?.topMediaTypes[0];
@@ -229,15 +230,16 @@ function BrainTab({ data }: { data: InsightsData }) {
     <div className="space-y-4">
       {data.formula && (
         <div className="rounded-xl border border-teal-900/40 bg-gradient-to-br from-teal-950/30 to-zinc-950 p-4">
-          <div className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-teal-300">
+          <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-teal-300">
             <Sparkles className="h-3 w-3" />
-            <span>Next post will be</span>
+            <span>What the next post will look like</span>
           </div>
+          <p className="mb-3 text-xs text-zinc-400">Designed from what's worked on your account so far.</p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Format" value={data.formula.format} />
-            <Stat label="Best slot" value={`${data.formula.bestSlot.day} ${formatHour(data.formula.bestSlot.hour)}`} />
-            <Stat label="Caption" value={`${data.formula.captionShape.lines}L · ${data.formula.captionShape.paragraphs}p`} />
-            <Stat label="Emoji" value={data.formula.captionShape.emojiDensity} />
+            <Stat label="Type" value={humanFormat(data.formula.format)} />
+            <Stat label="When it'll post" value={`${data.formula.bestSlot.day} ${formatHour(data.formula.bestSlot.hour)}`} />
+            <Stat label="Caption length" value={humanCaptionShape(data.formula.captionShape.lines, data.formula.captionShape.paragraphs)} />
+            <Stat label="Emoji style" value={humanEmoji(data.formula.captionShape.emojiDensity)} />
           </div>
         </div>
       )}
@@ -245,12 +247,12 @@ function BrainTab({ data }: { data: InsightsData }) {
       {(winChips.length > 0 || loseChips.length > 0) && (
         <div className="grid gap-3 sm:grid-cols-2">
           {winChips.length > 0 && (
-            <PillBlock title="What's working" icon={<Check className="h-3 w-3 text-emerald-400" />}>
+            <PillBlock title="What's working for you" hint="Patterns the brain noticed in your top posts" icon={<Check className="h-3 w-3 text-emerald-400" />}>
               {winChips.map((c) => <Chip key={c} variant="good">{c}</Chip>)}
             </PillBlock>
           )}
           {loseChips.length > 0 && (
-            <PillBlock title="What's not" icon={<AlertTriangle className="h-3 w-3 text-rose-400" />}>
+            <PillBlock title="What's falling flat" hint="Things the brain wants to fix on your next post" icon={<AlertTriangle className="h-3 w-3 text-rose-400" />}>
               {loseChips.map((c) => <Chip key={c} variant="bad">{c}</Chip>)}
             </PillBlock>
           )}
@@ -260,12 +262,12 @@ function BrainTab({ data }: { data: InsightsData }) {
       {(leanChips.length > 0 || dropChips.length > 0) && (
         <div className="grid gap-3 sm:grid-cols-2">
           {leanChips.length > 0 && (
-            <PillBlock title="Will lean into" icon={<TrendingUp className="h-3 w-3 text-teal-400" />}>
+            <PillBlock title="More of this" hint="Topics the brain will write about more often" icon={<TrendingUp className="h-3 w-3 text-teal-400" />}>
               {leanChips.map((c) => <Chip key={c} variant="lean">{c}</Chip>)}
             </PillBlock>
           )}
           {dropChips.length > 0 && (
-            <PillBlock title="Won't do" icon={<TrendingDown className="h-3 w-3 text-zinc-500" />}>
+            <PillBlock title="Less of this" hint="Topics it'll quietly stop posting" icon={<TrendingDown className="h-3 w-3 text-zinc-500" />}>
               {dropChips.map((c) => <Chip key={c} variant="drop">{c}</Chip>)}
             </PillBlock>
           )}
@@ -274,24 +276,46 @@ function BrainTab({ data }: { data: InsightsData }) {
 
       {ci && ci.sampleSize > 0 && (
         <div className="rounded-xl border border-amber-900/30 bg-gradient-to-br from-amber-950/15 to-zinc-950 p-4">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-1 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-300">
               <Target className="h-3 w-3" />
-              <span>Stealing from competitors</span>
+              <span>Borrowing from competitors</span>
             </div>
-            <span className="text-[10px] text-zinc-500">{ci.sampleSize} posts · {ci.competitorCount} accounts</span>
+            <span className="text-[10px] text-zinc-500">Based on {ci.sampleSize} of their posts · {ci.competitorCount} accounts</span>
           </div>
+          <p className="mb-3 text-xs text-zinc-400">Where they're beating you. The brain will try these on your next post.</p>
 
           <div className="grid gap-4 sm:grid-cols-3">
-            {compHook && <VsStat label="Hook style" you={yourTopHook ?? '—'} them={compHook.pattern} themDetail={`${compHook.avgEngagement.toLocaleString()} avg`} />}
-            {compSlot && <VsStat label="Hot slot" you={data.formula ? `${data.formula.bestSlot.day.slice(0, 3)} ${formatHour(data.formula.bestSlot.hour)}` : '—'} them={`${compSlot.day.slice(0, 3)} ${formatHour(compSlot.hour)}`} themDetail={`${compSlot.avgEngagement.toLocaleString()} avg`} />}
-            {compMedia && <VsStat label="Media" you={data.formula?.format ?? '—'} them={compMedia.mediaType} themDetail={`${compMedia.avgEngagement.toLocaleString()} avg`} />}
+            {compHook && (
+              <VsStat
+                label="How they start captions"
+                you={humanHook(data.yourHookPattern)}
+                them={humanHook(compHook.pattern)}
+                themDetail={humanEngagementAvg(compHook.avgEngagement)}
+              />
+            )}
+            {compSlot && (
+              <VsStat
+                label="Best time to post"
+                you={data.formula ? `${data.formula.bestSlot.day.slice(0, 3)} ${formatHour(data.formula.bestSlot.hour)}` : '—'}
+                them={`${compSlot.day.slice(0, 3)} ${formatHour(compSlot.hour)}`}
+                themDetail={humanEngagementAvg(compSlot.avgEngagement)}
+              />
+            )}
+            {compMedia && (
+              <VsStat
+                label="Post type that wins"
+                you={data.formula ? humanFormat(data.formula.format) : '—'}
+                them={humanFormat(compMedia.mediaType)}
+                themDetail={humanEngagementAvg(compMedia.avgEngagement)}
+              />
+            )}
           </div>
 
           {ci.topHashtags.length > 0 && (
             <div className="mt-4 border-t border-zinc-800/60 pt-3">
               <div className="mb-1.5 text-[10px] uppercase tracking-wider text-zinc-500">
-                Hashtags worth borrowing
+                Hashtags worth borrowing <span className="normal-case tracking-normal text-zinc-600">(number = avg likes per post that used it)</span>
               </div>
               <div className="flex flex-wrap gap-1">
                 {ci.topHashtags.slice(0, 5).map((h) => (
@@ -308,13 +332,14 @@ function BrainTab({ data }: { data: InsightsData }) {
   );
 }
 
-function PillBlock({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+function PillBlock({ title, hint, icon, children }: { title: string; hint?: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4">
-      <div className="mb-2.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
         {icon}
         <span>{title}</span>
       </div>
+      {hint && <p className="mb-2.5 text-[11px] text-zinc-500">{hint}</p>}
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   );
@@ -478,17 +503,17 @@ export function BrandPanel({ brandId, brandName }: { brandId: string; brandName:
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Posts this week</div>
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Posts shipped this week</div>
               <div className="mt-0.5 flex items-baseline gap-1.5">
                 <span className="text-2xl font-bold text-white">{data.weekly.postsThisWeek}</span>
-                <span className="text-xs text-zinc-500">/ {data.weekly.weeklyGoal} goal</span>
+                <span className="text-xs text-zinc-500">of {data.weekly.weeklyGoal} planned</span>
               </div>
               <DeltaBadge thisWeek={data.weekly.postsThisWeek} lastWeek={data.weekly.postsLastWeek} />
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Last 14 days</div>
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Posting rhythm · last 14 days</div>
               <Sparkline data={data.weekly.last14dDaily} color={sparkColor} />
-              <div className="text-[10px] text-zinc-500">{data.autopilot?.totalGenerated ?? 0} total shipped</div>
+              <div className="text-[10px] text-zinc-500">{data.autopilot?.totalGenerated ?? 0} total posts shipped all time</div>
             </div>
           </div>
         </div>

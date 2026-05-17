@@ -1,11 +1,26 @@
 import { NextResponse } from 'next/server';
-import { and, eq, gte } from 'drizzle-orm';
+import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { brands, autopilotSettings, posts } from '@/lib/db/schema';
+import { brands, autopilotSettings, brainSignals, posts } from '@/lib/db/schema';
 import { readBrandBrain } from '@/lib/brain/consume';
 import { parseBriefSections } from '@/lib/brain/brief-sections';
 import { buildCompetitorIntel } from '@/lib/brain/competitor-intel';
+
+interface StoredHookPattern { pattern: string; sampleSize: number; medianReach?: number }
+
+async function fetchOwnHookPattern(brandId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ hookPatterns: brainSignals.hookPatterns })
+    .from(brainSignals)
+    .where(and(eq(brainSignals.brandId, brandId), eq(brainSignals.windowDays, 28)))
+    .orderBy(desc(brainSignals.computedAt))
+    .limit(1);
+  if (!row?.hookPatterns) return null;
+  const list = row.hookPatterns as StoredHookPattern[];
+  const sorted = [...list].sort((a, b) => (b.sampleSize ?? 0) - (a.sampleSize ?? 0));
+  return sorted[0]?.pattern ?? null;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -123,6 +138,7 @@ export async function GET(req: Request): Promise<Response> {
     );
 
   const weekly = computeWeekly(autopilotPosts, settings?.frequency ?? null);
+  const yourHookPattern = await fetchOwnHookPattern(brandId);
 
   return NextResponse.json({
     brain: brain
@@ -131,6 +147,7 @@ export async function GET(req: Request): Promise<Response> {
     sections,
     formula,
     competitorIntel,
+    yourHookPattern,
     weekly,
     autopilot: settings
       ? {
