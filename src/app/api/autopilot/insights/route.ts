@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gte } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { brands, autopilotSettings } from '@/lib/db/schema';
+import { brands, autopilotSettings, posts } from '@/lib/db/schema';
 import { readBrandBrain } from '@/lib/brain/consume';
 import { parseBriefSections } from '@/lib/brain/brief-sections';
 import { buildCompetitorIntel } from '@/lib/brain/competitor-intel';
@@ -10,6 +10,61 @@ import { buildCompetitorIntel } from '@/lib/brain/competitor-intel';
 export const dynamic = 'force-dynamic';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const WEEKLY_GOAL: Record<string, number> = {
+  daily: 7,
+  every_other_day: 4,
+  three_per_week: 3,
+  weekly: 1,
+};
+
+function startOfDayUtc(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+function computeWeekly(
+  autopilotPosts: { createdAt: Date | null }[],
+  frequency: string | null,
+): {
+  postsThisWeek: number;
+  postsLastWeek: number;
+  weeklyGoal: number;
+  last14dDaily: { day: string; count: number }[];
+  status: 'on_track' | 'close' | 'behind' | 'paused';
+} {
+  const now = new Date();
+  const today = startOfDayUtc(now);
+  const weekAgo = new Date(today.getTime() - 7 * 86_400_000);
+  const twoWeeksAgo = new Date(today.getTime() - 14 * 86_400_000);
+
+  const postsThisWeek = autopilotPosts.filter(
+    (p) => p.createdAt && p.createdAt >= weekAgo,
+  ).length;
+  const postsLastWeek = autopilotPosts.filter(
+    (p) => p.createdAt && p.createdAt >= twoWeeksAgo && p.createdAt < weekAgo,
+  ).length;
+
+  const buckets: Map<string, number> = new Map();
+  for (let i = 13; i >= 0; i--) {
+    const day = new Date(today.getTime() - i * 86_400_000).toISOString().slice(0, 10);
+    buckets.set(day, 0);
+  }
+  for (const p of autopilotPosts) {
+    if (!p.createdAt) continue;
+    const day = startOfDayUtc(p.createdAt).toISOString().slice(0, 10);
+    if (buckets.has(day)) buckets.set(day, (buckets.get(day) ?? 0) + 1);
+  }
+  const last14dDaily = [...buckets.entries()].map(([day, count]) => ({ day, count }));
+
+  const weeklyGoal = frequency ? (WEEKLY_GOAL[frequency] ?? 4) : 4;
+  let status: 'on_track' | 'close' | 'behind' | 'paused' = 'on_track';
+  if (!frequency) status = 'paused';
+  else if (postsThisWeek >= weeklyGoal) status = 'on_track';
+  else if (postsThisWeek >= weeklyGoal * 0.5) status = 'close';
+  else status = 'behind';
+
+  return { postsThisWeek, postsLastWeek, weeklyGoal, last14dDaily, status };
+}
 
 export async function GET(req: Request): Promise<Response> {
   const session = await auth();
@@ -55,6 +110,20 @@ export async function GET(req: Request): Promise<Response> {
       }
     : null;
 
+  const twoWeeksAgo = new Date(Date.now() - 14 * 86_400_000);
+  const autopilotPosts = await db
+    .select({ createdAt: posts.createdAt })
+    .from(posts)
+    .where(
+      and(
+        eq(posts.brandId, brandId),
+        eq(posts.source, 'autopilot'),
+        gte(posts.createdAt, twoWeeksAgo),
+      ),
+    );
+
+  const weekly = computeWeekly(autopilotPosts, settings?.frequency ?? null);
+
   return NextResponse.json({
     brain: brain
       ? { briefVersion: brain.briefVersion, generatedAt: brain.generatedAt }
@@ -62,8 +131,12 @@ export async function GET(req: Request): Promise<Response> {
     sections,
     formula,
     competitorIntel,
+    weekly,
     autopilot: settings
       ? {
+          enabled: settings.enabled,
+          frequency: settings.frequency,
+          mode: settings.mode,
           lastRunAt: settings.lastRunAt?.toISOString() ?? null,
           nextRunAt: settings.nextRunAt?.toISOString() ?? null,
           totalGenerated: settings.totalGenerated ?? 0,
