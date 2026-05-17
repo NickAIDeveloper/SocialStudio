@@ -6,6 +6,7 @@ import { brands, autopilotSettings, brainSignals, posts } from '@/lib/db/schema'
 import { readBrandBrain } from '@/lib/brain/consume';
 import { parseBriefSections } from '@/lib/brain/brief-sections';
 import { buildCompetitorIntel } from '@/lib/brain/competitor-intel';
+import { SUPPORTED_FORMATS, isSupportedFormat } from '@/lib/autopilot/capabilities';
 
 interface StoredHookPattern { pattern: string; sampleSize: number; medianReach?: number }
 interface StoredRawKpis { totalPosts?: number; totalReach?: number; medianReach?: number }
@@ -116,9 +117,12 @@ export async function GET(req: Request): Promise<Response> {
     .from(autopilotSettings)
     .where(eq(autopilotSettings.brandId, brandId));
 
+  // Clamp the displayed format to what the pipeline can actually ship.
+  // Older brain rows may carry REEL/CAROUSEL even though autopilot only
+  // produces single-photo posts. Showing them in the UI would mislead users.
   const formula = brain?.formula
     ? {
-        format: brain.formula.format,
+        format: isSupportedFormat(brain.formula.format) ? brain.formula.format : SUPPORTED_FORMATS[0],
         bestSlot: {
           day: DAY_NAMES[brain.formula.bestSlot.dow],
           hour: brain.formula.bestSlot.hour,

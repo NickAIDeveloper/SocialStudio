@@ -6,6 +6,7 @@ import { buildDeepProfile } from '@/lib/meta/deep-profile';
 import { buildCompetitorIntel, type CompetitorIntel } from '@/lib/brain/competitor-intel';
 import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
 import type { DeepProfile } from '@/lib/meta/deep-profile.types';
+import { FORMAT_OPTIONS_JSON, SUPPORTED_FORMATS, isSupportedFormat } from '@/lib/autopilot/capabilities';
 
 // Allow longer runtime — deep profile fetch + LLM design + image compositing.
 export const maxDuration = 60;
@@ -169,6 +170,10 @@ function buildUserPrompt(
           'Use COMPETITOR_INTEL_JSON to spot patterns that win in this niche but the account is not yet using. If a competitor hook pattern (question/stat/imperative) or media type beats the account medians, lean toward it. Borrow the angle — never copy a hook verbatim. If a competitor hashtag has high engagement and is not branded to them, it is a candidate keyword for the caption.',
         ].join('\n')
       : '';
+  const capabilityNote =
+    SUPPORTED_FORMATS.length === 1
+      ? `IMPORTANT CAPABILITY CONSTRAINT: this account can only ship single-photo posts right now. Reels and carousels are not yet supported by the pipeline. You MUST set "format" to "${SUPPORTED_FORMATS[0]}". Even if the data suggests reels or carousels would beat the account medians, design the strongest possible single-photo post (still-image hook with overlay) — do not pick REEL or CAROUSEL.`
+      : `Pick one of the supported formats: ${FORMAT_OPTIONS_JSON}. Other formats are not yet shippable.`;
   return [
     "Below is the account's full performance profile. Use the actual numbers.",
     '',
@@ -176,11 +181,13 @@ function buildUserPrompt(
     JSON.stringify(compact, null, 2),
     competitorBlock,
     '',
+    capabilityNote,
+    '',
     likeOfLine + 'Design ONE Instagram post that has the best chance of beating this account\'s median reach AND outperforming what competitors are shipping in this niche.',
     'Reply with this exact JSON shape, and nothing else:',
     '{',
     '  "overrides": {',
-    '    "format": "REEL" | "CAROUSEL" | "IMAGE",',
+    `    "format": ${FORMAT_OPTIONS_JSON},`,
     '    "day": "Monday".."Sunday",',
     '    "hour": 0-23,',
     '    "pattern": "<short caption hook pattern, max 60 chars>",',
@@ -328,6 +335,13 @@ export async function POST(req: NextRequest) {
     const sanitized = sanitizeMetaOverrides(llmSeed.overrides);
     if (!sanitized || Object.keys(sanitized).length === 0) {
       return generateFallback({ brandId, userId, origin, cookie, cronSecret, profile, reason: 'empty_overrides', raw, igUserId, learningIds: cleanLearningIds });
+    }
+
+    // Capability backstop: even with the prompt constraint, occasionally the
+    // LLM still returns an unsupported format. Force it to a supported one so
+    // downstream pipeline (single-photo only today) never gets REEL/CAROUSEL.
+    if (sanitized.format && !isSupportedFormat(sanitized.format)) {
+      sanitized.format = SUPPORTED_FORMATS[0];
     }
 
     // Empty rationale is non-fatal — caller can still see contributions and

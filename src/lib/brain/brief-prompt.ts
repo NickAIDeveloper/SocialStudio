@@ -1,3 +1,4 @@
+import { FORMAT_OPTIONS_JSON, SUPPORTED_FORMATS } from '@/lib/autopilot/capabilities';
 import type { ComputeSignalsOutput } from './compute-signals';
 
 export interface BriefPromptInput {
@@ -9,6 +10,10 @@ export interface BriefPromptInput {
 }
 
 export function buildBriefPrompt(input: BriefPromptInput): { system: string; user: string } {
+  const formatConstraint =
+    SUPPORTED_FORMATS.length === 1
+      ? `MUST be ${SUPPORTED_FORMATS[0]} — single-photo posts are the only format the pipeline ships today. Even if reels or carousels would beat the medians, plan around a single-photo post.`
+      : `One of: ${FORMAT_OPTIONS_JSON.replace(/"/g, '')}`;
   const system = `You write a one-page brand strategy brief from quantitative signals.
 Be specific, cite numbers, avoid generic advice. Use the EXACT section headers
 provided. Total length ≤ 500 words.
@@ -28,7 +33,7 @@ RULES:
   No post-level claims — competitor post data isn't ingested in v1.
 - If a section has no data, write "—" rather than fabricating.
 - "Formula for the next 7 days" must be a bullet list with these exact bold labels:
-  - **Format:** REEL | CAROUSEL | IMAGE
+  - **Format:** ${formatConstraint}
   - **Best slot:** Day, Hour local
   - **Hook patterns:** 2-3 short phrases
   - **CTA pattern:** phrase
