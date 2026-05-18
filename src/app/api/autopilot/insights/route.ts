@@ -103,20 +103,35 @@ export async function GET(req: Request): Promise<Response> {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
-  const brain = await readBrandBrain(brandId);
+  // Parallelise the five independent DB-bound fetches. Previously these ran
+  // serially, totalling ~5x the round-trip latency. None depend on each
+  // other so a single Promise.all collapses the wait to max(one_query).
+  const twoWeeksAgo = new Date(Date.now() - 14 * 86_400_000);
+  const [
+    brain,
+    competitorIntel,
+    settingsRows,
+    autopilotPosts,
+    ownSignals,
+  ] = await Promise.all([
+    readBrandBrain(brandId),
+    buildCompetitorIntel(brandId).catch(() => null),
+    db.select().from(autopilotSettings).where(eq(autopilotSettings.brandId, brandId)),
+    db
+      .select({ createdAt: posts.createdAt })
+      .from(posts)
+      .where(
+        and(
+          eq(posts.brandId, brandId),
+          eq(posts.source, 'autopilot'),
+          gte(posts.createdAt, twoWeeksAgo),
+        ),
+      ),
+    fetchOwnSignals(brandId),
+  ]);
+
   const sections = parseBriefSections(brain?.briefMd);
-
-  let competitorIntel = null;
-  try {
-    competitorIntel = await buildCompetitorIntel(brandId);
-  } catch {
-    competitorIntel = null;
-  }
-
-  const [settings] = await db
-    .select()
-    .from(autopilotSettings)
-    .where(eq(autopilotSettings.brandId, brandId));
+  const [settings] = settingsRows;
 
   // Clamp the displayed format to what the pipeline can actually ship.
   // Older brain rows may carry REEL/CAROUSEL even though autopilot only
@@ -132,34 +147,27 @@ export async function GET(req: Request): Promise<Response> {
       }
     : null;
 
-  const twoWeeksAgo = new Date(Date.now() - 14 * 86_400_000);
-  const autopilotPosts = await db
-    .select({ createdAt: posts.createdAt })
-    .from(posts)
-    .where(
-      and(
-        eq(posts.brandId, brandId),
-        eq(posts.source, 'autopilot'),
-        gte(posts.createdAt, twoWeeksAgo),
-      ),
-    );
-
   const weekly = computeWeekly(autopilotPosts, settings?.frequency ?? null);
-  const ownSignals = await fetchOwnSignals(brandId);
 
-  // Narrative is best-effort and cached by briefVersion — a failure here
-  // (Cerebras down, parse error) must never block the rest of the response.
+  // Narrative is best-effort. Cold lambda instances pay the full Cerebras
+  // LLM round-trip (300-2000ms) on first request, which dominates TTFB.
+  // Bound the wait to 300ms — if cached we get it; if not, return null and
+  // let the LLM call continue in the background so the in-memory cache
+  // warms for the next request. Failures must never block the response.
   let narrative = null;
   if (brain) {
-    try {
-      narrative = await buildBrainNarrative({
-        brandId,
-        briefVersion: brain.briefVersion,
-        competitorIntel,
-      });
-    } catch (err) {
+    const narrativePromise = buildBrainNarrative({
+      brandId,
+      briefVersion: brain.briefVersion,
+      competitorIntel,
+    }).catch((err) => {
       console.warn('[autopilot/insights] narrative failed:', err instanceof Error ? err.message : err);
-    }
+      return null;
+    });
+    narrative = await Promise.race([
+      narrativePromise,
+      new Promise<null>((r) => setTimeout(() => r(null), 300)),
+    ]);
   }
 
   return NextResponse.json({

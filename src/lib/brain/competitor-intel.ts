@@ -70,23 +70,31 @@ export async function buildCompetitorIntel(brandId: string, maxPostsPerCompetito
     };
   }
 
-  const rows: Row[] = [];
-  for (const c of competitors) {
-    const postRows = await db
-      .select({
-        caption: scrapedPosts.caption,
-        likes: scrapedPosts.likes,
-        comments: scrapedPosts.comments,
-        hashtags: scrapedPosts.hashtags,
-        postedAt: scrapedPosts.postedAt,
-        mediaType: scrapedPosts.mediaType,
-      })
-      .from(scrapedPosts)
-      .where(eq(scrapedPosts.accountId, c.id))
-      .orderBy(desc(scrapedPosts.likes))
-      .limit(maxPostsPerCompetitor);
-    for (const r of postRows) rows.push({ ...r, handle: c.handle });
-  }
+  // Run the per-competitor post fetches in parallel. Previously this was a
+  // serial loop — for 5 competitors that's ~5x the DB round-trip latency.
+  // Promise.all collapses it to max(one_query) instead of sum. A single
+  // IN-clause query would be marginally faster but would need a window-
+  // function to enforce the per-competitor limit; parallel keeps the SQL
+  // unchanged.
+  const competitorPostLists = await Promise.all(
+    competitors.map((c) =>
+      db
+        .select({
+          caption: scrapedPosts.caption,
+          likes: scrapedPosts.likes,
+          comments: scrapedPosts.comments,
+          hashtags: scrapedPosts.hashtags,
+          postedAt: scrapedPosts.postedAt,
+          mediaType: scrapedPosts.mediaType,
+        })
+        .from(scrapedPosts)
+        .where(eq(scrapedPosts.accountId, c.id))
+        .orderBy(desc(scrapedPosts.likes))
+        .limit(maxPostsPerCompetitor)
+        .then((postRows) => postRows.map((r) => ({ ...r, handle: c.handle }))),
+    ),
+  );
+  const rows: Row[] = competitorPostLists.flat();
 
   if (rows.length === 0) {
     return {
