@@ -144,13 +144,47 @@ describe('hasBrandDomainMatch', () => {
     expect(hasBrandDomainMatch('food, kitchen, recipe', 'pacebrain')).toBe(false);
   });
 
-  it('matches affectly photos with study tokens', () => {
-    expect(hasBrandDomainMatch('student, desk, laptop', 'affectly')).toBe(true);
-    expect(hasBrandDomainMatch('book, reading, library', 'affectly')).toBe(true);
+  it('matches affectly photos with study-specific tokens', () => {
+    expect(hasBrandDomainMatch('student, classroom, lecture', 'affectly')).toBe(true);
+    expect(hasBrandDomainMatch('library, university, campus', 'affectly')).toBe(true);
+    expect(hasBrandDomainMatch('studying, homework, exam', 'affectly')).toBe(true);
+  });
+
+  it('rejects affectly photos with only generic lifestyle tokens', () => {
+    // book/desk/reading/pen/notebook used to admit flower-and-coffee
+    // stock photos for affectly. Tightened in 2026-05 — these are no
+    // longer treated as study signals on their own.
+    expect(hasBrandDomainMatch('book, desk, table', 'affectly')).toBe(false);
+    expect(hasBrandDomainMatch('reading, pen, notebook', 'affectly')).toBe(false);
+    expect(hasBrandDomainMatch('laptop, coffee, breakfast', 'affectly')).toBe(false);
   });
 
   it('rejects affectly photos without study tokens', () => {
     expect(hasBrandDomainMatch('runner, marathon, athlete', 'affectly')).toBe(false);
+  });
+
+  it('rejects affectly photos whose tags include disqualifying subjects', () => {
+    // Regression for "Your pace is a myth" → flower-in-cup photo. The alt
+    // text contains "library" which would otherwise pass the positive
+    // gate, but the floral subject vocabulary disqualifies regardless.
+    expect(
+      hasBrandDomainMatch('flower, vase, cup, library, table', 'affectly'),
+    ).toBe(false);
+    expect(
+      hasBrandDomainMatch('bouquet, wedding, student', 'affectly'),
+    ).toBe(false);
+    expect(
+      hasBrandDomainMatch('carnation, breakfast, classroom', 'affectly'),
+    ).toBe(false);
+  });
+
+  it('rejects pacebrain photos whose tags include disqualifying subjects', () => {
+    expect(
+      hasBrandDomainMatch('flower, vase, runner', 'pacebrain'),
+    ).toBe(false);
+    expect(
+      hasBrandDomainMatch('wedding, athlete, fashion', 'pacebrain'),
+    ).toBe(false);
   });
 });
 

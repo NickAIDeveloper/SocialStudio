@@ -42,6 +42,13 @@ const LANDSCAPE_TAGS = new Set([
 // photos). The brand-domain set is the literal vocabulary an on-topic
 // photo would use. Used as a HARD floor: candidates with zero brand-domain
 // overlap are demoted below those with any overlap.
+//
+// Discipline: ONLY include tokens that are highly specific to the niche.
+// Generic lifestyle tokens (book, desk, laptop, reading, pen, notebook)
+// appear on flower/coffee/decor stock photos and silently admit off-topic
+// candidates — that's how a carnation-in-a-cup photo won "Your pace is a
+// myth" for affectly. Tokens here must mean "this photo shows the activity",
+// not "this object might be in the same room as the activity".
 const BRAND_DOMAIN_TOKENS: Record<string, Set<string>> = {
   pacebrain: new Set([
     'run', 'runner', 'runners', 'running', 'jog', 'jogger', 'jogging',
@@ -51,12 +58,43 @@ const BRAND_DOMAIN_TOKENS: Record<string, Set<string>> = {
     'endurance', 'pace', 'shoe', 'shoes', 'sneaker', 'sneakers', 'gym',
   ]),
   affectly: new Set([
-    'student', 'students', 'study', 'studying', 'studies', 'learn', 'learner',
-    'learning', 'education', 'educational', 'school', 'university', 'college',
-    'classroom', 'class', 'library', 'book', 'books', 'reading', 'read',
-    'note', 'notes', 'notebook', 'desk', 'laptop', 'pen', 'pencil', 'focus',
-    'focused', 'concentration', 'homework', 'lecture', 'campus', 'academic',
-    'exam', 'studying', 'tutor', 'tutoring',
+    'student', 'students', 'study', 'studying', 'studies',
+    'learn', 'learner', 'learning',
+    'education', 'educational', 'school',
+    'university', 'college', 'classroom',
+    'library', 'campus', 'academic',
+    'homework', 'lecture', 'exam', 'tutor', 'tutoring',
+  ]),
+};
+
+// Per-brand "negative tokens" — visual subjects that disqualify a photo
+// regardless of accidental positive-token overlap. A photo tagged
+// "flower, vase, cup, book, table" gets brand-domain-true off the stray
+// "book" — but the photo is clearly a floral still-life, not a study
+// scene. Listing the dominant subject vocabulary here (flower, bouquet,
+// food, wedding, etc.) lets us reject those at the floor.
+//
+// Conservative on purpose: only include tokens that signal "this is the
+// photo's actual subject" — not incidental props. Coffee, for instance,
+// is NOT here because studying photos commonly include a coffee cup.
+const BRAND_NEGATIVE_TOKENS: Record<string, Set<string>> = {
+  pacebrain: new Set([
+    'flower', 'flowers', 'floral', 'bouquet', 'vase', 'rose', 'roses',
+    'carnation', 'tulip', 'tulips', 'daisy', 'petal', 'petals', 'blossom',
+    'wedding', 'bride', 'groom',
+    'fashion', 'model', 'glamour', 'makeup',
+    'dessert', 'cake', 'pastry', 'cocktail',
+    'kitten', 'puppy',
+    'baby', 'infant', 'newborn', 'toddler',
+  ]),
+  affectly: new Set([
+    'flower', 'flowers', 'floral', 'bouquet', 'vase', 'rose', 'roses',
+    'carnation', 'tulip', 'tulips', 'daisy', 'petal', 'petals', 'blossom',
+    'wedding', 'bride', 'groom',
+    'fashion', 'model', 'glamour', 'makeup',
+    'dessert', 'cake', 'pastry', 'cocktail',
+    'kitten', 'puppy',
+    'baby', 'infant', 'newborn', 'toddler',
   ]),
 };
 
@@ -117,8 +155,11 @@ export function isPureLandscape(tags: string | undefined | null): boolean {
 /**
  * Returns true when the candidate has at least one tag token that matches
  * the brand's domain vocabulary (e.g. "runner" for pacebrain, "student" for
- * affectly). When the brand has no entry in BRAND_DOMAIN_TOKENS we return
- * true for every candidate — domain filtering is opt-in per brand.
+ * affectly) AND no tag tokens in the brand's negative set (e.g. flower,
+ * bouquet, wedding — visual subjects that disqualify the photo regardless
+ * of accidental positive overlap). When the brand has no entry in
+ * BRAND_DOMAIN_TOKENS we return true for every candidate — domain filtering
+ * is opt-in per brand.
  */
 export function hasBrandDomainMatch(
   tags: string | undefined | null,
@@ -129,6 +170,12 @@ export function hasBrandDomainMatch(
   if (!domain || domain.size === 0) return true;
   if (!tags) return false;
   const tokens = tagTokens(tags);
+  const negatives = BRAND_NEGATIVE_TOKENS[brandSlug];
+  if (negatives) {
+    for (const t of tokens) {
+      if (negatives.has(t)) return false;
+    }
+  }
   for (const t of tokens) {
     if (domain.has(t)) return true;
   }
