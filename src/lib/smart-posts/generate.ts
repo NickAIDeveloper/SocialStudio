@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { eq, and, or } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { brands, scrapedPosts, posts } from '@/lib/db/schema';
 import { seedFromInsight, mergePerfectSeed } from '@/lib/smart-posts';
@@ -7,6 +7,7 @@ import { fetchTopPerformingPastImages } from './past-images';
 import { createInstagramImageWithText } from '@/lib/image-processing';
 import { deriveImageQuery, deriveImageQueryFromHook } from './image-query';
 import { rankCandidates, hasBrandDomainConfig } from './image-scoring';
+import { normalizeImageUrlForDedup, buildDedupSet } from './url-dedup';
 import type { InsightCard } from '@/lib/health-score';
 import type { Brand } from '@/lib/domain-types';
 
@@ -444,6 +445,10 @@ export async function generateFromSeed(
   // No-repeat filter: ALL-TIME per brand. Once an image has been used in any
   // post for this brand, it never appears again — the user explicitly asked
   // for permanent uniqueness, not a rolling window.
+  //
+  // URLs are compared by their normalised (query-string-stripped) form so
+  // CDN-signed URLs (Instagram oh=/oe=, Unsplash ixlib=, Pexels h=/w=) dedup
+  // the same photo across fetches. See url-dedup.ts.
   const allImageRows = await db
     .select({
       src: posts.sourceImageUrl,
@@ -452,11 +457,9 @@ export async function generateFromSeed(
     .from(posts)
     .where(eq(posts.brandId, brandId));
 
-  const usedUrls = new Set<string>();
-  for (const r of allImageRows) {
-    if (r.src) usedUrls.add(r.src);
-    if (r.processed) usedUrls.add(r.processed);
-  }
+  const usedUrls = buildDedupSet(
+    allImageRows.flatMap((r) => [r.src, r.processed]),
+  );
 
   // Past candidates — filter used URLs first.
   const allPastCandidates: ImageCandidate[] = pastRes
@@ -467,7 +470,11 @@ export async function generateFromSeed(
       permalink: m.permalink,
     }))
     .filter((c) => Boolean(c.url));
-  const freshPast = allPastCandidates.filter((c) => !usedUrls.has(c.url));
+  // Normalised match — IG CDN URLs sign every fetch with fresh oh=/oe= params,
+  // so the raw URL string varies but the path stays stable.
+  const freshPast = allPastCandidates.filter(
+    (c) => !usedUrls.has(normalizeImageUrlForDedup(c.url)),
+  );
   const pastCandidates: ImageCandidate[] = freshPast.length > 0 ? freshPast : allPastCandidates;
 
   // Stock candidates — capture tags so we can rank by topic relevance below.
@@ -482,7 +489,7 @@ export async function generateFromSeed(
         source: 'stock' as const,
         tags: img.tags,
       }))
-      .filter((c) => Boolean(c.url) && !usedUrls.has(c.url));
+      .filter((c) => Boolean(c.url) && !usedUrls.has(normalizeImageUrlForDedup(c.url)));
 
   const stockPool: ImageCandidate[] = buildStock(imagesPayload);
 
@@ -623,31 +630,26 @@ export async function generateFromSeed(
   // unused. Walk the list until one downloads cleanly. Non-rate-limit
   // errors (bad URL, sharp failure, etc.) still abort immediately — those
   // aren't recoverable by picking another URL.
+  // JIT no-reuse refresh. `usedUrls` was built at the top of this function —
+  // between then and now a concurrent autopilot run (manual "Run now" + cron
+  // tick, or two rapid clicks) may have committed a post that picked one of
+  // the candidates below. Re-fetch the brand's URL set right before the
+  // composite loop and normalise — one extra query that closes the race for
+  // anything committed since function entry, AND handles CDN-signed URLs
+  // that the original per-candidate eq() check couldn't match.
+  const recentImageRows = await db
+    .select({ src: posts.sourceImageUrl, processed: posts.processedImageUrl })
+    .from(posts)
+    .where(eq(posts.brandId, brandId));
+  const usedUrlsJit = buildDedupSet(
+    recentImageRows.flatMap((r) => [r.src, r.processed]),
+  );
+
   let imageBuffer: Buffer | null = null;
   let sourceImageUrl: string | null = null;
   let lastImageError: Error | null = null;
   for (const candidate of candidates) {
-    // JIT no-reuse re-check. `usedUrls` was built at the top of this function
-    // — between then and now a concurrent autopilot run (manual "Run now" +
-    // cron tick, or two rapid clicks) may have committed a post that picked
-    // this same candidate. Without this re-check both runs see an empty
-    // no-reuse set for the URL and ship the same photo twice. Re-querying
-    // here is cheap (one indexed lookup per candidate considered) and closes
-    // the race for any commit that landed before this point.
-    const [conflict] = await db
-      .select({ id: posts.id })
-      .from(posts)
-      .where(
-        and(
-          eq(posts.brandId, brandId),
-          or(
-            eq(posts.sourceImageUrl, candidate.url),
-            eq(posts.processedImageUrl, candidate.url),
-          ),
-        ),
-      )
-      .limit(1);
-    if (conflict) continue;
+    if (usedUrlsJit.has(normalizeImageUrlForDedup(candidate.url))) continue;
     try {
       imageBuffer = await createInstagramImageWithText(
         candidate.url,

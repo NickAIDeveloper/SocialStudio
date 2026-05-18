@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { and, eq, or } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { createHmac } from 'node:crypto';
 import { db } from '@/lib/db';
 import { brands, autopilotSettings, posts, linkedAccounts, instagramAccounts } from '@/lib/db/schema';
@@ -10,6 +10,10 @@ import { createPost } from '@/lib/buffer';
 import { decrypt } from '@/lib/encryption';
 import { uploadImageToGitHub } from '@/lib/github-images';
 import { auth } from '@/auth';
+import {
+  normalizeImageUrlForDedup,
+  buildDedupSet,
+} from '@/lib/smart-posts/url-dedup';
 
 export const dynamic = 'force-dynamic';
 
@@ -254,21 +258,19 @@ export async function POST(req: Request): Promise<Response> {
   // (both requests composite in parallel, neither sees the other's insert) can
   // still slip through. Re-check here right before insert and discard this
   // generation if the URL is already on file. Better to skip than ship a dupe.
+  //
+  // URLs are compared by their normalised (query-string-stripped) form so
+  // CDN-signed URLs (Instagram oh=/oe=, Unsplash ixlib=, Pexels h=/w=) match
+  // across fetches of the same underlying photo.
   if (sourceImageUrl) {
-    const [dup] = await db
-      .select({ id: posts.id })
+    const brandImageRows = await db
+      .select({ src: posts.sourceImageUrl, processed: posts.processedImageUrl })
       .from(posts)
-      .where(
-        and(
-          eq(posts.brandId, brandId),
-          or(
-            eq(posts.sourceImageUrl, sourceImageUrl),
-            eq(posts.processedImageUrl, sourceImageUrl),
-          ),
-        ),
-      )
-      .limit(1);
-    if (dup) {
+      .where(eq(posts.brandId, brandId));
+    const brandUsedUrls = buildDedupSet(
+      brandImageRows.flatMap((r) => [r.src, r.processed]),
+    );
+    if (brandUsedUrls.has(normalizeImageUrlForDedup(sourceImageUrl))) {
       await db
         .update(autopilotSettings)
         .set({ lastError: 'race_duplicate_image_avoided', updatedAt: now })
