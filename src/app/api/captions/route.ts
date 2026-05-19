@@ -510,6 +510,18 @@ Return ONLY: {"caption":"corrected caption","hookText":"corrected hook"}`,
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('[Captions] Error:', error);
-    return NextResponse.json({ error: 'Failed to generate caption' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    // Surface the underlying error so the autopilot UI can show "Cerebras
+    // rate-limited after 3 retries" instead of a generic "Failed to generate".
+    const isRateLimit = /\((429|503)\)/.test(msg) || /rate.?limit/i.test(msg);
+    return NextResponse.json(
+      {
+        error: 'Failed to generate caption',
+        message: isRateLimit
+          ? 'AI provider is rate-limited right now. Try again in a minute.'
+          : msg.slice(0, 200),
+      },
+      { status: 500 },
+    );
   }
 }

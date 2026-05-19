@@ -6,9 +6,36 @@
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
 const CEREBRAS_MODEL = 'llama3.1-8b';
 
+// Retry policy: a single autopilot run fans out to 4-6 Cerebras calls
+// (god-mode design, image-query, captions main, captions polish, optional
+// narrative). Two parallel "Run now" clicks can put 10+ requests on the
+// wire within seconds and trip Cerebras's per-minute rate limit. Retry
+// 429 and 5xx with exponential backoff + jitter so a transient hiccup
+// doesn't surface as "Failed to generate caption" to the user.
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 500;
+
 interface CerebrasMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+}
+
+function shouldRetry(status: number): boolean {
+  if (status === 429) return true; // rate limit
+  if (status >= 500 && status < 600) return true; // server error
+  return false;
+}
+
+function backoffDelayMs(attempt: number): number {
+  // Exponential backoff with jitter — attempt is 0-indexed.
+  // 0 → ~500ms, 1 → ~1s, 2 → ~2s, with up to ±25% jitter.
+  const base = BASE_DELAY_MS * Math.pow(2, attempt);
+  const jitter = base * (Math.random() * 0.5 - 0.25);
+  return Math.round(base + jitter);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 export async function cerebrasChatCompletion(
@@ -30,22 +57,52 @@ export async function cerebrasChatCompletion(
     body.response_format = { type: 'json_object' };
   }
 
-  const response = await fetch(CEREBRAS_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
+  const serialized = JSON.stringify(body);
+  let lastErr: Error | null = null;
 
-  if (!response.ok) {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    let response: Response;
+    try {
+      response = await fetch(CEREBRAS_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: serialized,
+      });
+    } catch (err) {
+      // Network error — treat as transient and retry.
+      lastErr = err instanceof Error ? err : new Error(String(err));
+      if (attempt < MAX_RETRIES) {
+        await sleep(backoffDelayMs(attempt));
+        continue;
+      }
+      throw new Error(`Cerebras network error after ${attempt + 1} attempts: ${lastErr.message}`);
+    }
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content ?? '';
+    }
+
     const text = await response.text().catch(() => '');
-    throw new Error(`Cerebras API error (${response.status}): ${text}`);
+    if (shouldRetry(response.status) && attempt < MAX_RETRIES) {
+      // Honour Retry-After if Cerebras provides it, otherwise back off.
+      const retryAfter = Number(response.headers.get('retry-after')) * 1000;
+      const delay =
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter, 10_000)
+          : backoffDelayMs(attempt);
+      await sleep(delay);
+      continue;
+    }
+
+    throw new Error(`Cerebras API error (${response.status}) after ${attempt + 1} attempts: ${text}`);
   }
 
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content ?? '';
+  // Unreachable under normal control flow, but TS needs an exit.
+  throw new Error(`Cerebras retry loop exhausted: ${lastErr?.message ?? 'unknown'}`);
 }
 
 export function isCerebrasAvailable(): boolean {
