@@ -6,14 +6,19 @@
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
 const CEREBRAS_MODEL = 'llama3.1-8b';
 
-// Retry policy: a single autopilot run fans out to 4-6 Cerebras calls
-// (god-mode design, image-query, captions main, captions polish, optional
-// narrative). Two parallel "Run now" clicks can put 10+ requests on the
-// wire within seconds and trip Cerebras's per-minute rate limit. Retry
-// 429 and 5xx with exponential backoff + jitter so a transient hiccup
-// doesn't surface as "Failed to generate caption" to the user.
+// Retry policy: a single autopilot run fans out to 3-4 Cerebras calls
+// (god-mode design, image-query, captions main, optional narrative).
+// Two parallel "Run now" clicks can put 8+ requests on the wire within
+// seconds and trip Cerebras's per-minute rate limit. Retry 429 and 5xx
+// with exponential backoff + jitter so a transient hiccup doesn't
+// surface as "Failed to generate caption" to the user.
+//
+// Backoff is intentionally tight (300ms base → max ~2.1s per call).
+// god-mode has a 90s function timeout and runs up to 4 Cerebras calls;
+// 3 retries × 2.1s × 4 calls = ~25s worst-case backoff, leaves margin
+// for actual API time and image processing.
 const MAX_RETRIES = 3;
-const BASE_DELAY_MS = 500;
+const BASE_DELAY_MS = 300;
 
 interface CerebrasMessage {
   role: 'system' | 'user' | 'assistant';

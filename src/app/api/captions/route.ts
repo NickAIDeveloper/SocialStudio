@@ -452,48 +452,16 @@ Return ONLY valid JSON:
     let finalHook = sanitizeHook(String(parsed.hookText ?? ''));
     const finalHashtags = sanitizeHashtags(String(parsed.hashtags ?? ''));
 
-    // ── Polish pass — grammar, spelling, and structure check ──────────
-    try {
-      const polishResult = await cerebrasChatCompletion(
-        [
-          {
-            role: 'system',
-            content: `You are a proofreader. Fix spelling, grammar, and awkward phrasing. Keep the same tone and meaning. Do NOT add new content, hashtags, or change the style. Return ONLY valid JSON with the corrected text. If the text is already correct, return it unchanged.`,
-          },
-          {
-            role: 'user',
-            content: `Proofread and fix any errors in this Instagram caption and hook text. Keep them natural and engaging.
-
-CAPTION:
-${finalCaption}
-
-HOOK (short overlay text for image, must stay under 60 chars):
-${finalHook}
-
-Return ONLY: {"caption":"corrected caption","hookText":"corrected hook"}`,
-          },
-        ],
-        { temperature: 0.1, maxTokens: 700 },
-      );
-
-      const polishCleaned = polishResult.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const polishMatch = polishCleaned.match(/\{[\s\S]*\}/);
-      if (polishMatch) {
-        const polished = JSON.parse(polishMatch[0]);
-        if (polished.caption && polished.caption.length > 10) {
-          finalCaption = sanitizeCaption(polished.caption);
-        }
-        if (polished.hookText && polished.hookText.length > 3) {
-          finalHook = sanitizeHook(polished.hookText);
-        }
-      }
-    } catch (polishErr) {
-      // Polish is best-effort — use unpolished content if it fails
-      console.error('[Captions] Polish pass failed (non-critical):', polishErr instanceof Error ? polishErr.message : polishErr);
-    }
+    // NOTE: a second Cerebras "polish" pass used to run here. It was dropped
+    // because each autopilot run fans out 4-5 Cerebras calls and the polish
+    // round-trip pushed totals over Cerebras's per-minute rate limit AND over
+    // god-mode's 60s function-timeout when retries stacked. The main caption
+    // call already runs through sanitizeCaption + reconcileCountClaim, which
+    // catches the vast majority of what polish was correcting. Re-add behind
+    // an opt-in flag if smart-posts UI quality regresses.
 
     // Reconcile any number-promise/list-count mismatch ("5 hacks" hook with 3
-    // items in the caption). Runs AFTER polish so polish can't undo the fix.
+    // items in the caption).
     const reconciled = reconcileCountClaim(finalHook, finalCaption);
     finalHook = reconciled.hookText;
     finalCaption = reconciled.caption;

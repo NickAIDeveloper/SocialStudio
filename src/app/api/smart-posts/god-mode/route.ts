@@ -9,7 +9,10 @@ import type { DeepProfile } from '@/lib/meta/deep-profile.types';
 import { FORMAT_OPTIONS_JSON, SUPPORTED_FORMATS, isSupportedFormat } from '@/lib/autopilot/capabilities';
 
 // Allow longer runtime — deep profile fetch + LLM design + image compositing.
-export const maxDuration = 60;
+// Bumped from 60s to 90s after Cerebras rate-limit retries (300ms base, up to
+// 3 attempts per call, 3-4 calls per generation) pushed total work past the
+// previous 60s ceiling and produced FUNCTION_INVOCATION_TIMEOUT.
+export const maxDuration = 90;
 
 // Minimum recent posts on the connected IG account before god-mode will try
 // to design one. Below this we don't have enough signal in the deep profile.
