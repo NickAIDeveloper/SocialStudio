@@ -112,6 +112,7 @@ export async function POST(req: Request): Promise<Response> {
     hookText?: string;
     sourceImageUrl?: string;
     imageDataUrl?: string;
+    imageHash?: string | null;
     scheduledAt?: string | null;
     godModeRationale?: string;
     godModeFellBack?: boolean;
@@ -152,6 +153,10 @@ export async function POST(req: Request): Promise<Response> {
   const hookText = godPayload.hookText ?? '';
   // sourceImageUrl: the raw stock photo god-mode picked from Pixabay.
   const sourceImageUrl = godPayload.sourceImageUrl ?? null;
+  // imageHash: perceptual hash of the source photo. Persisted so future
+  // generations dedup the same visual even when it returns from a different
+  // Pixabay URL.
+  const imageHash = godPayload.imageHash ?? null;
   // imageDataUrl: the composited image (hook overlay + brand logo) as a
   // base64 data-URL. Buffer requires a publicly hosted URL, so upload it to
   // GitHub first. Falls back to sourceImageUrl if upload fails.
@@ -298,6 +303,8 @@ export async function POST(req: Request): Promise<Response> {
       bufferPostId,
       // sourceImageUrl: the raw stock photo god-mode picked from Pixabay.
       sourceImageUrl,
+      // imageHash: perceptual hash of the source — feeds future no-reuse checks.
+      imageHash,
       // processedImageUrl: the composited version (hook overlay + brand logo)
       // hosted on GitHub — this is what was actually sent to Buffer.
       processedImageUrl,

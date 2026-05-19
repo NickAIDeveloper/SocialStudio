@@ -10,6 +10,9 @@ function makeQueryChain(rows: unknown[]) {
     limit: vi.fn().mockResolvedValue(rows),
     then: (resolve: (value: unknown) => void) => resolve(rows),
   };
+  // orderBy() returns the same chain so .from().where().orderBy() still
+  // resolves to `rows` via thenable.
+  chain.orderBy = vi.fn().mockReturnValue(chain);
   return chain;
 }
 
@@ -47,13 +50,45 @@ vi.mock('@/lib/db', () => ({
 vi.mock('@/lib/db/schema', () => ({
   brands: { _name: 'brands' },
   scrapedPosts: { _name: 'scrapedPosts' },
-  posts: { _name: 'posts', sourceImageUrl: 'source_image_url', processedImageUrl: 'processed_image_url', brandId: 'brand_id', id: 'id' },
+  posts: {
+    _name: 'posts',
+    sourceImageUrl: 'source_image_url',
+    processedImageUrl: 'processed_image_url',
+    imageHash: 'image_hash',
+    brandId: 'brand_id',
+    id: 'id',
+    createdAt: 'created_at',
+  },
   instagramAccounts: { _name: 'instagramAccounts' },
 }));
-vi.mock('drizzle-orm', () => ({ eq: vi.fn(), and: vi.fn(), or: vi.fn(), gte: vi.fn() }));
+vi.mock('drizzle-orm', () => ({
+  eq: vi.fn(),
+  and: vi.fn(),
+  or: vi.fn(),
+  gte: vi.fn(),
+  desc: vi.fn((x) => x),
+}));
 vi.mock('@/lib/image-processing', () => ({
   createInstagramImageWithText: vi.fn().mockResolvedValue(Buffer.from('fakeimg')),
+  // Return a real-looking JPEG so sharp inside computeImageHash can decode it.
+  // The mocked sharp pipeline doesn't actually fire here — generate.ts calls
+  // fetchImageBuffer directly, then computeImageHash. We swap both below.
+  fetchImageBuffer: vi.fn().mockResolvedValue(Buffer.from('fakeimg')),
 }));
+vi.mock('../image-hash', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../image-hash')>();
+  return {
+    ...actual,
+    // Force a unique hash per call so candidates never look duplicate to
+    // each other inside the test. The visual-dedup logic itself has its
+    // own coverage in image-hash.test.ts.
+    computeImageHash: vi
+      .fn()
+      .mockImplementation(async () =>
+        Math.random().toString(16).slice(2, 18).padStart(16, '0'),
+      ),
+  };
+});
 vi.mock('@/lib/smart-posts', () => ({
   seedFromInsight: vi.fn(),
   mergePerfectSeed: vi.fn().mockReturnValue({

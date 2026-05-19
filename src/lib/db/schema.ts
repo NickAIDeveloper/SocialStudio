@@ -144,6 +144,12 @@ export const posts = pgTable('posts', {
   fontSize: integer('font_size').default(80),
   sourceImageUrl: text('source_image_url'),
   processedImageUrl: text('processed_image_url'),
+  // 64-bit perceptual hash (dHash) of the source image, stored as 16-char
+  // lowercase hex. Used by the visual no-reuse check — catches the case
+  // where the same photo appears at different Pixabay URLs (different
+  // upload IDs of identical or near-identical shots from the same shoot).
+  // Null on legacy rows; lazily backfilled by generateFromSeed when seen.
+  imageHash: text('image_hash'),
   status: varchar('status', { length: 20 }).notNull().default('draft'),
   scheduledAt: timestamp('scheduled_at', { mode: 'date' }),
   publishedAt: timestamp('published_at', { mode: 'date' }),

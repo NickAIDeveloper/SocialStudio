@@ -5,7 +5,7 @@ import { assertAllowedImageUrl } from '@/lib/url-validation';
 import type { Brand } from '@/lib/domain-types';
 
 /** Resolve an image URL to a Buffer — handles both data URIs and HTTPS URLs. */
-async function fetchImageBuffer(imageUrl: string): Promise<Buffer> {
+export async function fetchImageBuffer(imageUrl: string): Promise<Buffer> {
   if (imageUrl.startsWith('data:image/')) {
     const base64Data = imageUrl.split(',')[1];
     if (!base64Data) throw new Error('Invalid data URI: missing base64 payload');

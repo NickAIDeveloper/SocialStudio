@@ -126,6 +126,7 @@ describe('POST /api/smart-posts/god-mode', () => {
     data: {
       imageDataUrl: 'data:image/jpeg;base64,FB',
       sourceImageUrl: 'https://example.com/fb.jpg',
+      imageHash: '0000000000000000',
       caption: 'Fallback caption',
       hashtags: '',
       hookText: '',
@@ -208,6 +209,7 @@ describe('POST /api/smart-posts/god-mode', () => {
       data: {
         imageDataUrl: 'data:image/jpeg;base64,abc',
         sourceImageUrl: 'https://example.com/img.jpg',
+        imageHash: '0000000000000000',
         caption: 'Caption here',
         hashtags: '#growth',
         hookText: 'Save this',
@@ -242,7 +244,9 @@ describe('POST /api/smart-posts/god-mode', () => {
     const call = vi.mocked(generateFromSeed).mock.calls[0][0];
     expect(call.brandId).toBe('b1');
     expect(call.userId).toBe('u1');
-    expect(call.metaOverrides).toMatchObject({ format: 'REEL', day: 'Sunday', hour: 9 });
+    // REEL gets clamped to IMAGE by the single-photo capability constraint
+    // (autopilot pipeline only ships still images today).
+    expect(call.metaOverrides).toMatchObject({ format: 'IMAGE', day: 'Sunday', hour: 9 });
   });
 
   it('returns 400 brandId_required when brandId is missing from body', async () => {

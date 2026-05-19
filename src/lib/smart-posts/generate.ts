@@ -1,13 +1,18 @@
 import { createHmac } from 'node:crypto';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { brands, scrapedPosts, posts } from '@/lib/db/schema';
 import { seedFromInsight, mergePerfectSeed } from '@/lib/smart-posts';
 import { fetchTopPerformingPastImages } from './past-images';
-import { createInstagramImageWithText } from '@/lib/image-processing';
+import { createInstagramImageWithText, fetchImageBuffer } from '@/lib/image-processing';
 import { deriveImageQuery, deriveImageQueryFromHook } from './image-query';
 import { rankCandidates, hasBrandDomainConfig } from './image-scoring';
 import { normalizeImageUrlForDedup, buildDedupSet } from './url-dedup';
+import {
+  computeImageHash,
+  isVisuallyDuplicate,
+  DEFAULT_HAMMING_THRESHOLD,
+} from './image-hash';
 import type { InsightCard } from '@/lib/health-score';
 import type { Brand } from '@/lib/domain-types';
 
@@ -129,6 +134,10 @@ export interface RenderParams {
 export interface GenerateFromSeedResult {
   imageDataUrl: string;
   sourceImageUrl: string;
+  /** Perceptual hash of the source image, 16-char hex. Persisted on the
+   *  post row so future generations can dedup the same photo even when
+   *  it shows up under a different URL. */
+  imageHash: string | null;
   caption: string;
   hashtags: string;
   hookText: string;
@@ -451,14 +460,31 @@ export async function generateFromSeed(
   // the same photo across fetches. See url-dedup.ts.
   const allImageRows = await db
     .select({
+      id: posts.id,
       src: posts.sourceImageUrl,
       processed: posts.processedImageUrl,
+      hash: posts.imageHash,
+      createdAt: posts.createdAt,
     })
     .from(posts)
-    .where(eq(posts.brandId, brandId));
+    .where(eq(posts.brandId, brandId))
+    // Newest first — the lazy backfill below picks 6 unhashed rows per
+    // run, so we want recent posts (what the user actually sees and
+    // complains about) to get hashed before old test data.
+    .orderBy(desc(posts.createdAt));
 
   const usedUrls = buildDedupSet(
     allImageRows.flatMap((r) => [r.src, r.processed]),
+  );
+
+  // Visual dedup set — collected up front from posts that already have a
+  // hash stored. Posts without a hash (legacy rows pre-pHash) are backfilled
+  // lazily inside the candidate loop below, capped per generation so we
+  // never blow the function-timeout budget on a brand with a long history.
+  const pastHashes = new Set<string>(
+    allImageRows
+      .map((r) => r.hash)
+      .filter((h): h is string => typeof h === 'string' && h.length === 16),
   );
 
   // Past candidates — filter used URLs first.
@@ -638,19 +664,81 @@ export async function generateFromSeed(
   // anything committed since function entry, AND handles CDN-signed URLs
   // that the original per-candidate eq() check couldn't match.
   const recentImageRows = await db
-    .select({ src: posts.sourceImageUrl, processed: posts.processedImageUrl })
+    .select({
+      src: posts.sourceImageUrl,
+      processed: posts.processedImageUrl,
+      hash: posts.imageHash,
+    })
     .from(posts)
     .where(eq(posts.brandId, brandId));
   const usedUrlsJit = buildDedupSet(
     recentImageRows.flatMap((r) => [r.src, r.processed]),
   );
+  // Refresh past-hash set too — concurrent runs could have inserted between
+  // the top-of-function fetch and now.
+  for (const r of recentImageRows) {
+    if (r.hash && r.hash.length === 16) pastHashes.add(r.hash);
+  }
+
+  // Lazy backfill: for up to N past rows that have a URL but no hash yet,
+  // fetch the bytes and compute the hash on the fly. This is what fixes the
+  // user's immediate complaint — without this, the first run after the
+  // pHash deploy has zero past hashes to compare against. Capped at 6 per
+  // generation so backfill never busts god-mode's 90s function timeout
+  // (each fetch+hash is ~200-500ms). Cumulative across many runs.
+  const BACKFILL_CAP = 6;
+  const backfillTargets = allImageRows.filter(
+    (r) => r.src && (!r.hash || r.hash.length !== 16),
+  );
+  for (const r of backfillTargets.slice(0, BACKFILL_CAP)) {
+    try {
+      const buf = await fetchImageBuffer(r.src!);
+      const h = await computeImageHash(buf);
+      pastHashes.add(h);
+      // Persist for future runs. Best-effort — failure to write must not
+      // block generation.
+      await db
+        .update(posts)
+        .set({ imageHash: h })
+        .where(eq(posts.id, r.id))
+        .catch(() => {});
+    } catch {
+      // Bad URL / fetch failure / sharp decode error — skip silently. The
+      // row remains un-hashed and may be retried on the next generation.
+    }
+  }
 
   let imageBuffer: Buffer | null = null;
   let sourceImageUrl: string | null = null;
+  let sourceImageHash: string | null = null;
   let lastImageError: Error | null = null;
   for (const candidate of candidates) {
     if (usedUrlsJit.has(normalizeImageUrlForDedup(candidate.url))) continue;
+
+    // Visual dedup — fetch the bytes, hash, compare against past. Same
+    // photo at a different Pixabay URL collapses to the same hash.
+    let candidateBytes: Buffer;
+    let candidateHash: string;
     try {
+      candidateBytes = await fetchImageBuffer(candidate.url);
+      candidateHash = await computeImageHash(candidateBytes);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      lastImageError = e;
+      // Rate-limit on fetch → try next candidate. Other errors → abort.
+      if (!/rate-limit/i.test(e.message)) throw e;
+      continue;
+    }
+    if (isVisuallyDuplicate(candidateHash, pastHashes, DEFAULT_HAMMING_THRESHOLD)) {
+      // Same photo (different URL). Treat as used and move on.
+      continue;
+    }
+
+    try {
+      // We have the bytes already, but createInstagramImageWithText takes a
+      // URL; passing the URL again means a second download. The cost is
+      // bounded (one redundant fetch per successful generation) and avoids
+      // a deeper refactor of the image-processing module. Acceptable for v1.
       imageBuffer = await createInstagramImageWithText(
         candidate.url,
         renderBrand,
@@ -662,6 +750,7 @@ export async function generateFromSeed(
         brand.logoUrl ?? null,
       );
       sourceImageUrl = candidate.url;
+      sourceImageHash = candidateHash;
       break;
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
@@ -700,6 +789,7 @@ export async function generateFromSeed(
     data: {
       imageDataUrl,
       sourceImageUrl,
+      imageHash: sourceImageHash,
       caption: captionPayload.caption ?? '',
       hashtags: captionPayload.hashtags ?? '',
       hookText: hookText.slice(0, 60),
