@@ -186,6 +186,40 @@ describe('hasBrandDomainMatch', () => {
       hasBrandDomainMatch('wedding, athlete, fashion', 'pacebrain'),
     ).toBe(false);
   });
+
+  it('rejects pacebrain study/office photos that carry a stray "training" tag', () => {
+    // Regression for "3 secrets your pace hides" → book photo. Pixabay tags
+    // book/office stock with a generic "training" token, which used to pass
+    // the running-domain floor and ship a reading photo for a running brand.
+    expect(
+      hasBrandDomainMatch('a book, read, pages, literature, training, books', 'pacebrain'),
+    ).toBe(false);
+    expect(
+      hasBrandDomainMatch('hand, pen, write, document, office, desk, training, handwriting', 'pacebrain'),
+    ).toBe(false);
+    expect(
+      hasBrandDomainMatch('laptop, computer, coding, hacker, training', 'pacebrain'),
+    ).toBe(false);
+  });
+
+  it('keeps those same study/office tokens valid for affectly (its own domain)', () => {
+    // The PaceBrain negatives must NOT leak into Affectly — book/office/laptop
+    // study scenes are exactly what Affectly should pick.
+    expect(
+      hasBrandDomainMatch('student, laptop, study, office, desk, learning', 'affectly'),
+    ).toBe(true);
+    expect(
+      hasBrandDomainMatch('classroom, homework, lecture, notebook', 'affectly'),
+    ).toBe(true);
+  });
+
+  it('does not reject legitimate pacebrain track photos tagged "physical education"', () => {
+    // "education" is deliberately NOT a pacebrain negative — it appears on
+    // real track/playground shots ("life physical education").
+    expect(
+      hasBrandDomainMatch('running, athletics, track, playground, life physical education, runner', 'pacebrain'),
+    ).toBe(true);
+  });
 });
 
 describe('hasBrandDomainConfig', () => {
