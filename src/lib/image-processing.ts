@@ -22,7 +22,7 @@ export async function fetchImageBuffer(imageUrl: string): Promise<Buffer> {
     if (attempt > 0) {
       await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
     }
-    const response = await fetch(imageUrl);
+    const response = await fetch(imageUrl, { signal: AbortSignal.timeout(15_000) });
     if (response.ok) return Buffer.from(await response.arrayBuffer());
     lastStatus = response.status;
     if (response.status !== 429 && response.status < 500) break;

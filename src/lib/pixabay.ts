@@ -70,7 +70,8 @@ export async function searchImages(
   if (colors) params.set('colors', colors);
 
   const response = await fetch(
-    `https://pixabay.com/api/?${params.toString()}`
+    `https://pixabay.com/api/?${params.toString()}`,
+    { signal: AbortSignal.timeout(12_000) }
   );
 
   if (!response.ok) {
