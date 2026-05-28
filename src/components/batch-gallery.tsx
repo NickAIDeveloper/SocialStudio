@@ -10,12 +10,13 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { hashtagSets, optimalPostingTimes } from '@/data/competitor-insights';
 import { suggestedQueries, brandCategories } from '@/lib/pixabay';
-import type { PixabayImage } from '@/lib/pixabay';
+import type { ImageResult } from '@/lib/image-sources';
 import { generateCaption, extractHookText, resetCaptionHistory, sanitizeCaption, sanitizeHook, sanitizeHashtags } from '@/lib/caption-engine';
 import { decodeLearnings } from '@/lib/analyze/learnings';
 import { mergePerfectSeed } from '@/lib/smart-posts';
 import type { InsightCard } from '@/lib/health-score';
-import { tokenize, scoreTagOverlap } from '@/lib/image-queries';
+import { rankCandidates } from '@/lib/smart-posts/image-scoring';
+import { normalizeImageUrlForDedup, buildDedupSet } from '@/lib/smart-posts/url-dedup';
 
 type Brand = string;
 type ContentType = 'quote' | 'tip' | 'carousel' | 'community' | 'promo';
@@ -138,6 +139,10 @@ interface BatchHints {
   captionPatternHint?: { type: string; label: string };
   toneHint?: 'community';
   avoidTopics: string[];
+  // Autopilot's daily-updated strategic brief (briefMd). Passed straight to the
+  // captions LLM so batch posts ride on the same fresh intel that autopilot
+  // uses for its single posts.
+  brainBriefMd?: string;
 }
 
 const EMPTY_HINTS: BatchHints = { avoidTopics: [] };
@@ -196,37 +201,61 @@ export function BatchGallery() {
   const [batchEffect, setBatchEffect] = useState<ImageEffect | 'random'>('random');
   const batchEffectRef = useRef<ImageEffect | 'random'>('random');
 
-  // Auto-pull hints for a brand from its analyze insights. Returns empty
-  // hints on any failure (no insights, network error, no actionable
-  // insights) so the batch falls back gracefully to the unguided flow.
+  // Auto-pull hints for a brand from its analyze insights AND the autopilot
+  // brain brief. Returns empty hints on any failure so the batch falls back
+  // gracefully to the unguided flow.
+  //
+  // Two intel sources are merged here:
+  //  - /api/insights?type=analytics — actionable cards (hookPattern, length,
+  //    pattern, tone, avoidTopics) derived from your own past posts.
+  //  - /api/autopilot/insights — the brain brief (briefMd), updated daily,
+  //    forwarded as-is to the captions LLM so batch posts inherit the same
+  //    fresh strategic context autopilot uses.
   const deriveHintsForBrand = useCallback(
     async (brandId: string, learningIds: string[] | undefined): Promise<BatchHints> => {
-      try {
-        const res = await fetch(
-          `/api/insights?type=analytics&brandId=${encodeURIComponent(brandId)}`,
-        );
-        if (!res.ok) return EMPTY_HINTS;
-        const payload = (await res.json()) as { insights?: InsightCard[] };
-        const all = payload.insights ?? [];
-        if (all.length === 0) return EMPTY_HINTS;
-        const filtered =
-          learningIds && learningIds.length > 0
-            ? all.filter((c) => learningIds.includes(c.id))
-            : all;
-        if (filtered.length === 0) return EMPTY_HINTS;
-        const merged = mergePerfectSeed(filtered, brandId);
-        if (!merged) return EMPTY_HINTS;
-        const seed = merged.seed;
-        return {
-          hookPattern: seed.hookPattern,
-          captionLengthHint: seed.captionLengthHint,
-          captionPatternHint: seed.captionPatternHint,
-          toneHint: seed.toneHint,
-          avoidTopics: seed.avoidTopics ?? [],
-        };
-      } catch {
-        return EMPTY_HINTS;
+      const [analyticsRes, autopilotRes] = await Promise.allSettled([
+        fetch(`/api/insights?type=analytics&brandId=${encodeURIComponent(brandId)}`),
+        fetch(`/api/autopilot/insights?brandId=${encodeURIComponent(brandId)}`),
+      ]);
+
+      let analyticsHints: Omit<BatchHints, 'brainBriefMd'> = { avoidTopics: [] };
+      if (analyticsRes.status === 'fulfilled' && analyticsRes.value.ok) {
+        try {
+          const payload = (await analyticsRes.value.json()) as { insights?: InsightCard[] };
+          const all = payload.insights ?? [];
+          const filtered =
+            learningIds && learningIds.length > 0
+              ? all.filter((c) => learningIds.includes(c.id))
+              : all;
+          if (filtered.length > 0) {
+            const merged = mergePerfectSeed(filtered, brandId);
+            if (merged) {
+              const seed = merged.seed;
+              analyticsHints = {
+                hookPattern: seed.hookPattern,
+                captionLengthHint: seed.captionLengthHint,
+                captionPatternHint: seed.captionPatternHint,
+                toneHint: seed.toneHint,
+                avoidTopics: seed.avoidTopics ?? [],
+              };
+            }
+          }
+        } catch {
+          /* fall through with empty analytics */
+        }
       }
+
+      let brainBriefMd: string | undefined;
+      if (autopilotRes.status === 'fulfilled' && autopilotRes.value.ok) {
+        try {
+          const payload = (await autopilotRes.value.json()) as { brain?: { briefMd?: string } | null };
+          if (payload.brain?.briefMd) brainBriefMd = payload.brain.briefMd;
+        } catch {
+          /* brain optional */
+        }
+      }
+
+      return { ...analyticsHints, brainBriefMd };
     },
     [],
   );
@@ -301,6 +330,7 @@ export function BatchGallery() {
                 captionLengthHint: brandHints.captionLengthHint,
                 captionPatternHint: brandHints.captionPatternHint,
                 toneHint: brandHints.toneHint,
+                brainBriefMd: brandHints.brainBriefMd,
               }),
             });
             const aiData = await aiRes.json();
@@ -365,7 +395,43 @@ export function BatchGallery() {
     // Fetch unique images — cycle through all queries, never reusing the same one
     const usedQueries: Record<string, number> = {};
     for (const b of brandSlugs) usedQueries[b] = 0;
-    const usedImageIds = new Set<number>();
+    // ImageResult.id is a string after the multi-source refactor (commit bc1c71d).
+    // Previously this was Set<number> and the dedup filter checked typeof === 'number',
+    // silently dropping every image and leaving the batch grid empty.
+    const usedImageIds = new Set<string>();
+
+    // Cross-batch image dedup. Without this, every Generate click resets the
+    // used-image memory and the same photo (the user reported "lady biting on
+    // the pen" appearing 5x) keeps surfacing because Pixabay's ranker is
+    // deterministic for a given query. Pre-populate per brand from past posts
+    // so the same photo never wins twice across runs.
+    //
+    // URLs are normalised (query-string-stripped) so signed-CDN variants of
+    // the same Pixabay/Unsplash/Pexels photo dedup correctly.
+    const usedUrlsByBrand = new Map<string, Set<string>>();
+    await Promise.all(
+      brandSlugs.map(async (brand) => {
+        const matched = apiBrands.find((b) => b.slug === brand);
+        if (!matched) {
+          usedUrlsByBrand.set(brand, new Set<string>());
+          return;
+        }
+        try {
+          const res = await fetch(`/api/posts?brandId=${encodeURIComponent(matched.id)}&limit=200`);
+          if (!res.ok) {
+            usedUrlsByBrand.set(brand, new Set<string>());
+            return;
+          }
+          const data = (await res.json()) as {
+            posts?: Array<{ sourceImageUrl?: string | null; processedImageUrl?: string | null }>;
+          };
+          const urls = (data.posts ?? []).flatMap((p) => [p.sourceImageUrl, p.processedImageUrl]);
+          usedUrlsByBrand.set(brand, buildDedupSet(urls));
+        } catch {
+          usedUrlsByBrand.set(brand, new Set<string>());
+        }
+      }),
+    );
     const batchSize = 4;
     for (let i = 0; i < shuffled.length; i += batchSize) {
       const batch = shuffled.slice(i, i + batchSize);
@@ -417,52 +483,66 @@ export function BatchGallery() {
               try {
                 const r = await fetch(`/api/images?source=all&q=${encodeURIComponent(q)}`);
                 const d = await r.json();
-                return (d.images || d.hits || []) as PixabayImage[];
+                return (d.images || d.hits || []) as ImageResult[];
               } catch {
                 return [];
               }
             }),
           );
-          const seenIds = new Set<number>();
-          const combinedHits: PixabayImage[] = [];
+          const seenIds = new Set<string>();
+          const combinedHits: ImageResult[] = [];
           for (const list of fetchResults) {
             for (const h of list) {
-              if (typeof h.id === 'number' && !seenIds.has(h.id)) {
-                seenIds.add(h.id);
+              const id = h.id != null ? String(h.id) : '';
+              if (id && !seenIds.has(id)) {
+                seenIds.add(id);
                 combinedHits.push(h);
               }
             }
           }
 
           if (combinedHits.length > 0) {
-            // Step 3: deterministic tag-overlap scoring across the combined
-            // pool, including brand description in the post-token bag so
-            // brand-relevant tags ("running", "athlete" for PaceBrain) win
-            // even when caption tokens are abstract.
-            const postTokens = tokenize(
-              [post.caption, post.hookText, post.brand, brandDescription].join(' '),
-            );
-            let bestIdx = 0;
-            let bestScore = -1;
-            combinedHits.forEach((c, i) => {
-              const score = scoreTagOverlap(String(c.tags ?? ''), postTokens);
-              // Penalize already-used images so the batch doesn't repeat
-              const penalty = usedImageIds.has(c.id) ? -0.5 : 0;
-              const adjusted = score + penalty;
-              if (adjusted > bestScore) {
-                bestScore = adjusted;
-                bestIdx = i;
-              }
-            });
-            let img = combinedHits[bestIdx];
+            // Step 3: use the same brand-aware ranker autopilot uses
+            // (rankCandidates from smart-posts/image-scoring). Sort priority is:
+            //   1. Brand-domain match (HARD floor — pacebrain → running tags,
+            //      affectly → study tags, with motorsport/book negatives that
+            //      disqualify a Formula 1 photo for a "race predictions" post)
+            //   2. Non-landscape before landscape
+            //   3. Higher caption/hook tag overlap
+            //
+            // Includes brand description in the context bag so brand-relevant
+            // tags ("running", "athlete" for PaceBrain) win even when caption
+            // tokens are metaphorical.
+            const contextText = [post.caption, post.hookText, post.brand, brandDescription].join(' ');
+            const scorable = combinedHits.map((h) => ({
+              url: h.largeImageURL,
+              tags: h.tags,
+              _hit: h,
+            }));
+            const ranked = rankCandidates(scorable, contextText, post.brand);
 
-            // Skip already-used images when an unused alternative exists,
-            // even if it scores slightly lower
-            if (usedImageIds.has(img.id)) {
-              const unused = combinedHits.find((c) => !usedImageIds.has(c.id));
-              if (unused) img = unused;
+            // Cross-batch + in-batch dedup. Walk the ranked list in order and
+            // pick the first whose normalised URL hasn't been used for this
+            // brand (either in a prior batch run or earlier in this one).
+            const usedUrls = usedUrlsByBrand.get(post.brand) ?? new Set<string>();
+            let chosen: typeof scorable[number] | null = null;
+            for (const r of ranked) {
+              const normalised = normalizeImageUrlForDedup(r.candidate.url);
+              const id = String(r.candidate._hit.id);
+              if (!usedUrls.has(normalised) && !usedImageIds.has(id)) {
+                chosen = r.candidate;
+                break;
+              }
             }
-            usedImageIds.add(img.id);
+            // If every candidate has been used, fall back to ranked[0] so the
+            // post still ships with an image — duplicates beat blanks.
+            if (!chosen && ranked.length > 0) chosen = ranked[0].candidate;
+            if (!chosen) return;
+
+            const img = chosen._hit;
+            usedImageIds.add(String(img.id));
+            usedUrls.add(normalizeImageUrlForDedup(img.largeImageURL));
+            usedUrlsByBrand.set(post.brand, usedUrls);
 
             // Process image with overlay via /api/logo (returns raw image bytes)
             const cleanHook = sanitizeHook(post.hookText || '');

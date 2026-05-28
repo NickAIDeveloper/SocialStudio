@@ -5,6 +5,7 @@ export const unsplashSource: ImageSource = {
     const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=20&orientation=squarish`;
     const response = await fetch(url, {
       headers: { Authorization: `Client-ID ${apiKey}` },
+      signal: AbortSignal.timeout(12_000),
     });
     if (!response.ok) throw new Error(`Unsplash API error: ${response.status}`);
     const data = await response.json();

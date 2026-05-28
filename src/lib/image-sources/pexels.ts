@@ -5,6 +5,7 @@ export const pexelsSource: ImageSource = {
     const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=20`;
     const response = await fetch(url, {
       headers: { Authorization: apiKey },
+      signal: AbortSignal.timeout(12_000),
     });
     if (!response.ok) throw new Error(`Pexels API error: ${response.status}`);
     const data = await response.json();

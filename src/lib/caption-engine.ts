@@ -93,6 +93,19 @@ const DENSE_CAPTION_MIN_CHARS = 160;
 const DENSE_CAPTION_MIN_SENTENCES = 3;
 
 /**
+ * Ensures every numbered list item ("1. ", "2. ") starts on its own line
+ * preceded by a blank line. Without this, the LLM (and the single-\n break
+ * inserted by sanitizeCaption) leaves lists jammed against the prior
+ * paragraph and against each other, which renders as a squashed block on
+ * Instagram. Idempotent: any run of newlines before a numbered item collapses
+ * to exactly one blank line. Only acts where a newline already precedes the
+ * number, so it never splits inline prose like "zone 3. Most runners".
+ */
+function spaceNumberedListItems(text: string): string {
+  return text.replace(/\n+(?=\d+\.\s)/g, '\n\n');
+}
+
+/**
  * Ensures a caption is structured as multiple paragraphs separated by blank
  * lines (\n\n). Instagram strips visual hierarchy when captions are a single
  * dense paragraph, which is what was happening with autopilot output.
@@ -110,13 +123,13 @@ export function enforceCaptionParagraphs(caption: string): string {
   if (!caption.trim()) return caption;
 
   if (/\n\s*\n/.test(caption)) {
-    return caption.replace(/\n{3,}/g, '\n\n').trim();
+    return spaceNumberedListItems(caption).replace(/\n{3,}/g, '\n\n').trim();
   }
 
   const nonEmptyLines = caption.split('\n').map((l) => l.trim()).filter(Boolean);
   if (nonEmptyLines.length === 0) return caption;
   if (nonEmptyLines.length >= 2) {
-    return nonEmptyLines.join('\n\n');
+    return spaceNumberedListItems(nonEmptyLines.join('\n\n'));
   }
 
   const single = nonEmptyLines[0];
@@ -139,7 +152,7 @@ export function enforceCaptionParagraphs(caption: string): string {
     }
     paragraphs.push(sentences[sentences.length - 1]);
   }
-  return paragraphs.join('\n\n');
+  return spaceNumberedListItems(paragraphs.join('\n\n'));
 }
 
 export function sanitizeHook(text: string): string {

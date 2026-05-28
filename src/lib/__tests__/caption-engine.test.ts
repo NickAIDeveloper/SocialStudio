@@ -231,6 +231,28 @@ describe('enforceCaptionParagraphs', () => {
     expect(enforceCaptionParagraphs('   ')).toBe('   ');
   });
 
+  it('puts a blank line before a numbered list jammed against the prior paragraph', () => {
+    // Regression for the squashed PaceBrain caption: paragraphs were spaced
+    // but the list was glued to the body with single newlines.
+    const input =
+      'Body paragraph here.\n1. First step.\n2. Second step.\n3. Third step.\n\nTry it free.';
+    expect(enforceCaptionParagraphs(input)).toBe(
+      'Body paragraph here.\n\n1. First step.\n\n2. Second step.\n\n3. Third step.\n\nTry it free.',
+    );
+  });
+
+  it('separates list items even when the caption already has \\n\\n elsewhere', () => {
+    const input = 'Hook.\n\nBody.\n1. One.\n2. Two.';
+    expect(enforceCaptionParagraphs(input)).toBe(
+      'Hook.\n\nBody.\n\n1. One.\n\n2. Two.',
+    );
+  });
+
+  it('is idempotent on already-spaced numbered lists', () => {
+    const input = 'Body.\n\n1. One.\n\n2. Two.\n\nCTA.';
+    expect(enforceCaptionParagraphs(input)).toBe(input);
+  });
+
   it('leaves a long single sentence alone (cannot split without sentence boundaries)', () => {
     const input =
       'This is one very very long single sentence that does not contain any sentence-ending punctuation and just keeps going without ever stopping or providing any natural break point that we could use';

@@ -19,6 +19,11 @@ const CEREBRAS_MODEL = 'llama3.1-8b';
 // for actual API time and image processing.
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 300;
+// Per-attempt network timeout. Without this, a stalled Cerebras socket
+// (connection open, no response) never settles, freezing every caller —
+// the batch generator spins on "Generating 0/N" forever. A bounded abort
+// turns the stall into a retryable error, then a clean throw → pool fallback.
+const REQUEST_TIMEOUT_MS = 15_000;
 
 interface CerebrasMessage {
   role: 'system' | 'user' | 'assistant';
@@ -75,6 +80,7 @@ export async function cerebrasChatCompletion(
           'Authorization': `Bearer ${apiKey}`,
         },
         body: serialized,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch (err) {
       // Network error — treat as transient and retry.

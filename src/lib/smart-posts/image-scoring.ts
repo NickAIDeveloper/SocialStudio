@@ -77,25 +77,54 @@ const BRAND_DOMAIN_TOKENS: Record<string, Set<string>> = {
 // Conservative on purpose: only include tokens that signal "this is the
 // photo's actual subject" — not incidental props. Coffee, for instance,
 // is NOT here because studying photos commonly include a coffee cup.
+const SHARED_NEGATIVE_TOKENS = [
+  'flower', 'flowers', 'floral', 'bouquet', 'vase', 'rose', 'roses',
+  'carnation', 'tulip', 'tulips', 'daisy', 'petal', 'petals', 'blossom',
+  'wedding', 'bride', 'groom',
+  'fashion', 'model', 'glamour', 'makeup',
+  'dessert', 'cake', 'pastry', 'cocktail',
+  'kitten', 'puppy',
+  'baby', 'infant', 'newborn', 'toddler',
+];
+
+// PaceBrain-only negatives: study / office / reading subjects. A genuine
+// running photo is NEVER tagged with these, but off-domain stock (books,
+// desks, laptops, office scenes) frequently carries a stray generic
+// "training" tag — Pixabay tags book photos "training, to learn" — which
+// would otherwise satisfy the running-domain floor and ship a reading photo
+// for a running brand (the user's "weird photo" complaint: a book photo won
+// "3 secrets your pace hides"). These tokens are exactly Affectly's domain,
+// so they MUST stay PaceBrain-specific and never go in the shared set.
+//
+// Excluded on purpose: "education"/"school"/"student" — those appear on
+// legitimate track/playground photos ("life physical education", student
+// athletes) and would reject valid running shots.
+const PACEBRAIN_NEGATIVE_TOKENS = [
+  'book', 'books', 'read', 'reading', 'literature', 'novel', 'pages', 'bookshelf',
+  'library', 'homework', 'classroom', 'lecture', 'professor', 'teacher', 'tutor',
+  'exam', 'essay', 'notebook', 'document', 'handwriting', 'paperwork',
+  'pen', 'write', 'writing',
+  'office', 'desk', 'business', 'meeting', 'corporate',
+  'laptop', 'keyboard', 'computer', 'coding', 'programming', 'software', 'hacker',
+  // Motor sports. PaceBrain's positive set has 'race', 'racing', 'track' — all of
+  // which also describe car/bike racing. Without these negatives a Formula 1 photo
+  // (tagged "race, racing, car, motorsport, track") passes the brand-domain floor
+  // and ships for a running-pace caption — the user reported "Race predictions you
+  // can trust" landing on a vintage F1 photo. These tokens identify the photo as a
+  // vehicle scene; legitimate running shots are never tagged with them.
+  //
+  // Discipline: motorsport-only vocabulary. Avoid generic words (engine, wheel,
+  // tire) that appear on wheelchair athletes, crossfit tire flips, or treadmill
+  // photos. Avoid 'bike'/'cycling' — runners cross-train and cycling stock can
+  // legitimately illustrate endurance content.
+  'car', 'cars', 'auto', 'autos', 'automobile', 'automotive', 'vehicle', 'vehicles',
+  'formula', 'f1', 'nascar', 'motorsport', 'motorsports', 'motorcycle', 'motorbike',
+  'kart', 'karting', 'raceway', 'racetrack', 'pitstop',
+];
+
 const BRAND_NEGATIVE_TOKENS: Record<string, Set<string>> = {
-  pacebrain: new Set([
-    'flower', 'flowers', 'floral', 'bouquet', 'vase', 'rose', 'roses',
-    'carnation', 'tulip', 'tulips', 'daisy', 'petal', 'petals', 'blossom',
-    'wedding', 'bride', 'groom',
-    'fashion', 'model', 'glamour', 'makeup',
-    'dessert', 'cake', 'pastry', 'cocktail',
-    'kitten', 'puppy',
-    'baby', 'infant', 'newborn', 'toddler',
-  ]),
-  affectly: new Set([
-    'flower', 'flowers', 'floral', 'bouquet', 'vase', 'rose', 'roses',
-    'carnation', 'tulip', 'tulips', 'daisy', 'petal', 'petals', 'blossom',
-    'wedding', 'bride', 'groom',
-    'fashion', 'model', 'glamour', 'makeup',
-    'dessert', 'cake', 'pastry', 'cocktail',
-    'kitten', 'puppy',
-    'baby', 'infant', 'newborn', 'toddler',
-  ]),
+  pacebrain: new Set([...SHARED_NEGATIVE_TOKENS, ...PACEBRAIN_NEGATIVE_TOKENS]),
+  affectly: new Set(SHARED_NEGATIVE_TOKENS),
 };
 
 export function tokenizeForScoring(text: string): Set<string> {
