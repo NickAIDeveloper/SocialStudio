@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { hashtagSets, optimalPostingTimes } from '@/data/competitor-insights';
 import { suggestedQueries, brandCategories } from '@/lib/pixabay';
-import type { PixabayImage } from '@/lib/pixabay';
+import type { ImageResult } from '@/lib/image-sources';
 import { generateCaption, extractHookText, resetCaptionHistory, sanitizeCaption, sanitizeHook, sanitizeHashtags } from '@/lib/caption-engine';
 import { decodeLearnings } from '@/lib/analyze/learnings';
 import { mergePerfectSeed } from '@/lib/smart-posts';
@@ -138,6 +138,10 @@ interface BatchHints {
   captionPatternHint?: { type: string; label: string };
   toneHint?: 'community';
   avoidTopics: string[];
+  // Autopilot's daily-updated strategic brief (briefMd). Passed straight to the
+  // captions LLM so batch posts ride on the same fresh intel that autopilot
+  // uses for its single posts.
+  brainBriefMd?: string;
 }
 
 const EMPTY_HINTS: BatchHints = { avoidTopics: [] };
@@ -196,37 +200,61 @@ export function BatchGallery() {
   const [batchEffect, setBatchEffect] = useState<ImageEffect | 'random'>('random');
   const batchEffectRef = useRef<ImageEffect | 'random'>('random');
 
-  // Auto-pull hints for a brand from its analyze insights. Returns empty
-  // hints on any failure (no insights, network error, no actionable
-  // insights) so the batch falls back gracefully to the unguided flow.
+  // Auto-pull hints for a brand from its analyze insights AND the autopilot
+  // brain brief. Returns empty hints on any failure so the batch falls back
+  // gracefully to the unguided flow.
+  //
+  // Two intel sources are merged here:
+  //  - /api/insights?type=analytics — actionable cards (hookPattern, length,
+  //    pattern, tone, avoidTopics) derived from your own past posts.
+  //  - /api/autopilot/insights — the brain brief (briefMd), updated daily,
+  //    forwarded as-is to the captions LLM so batch posts inherit the same
+  //    fresh strategic context autopilot uses.
   const deriveHintsForBrand = useCallback(
     async (brandId: string, learningIds: string[] | undefined): Promise<BatchHints> => {
-      try {
-        const res = await fetch(
-          `/api/insights?type=analytics&brandId=${encodeURIComponent(brandId)}`,
-        );
-        if (!res.ok) return EMPTY_HINTS;
-        const payload = (await res.json()) as { insights?: InsightCard[] };
-        const all = payload.insights ?? [];
-        if (all.length === 0) return EMPTY_HINTS;
-        const filtered =
-          learningIds && learningIds.length > 0
-            ? all.filter((c) => learningIds.includes(c.id))
-            : all;
-        if (filtered.length === 0) return EMPTY_HINTS;
-        const merged = mergePerfectSeed(filtered, brandId);
-        if (!merged) return EMPTY_HINTS;
-        const seed = merged.seed;
-        return {
-          hookPattern: seed.hookPattern,
-          captionLengthHint: seed.captionLengthHint,
-          captionPatternHint: seed.captionPatternHint,
-          toneHint: seed.toneHint,
-          avoidTopics: seed.avoidTopics ?? [],
-        };
-      } catch {
-        return EMPTY_HINTS;
+      const [analyticsRes, autopilotRes] = await Promise.allSettled([
+        fetch(`/api/insights?type=analytics&brandId=${encodeURIComponent(brandId)}`),
+        fetch(`/api/autopilot/insights?brandId=${encodeURIComponent(brandId)}`),
+      ]);
+
+      let analyticsHints: Omit<BatchHints, 'brainBriefMd'> = { avoidTopics: [] };
+      if (analyticsRes.status === 'fulfilled' && analyticsRes.value.ok) {
+        try {
+          const payload = (await analyticsRes.value.json()) as { insights?: InsightCard[] };
+          const all = payload.insights ?? [];
+          const filtered =
+            learningIds && learningIds.length > 0
+              ? all.filter((c) => learningIds.includes(c.id))
+              : all;
+          if (filtered.length > 0) {
+            const merged = mergePerfectSeed(filtered, brandId);
+            if (merged) {
+              const seed = merged.seed;
+              analyticsHints = {
+                hookPattern: seed.hookPattern,
+                captionLengthHint: seed.captionLengthHint,
+                captionPatternHint: seed.captionPatternHint,
+                toneHint: seed.toneHint,
+                avoidTopics: seed.avoidTopics ?? [],
+              };
+            }
+          }
+        } catch {
+          /* fall through with empty analytics */
+        }
       }
+
+      let brainBriefMd: string | undefined;
+      if (autopilotRes.status === 'fulfilled' && autopilotRes.value.ok) {
+        try {
+          const payload = (await autopilotRes.value.json()) as { brain?: { briefMd?: string } | null };
+          if (payload.brain?.briefMd) brainBriefMd = payload.brain.briefMd;
+        } catch {
+          /* brain optional */
+        }
+      }
+
+      return { ...analyticsHints, brainBriefMd };
     },
     [],
   );
@@ -301,6 +329,7 @@ export function BatchGallery() {
                 captionLengthHint: brandHints.captionLengthHint,
                 captionPatternHint: brandHints.captionPatternHint,
                 toneHint: brandHints.toneHint,
+                brainBriefMd: brandHints.brainBriefMd,
               }),
             });
             const aiData = await aiRes.json();
@@ -365,7 +394,10 @@ export function BatchGallery() {
     // Fetch unique images — cycle through all queries, never reusing the same one
     const usedQueries: Record<string, number> = {};
     for (const b of brandSlugs) usedQueries[b] = 0;
-    const usedImageIds = new Set<number>();
+    // ImageResult.id is a string after the multi-source refactor (commit bc1c71d).
+    // Previously this was Set<number> and the dedup filter checked typeof === 'number',
+    // silently dropping every image and leaving the batch grid empty.
+    const usedImageIds = new Set<string>();
     const batchSize = 4;
     for (let i = 0; i < shuffled.length; i += batchSize) {
       const batch = shuffled.slice(i, i + batchSize);
@@ -417,18 +449,19 @@ export function BatchGallery() {
               try {
                 const r = await fetch(`/api/images?source=all&q=${encodeURIComponent(q)}`);
                 const d = await r.json();
-                return (d.images || d.hits || []) as PixabayImage[];
+                return (d.images || d.hits || []) as ImageResult[];
               } catch {
                 return [];
               }
             }),
           );
-          const seenIds = new Set<number>();
-          const combinedHits: PixabayImage[] = [];
+          const seenIds = new Set<string>();
+          const combinedHits: ImageResult[] = [];
           for (const list of fetchResults) {
             for (const h of list) {
-              if (typeof h.id === 'number' && !seenIds.has(h.id)) {
-                seenIds.add(h.id);
+              const id = h.id != null ? String(h.id) : '';
+              if (id && !seenIds.has(id)) {
+                seenIds.add(id);
                 combinedHits.push(h);
               }
             }

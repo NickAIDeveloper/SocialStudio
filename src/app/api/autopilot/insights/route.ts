@@ -172,7 +172,14 @@ export async function GET(req: Request): Promise<Response> {
 
   return NextResponse.json({
     brain: brain
-      ? { briefVersion: brain.briefVersion, generatedAt: brain.generatedAt }
+      ? {
+          briefVersion: brain.briefVersion,
+          generatedAt: brain.generatedAt,
+          // briefMd is the daily-updated strategic brief. Exposed so the
+          // batch generator can forward it to /api/captions (brainBriefMd),
+          // matching what autopilot's god-mode flow already does.
+          briefMd: brain.briefMd,
+        }
       : null,
     sections,
     formula,
