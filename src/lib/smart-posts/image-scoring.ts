@@ -106,6 +106,20 @@ const PACEBRAIN_NEGATIVE_TOKENS = [
   'pen', 'write', 'writing',
   'office', 'desk', 'business', 'meeting', 'corporate',
   'laptop', 'keyboard', 'computer', 'coding', 'programming', 'software', 'hacker',
+  // Motor sports. PaceBrain's positive set has 'race', 'racing', 'track' — all of
+  // which also describe car/bike racing. Without these negatives a Formula 1 photo
+  // (tagged "race, racing, car, motorsport, track") passes the brand-domain floor
+  // and ships for a running-pace caption — the user reported "Race predictions you
+  // can trust" landing on a vintage F1 photo. These tokens identify the photo as a
+  // vehicle scene; legitimate running shots are never tagged with them.
+  //
+  // Discipline: motorsport-only vocabulary. Avoid generic words (engine, wheel,
+  // tire) that appear on wheelchair athletes, crossfit tire flips, or treadmill
+  // photos. Avoid 'bike'/'cycling' — runners cross-train and cycling stock can
+  // legitimately illustrate endurance content.
+  'car', 'cars', 'auto', 'autos', 'automobile', 'automotive', 'vehicle', 'vehicles',
+  'formula', 'f1', 'nascar', 'motorsport', 'motorsports', 'motorcycle', 'motorbike',
+  'kart', 'karting', 'raceway', 'racetrack', 'pitstop',
 ];
 
 const BRAND_NEGATIVE_TOKENS: Record<string, Set<string>> = {

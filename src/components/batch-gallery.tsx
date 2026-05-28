@@ -15,7 +15,8 @@ import { generateCaption, extractHookText, resetCaptionHistory, sanitizeCaption,
 import { decodeLearnings } from '@/lib/analyze/learnings';
 import { mergePerfectSeed } from '@/lib/smart-posts';
 import type { InsightCard } from '@/lib/health-score';
-import { tokenize, scoreTagOverlap } from '@/lib/image-queries';
+import { rankCandidates } from '@/lib/smart-posts/image-scoring';
+import { normalizeImageUrlForDedup, buildDedupSet } from '@/lib/smart-posts/url-dedup';
 
 type Brand = string;
 type ContentType = 'quote' | 'tip' | 'carousel' | 'community' | 'promo';
@@ -398,6 +399,39 @@ export function BatchGallery() {
     // Previously this was Set<number> and the dedup filter checked typeof === 'number',
     // silently dropping every image and leaving the batch grid empty.
     const usedImageIds = new Set<string>();
+
+    // Cross-batch image dedup. Without this, every Generate click resets the
+    // used-image memory and the same photo (the user reported "lady biting on
+    // the pen" appearing 5x) keeps surfacing because Pixabay's ranker is
+    // deterministic for a given query. Pre-populate per brand from past posts
+    // so the same photo never wins twice across runs.
+    //
+    // URLs are normalised (query-string-stripped) so signed-CDN variants of
+    // the same Pixabay/Unsplash/Pexels photo dedup correctly.
+    const usedUrlsByBrand = new Map<string, Set<string>>();
+    await Promise.all(
+      brandSlugs.map(async (brand) => {
+        const matched = apiBrands.find((b) => b.slug === brand);
+        if (!matched) {
+          usedUrlsByBrand.set(brand, new Set<string>());
+          return;
+        }
+        try {
+          const res = await fetch(`/api/posts?brandId=${encodeURIComponent(matched.id)}&limit=200`);
+          if (!res.ok) {
+            usedUrlsByBrand.set(brand, new Set<string>());
+            return;
+          }
+          const data = (await res.json()) as {
+            posts?: Array<{ sourceImageUrl?: string | null; processedImageUrl?: string | null }>;
+          };
+          const urls = (data.posts ?? []).flatMap((p) => [p.sourceImageUrl, p.processedImageUrl]);
+          usedUrlsByBrand.set(brand, buildDedupSet(urls));
+        } catch {
+          usedUrlsByBrand.set(brand, new Set<string>());
+        }
+      }),
+    );
     const batchSize = 4;
     for (let i = 0; i < shuffled.length; i += batchSize) {
       const batch = shuffled.slice(i, i + batchSize);
@@ -468,34 +502,47 @@ export function BatchGallery() {
           }
 
           if (combinedHits.length > 0) {
-            // Step 3: deterministic tag-overlap scoring across the combined
-            // pool, including brand description in the post-token bag so
-            // brand-relevant tags ("running", "athlete" for PaceBrain) win
-            // even when caption tokens are abstract.
-            const postTokens = tokenize(
-              [post.caption, post.hookText, post.brand, brandDescription].join(' '),
-            );
-            let bestIdx = 0;
-            let bestScore = -1;
-            combinedHits.forEach((c, i) => {
-              const score = scoreTagOverlap(String(c.tags ?? ''), postTokens);
-              // Penalize already-used images so the batch doesn't repeat
-              const penalty = usedImageIds.has(c.id) ? -0.5 : 0;
-              const adjusted = score + penalty;
-              if (adjusted > bestScore) {
-                bestScore = adjusted;
-                bestIdx = i;
-              }
-            });
-            let img = combinedHits[bestIdx];
+            // Step 3: use the same brand-aware ranker autopilot uses
+            // (rankCandidates from smart-posts/image-scoring). Sort priority is:
+            //   1. Brand-domain match (HARD floor — pacebrain → running tags,
+            //      affectly → study tags, with motorsport/book negatives that
+            //      disqualify a Formula 1 photo for a "race predictions" post)
+            //   2. Non-landscape before landscape
+            //   3. Higher caption/hook tag overlap
+            //
+            // Includes brand description in the context bag so brand-relevant
+            // tags ("running", "athlete" for PaceBrain) win even when caption
+            // tokens are metaphorical.
+            const contextText = [post.caption, post.hookText, post.brand, brandDescription].join(' ');
+            const scorable = combinedHits.map((h) => ({
+              url: h.largeImageURL,
+              tags: h.tags,
+              _hit: h,
+            }));
+            const ranked = rankCandidates(scorable, contextText, post.brand);
 
-            // Skip already-used images when an unused alternative exists,
-            // even if it scores slightly lower
-            if (usedImageIds.has(img.id)) {
-              const unused = combinedHits.find((c) => !usedImageIds.has(c.id));
-              if (unused) img = unused;
+            // Cross-batch + in-batch dedup. Walk the ranked list in order and
+            // pick the first whose normalised URL hasn't been used for this
+            // brand (either in a prior batch run or earlier in this one).
+            const usedUrls = usedUrlsByBrand.get(post.brand) ?? new Set<string>();
+            let chosen: typeof scorable[number] | null = null;
+            for (const r of ranked) {
+              const normalised = normalizeImageUrlForDedup(r.candidate.url);
+              const id = String(r.candidate._hit.id);
+              if (!usedUrls.has(normalised) && !usedImageIds.has(id)) {
+                chosen = r.candidate;
+                break;
+              }
             }
-            usedImageIds.add(img.id);
+            // If every candidate has been used, fall back to ranked[0] so the
+            // post still ships with an image — duplicates beat blanks.
+            if (!chosen && ranked.length > 0) chosen = ranked[0].candidate;
+            if (!chosen) return;
+
+            const img = chosen._hit;
+            usedImageIds.add(String(img.id));
+            usedUrls.add(normalizeImageUrlForDedup(img.largeImageURL));
+            usedUrlsByBrand.set(post.brand, usedUrls);
 
             // Process image with overlay via /api/logo (returns raw image bytes)
             const cleanHook = sanitizeHook(post.hookText || '');
