@@ -23,12 +23,13 @@ vi.mock('next-auth/react', () => ({
 }));
 
 describe('AppSidebar', () => {
-  it('renders exactly the 4 primary items plus Settings in footer', () => {
+  it('renders the 5 primary items plus Settings in footer', () => {
     render(<AppSidebar />);
     expect(screen.getByText('Analyze')).toBeInTheDocument();
     expect(screen.getByText('Smart Posts')).toBeInTheDocument();
     expect(screen.getByText('Create')).toBeInTheDocument();
-    expect(screen.getByText('Schedule')).toBeInTheDocument();
+    expect(screen.getByText('Autopilot')).toBeInTheDocument();
+    expect(screen.getByText('Ads')).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 

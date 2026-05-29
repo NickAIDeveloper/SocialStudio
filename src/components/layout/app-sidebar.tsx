@@ -9,6 +9,7 @@ import {
   Sparkles,
   Plus,
   Bot,
+  Megaphone,
   Menu,
   Settings,
   X,
@@ -21,6 +22,7 @@ const primaryItems = [
   { href: '/smart-posts', label: 'Smart Posts', icon: Sparkles },
   { href: '/create', label: 'Create', icon: Plus },
   { href: '/autopilot', label: 'Autopilot', icon: Bot },
+  { href: '/ads', label: 'Ads', icon: Megaphone },
 ];
 
 export function AppSidebar() {
