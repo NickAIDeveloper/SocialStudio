@@ -90,7 +90,11 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    if (new Date(targeting.startDate) >= new Date(targeting.endDate)) {
+    if (
+      !targeting.startDate ||
+      !targeting.endDate ||
+      new Date(targeting.startDate) >= new Date(targeting.endDate)
+    ) {
       return NextResponse.json({ error: 'invalid_dates' }, { status: 400 });
     }
 

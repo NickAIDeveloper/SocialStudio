@@ -63,7 +63,7 @@ export async function createCampaign(
       name: `Ad Builder — ${metaObjective} — ${new Date().toISOString().slice(0, 10)}`,
       objective: metaObjective,
       status: 'PAUSED',
-      special_ad_categories: '[]',
+      special_ad_categories: JSON.stringify([]),
     },
   );
   return json.id;

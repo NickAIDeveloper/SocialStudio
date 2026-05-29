@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     }
     console.error('[ads/generate] Error:', error);
     return NextResponse.json(
-      { error: 'generate_failed', message: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'generate_failed', message: (error instanceof Error ? error.message : 'Unknown error').slice(0, 300) },
       { status: 500 },
     );
   }
