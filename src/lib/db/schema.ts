@@ -291,6 +291,33 @@ export const metaAccounts = pgTable(
   (t) => [uniqueIndex('meta_accounts_user_id_idx').on(t.userId)]
 );
 
+// ── Meta Ads ─────────────────────────────────────────────────────────────────
+// Records every ad pushed to Meta, so the UI can show history and we never
+// lose track of a created (paused) ad. Nullable Meta IDs allow a partial
+// tree to be recorded when a step in the publish sequence fails.
+export const metaAds = pgTable('meta_ads', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id')
+    .notNull()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  adAccountId: varchar('ad_account_id', { length: 64 }).notNull(),
+  pageId: varchar('page_id', { length: 64 }).notNull(),
+  igAccountId: varchar('ig_account_id', { length: 64 }),
+  campaignId: varchar('campaign_id', { length: 64 }),
+  adsetId: varchar('adset_id', { length: 64 }),
+  creativeId: varchar('creative_id', { length: 64 }),
+  adId: varchar('ad_id', { length: 64 }),
+  objective: varchar('objective', { length: 48 }).notNull(),
+  status: varchar('status', { length: 24 }).notNull().default('PAUSED'),
+  draft: jsonb('draft'),
+  lastError: text('last_error'),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
 // ── Instagram (direct IG Login for Business) ──────────────────────────────────
 // Separate from meta_accounts because Instagram Login for Business is a
 // distinct auth path with its own endpoints (graph.instagram.com, not
