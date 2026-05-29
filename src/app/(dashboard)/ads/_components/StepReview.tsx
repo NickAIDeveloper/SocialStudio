@@ -28,7 +28,7 @@ export function StepReview(props: {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message ?? json.error ?? 'Publish failed');
-      setResult(json);
+      setResult({ adsManagerUrl: json.adsManagerUrl });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Publish failed');
     } finally {

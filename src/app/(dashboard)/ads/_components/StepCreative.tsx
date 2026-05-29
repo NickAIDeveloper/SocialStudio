@@ -29,7 +29,7 @@ export function StepCreative(props: {
 
       <Field label="Hashtags (space-separated)">
         <input value={draft.hashtags.join(' ')}
-          onChange={(e) => set('hashtags', (e.target.value.match(/#\w+/g) ?? []).slice(0, 5))}
+          onChange={(e) => set('hashtags', e.target.value.split(/\s+/).map((t) => t.replace(/^#+/, '')).filter(Boolean).map((t) => `#${t}`).slice(0, 5))}
           className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
       </Field>
 

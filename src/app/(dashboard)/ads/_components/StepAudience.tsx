@@ -4,11 +4,9 @@
 import { useEffect } from 'react';
 import type { AdTargeting } from '@/lib/meta/ads-types';
 
-interface MetaAsset { id: string; name?: string; currency?: string }
-
 export function StepAudience(props: {
   targeting: AdTargeting; setTargeting: (t: AdTargeting) => void;
-  suggestions: string[]; adAccounts: MetaAsset[]; pages: MetaAsset[];
+  suggestions: string[];
   onBack: () => void; onNext: () => void;
 }) {
   const { targeting, setTargeting } = props;
@@ -85,10 +83,10 @@ export function StepAudience(props: {
         <Labeled label="Run dates">
           <div className="flex gap-2">
             <input type="date" value={targeting.startDate.slice(0, 10)}
-              onChange={(e) => set('startDate', new Date(e.target.value).toISOString())}
+              onChange={(e) => { if (e.target.value) set('startDate', new Date(e.target.value).toISOString()); }}
               className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-2 text-xs text-zinc-100" />
             <input type="date" value={targeting.endDate.slice(0, 10)}
-              onChange={(e) => set('endDate', new Date(e.target.value).toISOString())}
+              onChange={(e) => { if (e.target.value) set('endDate', new Date(e.target.value).toISOString()); }}
               className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-2 text-xs text-zinc-100" />
           </div>
         </Labeled>

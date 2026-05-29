@@ -47,6 +47,10 @@ export default function AdsPage() {
     }).catch(() => setMetaConnected(false));
   }, []);
 
+  if (metaConnected === null) {
+    return <div className="mx-auto max-w-2xl px-4 py-16 text-center text-sm text-zinc-400">Loading…</div>;
+  }
+
   if (metaConnected === false) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
@@ -90,7 +94,6 @@ export default function AdsPage() {
             <StepAudience
               targeting={targeting} setTargeting={setTargeting}
               suggestions={draft?.interestSuggestions ?? []}
-              adAccounts={adAccounts} pages={pages}
               onBack={() => setStep(1)} onNext={() => setStep(3)}
             />
           )}
