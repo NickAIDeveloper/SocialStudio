@@ -34,11 +34,11 @@ export function AppSidebar() {
         className={cn(
           'group flex items-center gap-3 rounded-[11px] px-3 py-2.5 text-sm font-medium transition-colors',
           isActive
-            ? 'bg-[--violet-12] text-white'
-            : 'text-[--muted] hover:bg-white/[0.04] hover:text-[--txt]',
+            ? 'bg-(--violet-12) text-white'
+            : 'text-(--muted) hover:bg-white/[0.04] hover:text-(--txt)',
         )}
       >
-        <Icon className={cn('h-[18px] w-[18px] shrink-0', isActive && 'text-[--violet-bright]')} />
+        <Icon className={cn('h-[18px] w-[18px] shrink-0', isActive && 'text-(--violet-bright)')} />
         <span>{label}</span>
       </Link>
     );
@@ -50,7 +50,7 @@ export function AppSidebar() {
         type="button"
         onClick={() => setMobileOpen(true)}
         aria-label="Open menu"
-        className="fixed left-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-lg border border-[--line] bg-[--surface] text-[--txt] md:hidden"
+        className="fixed left-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-lg border border-(--line) bg-(--surface) text-(--txt) md:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -64,35 +64,35 @@ export function AppSidebar() {
 
       <aside
         className={cn(
-          'fixed bottom-0 left-0 top-0 z-40 flex w-60 flex-col border-r border-[--line] bg-[--sidebar-bg] transition-transform duration-200',
+          'fixed bottom-0 left-0 top-0 z-40 flex w-60 flex-col border-r border-(--line) bg-(--sidebar-bg) transition-transform duration-200',
           mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
         )}
       >
         <div className="flex h-16 items-center justify-between gap-2.5 px-4">
           <Link href="/analyze" className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-gradient-to-br from-[--violet] to-[--violet-deep] shadow-[0_0_24px_rgba(139,92,246,0.45)]">
+            <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-gradient-to-br from-(--violet) to-(--violet-deep) shadow-[0_0_24px_rgba(139,92,246,0.45)]">
               <Image src="/logo-goviraleza.png" alt="" width={20} height={14} className="rounded" />
             </span>
-            <span className="text-[15px] font-semibold tracking-tight text-[--txt]">GoViraleza</span>
+            <span className="text-[15px] font-semibold tracking-tight text-(--txt)">GoViraleza</span>
           </Link>
           <button
             type="button"
             onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[--muted] hover:bg-white/[0.04] hover:text-[--txt] md:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-(--muted) hover:bg-white/[0.04] hover:text-(--txt) md:hidden"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <p className="px-4 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[--muted-2]">
+        <p className="px-4 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--muted-2)">
           Workspace
         </p>
         <nav className="flex flex-col gap-1 px-2">
           {primaryItems.map((i) => navLink(i.href, i.label, i.icon))}
         </nav>
 
-        <p className="px-4 pb-2 pt-5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[--muted-2]">
+        <p className="px-4 pb-2 pt-5 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--muted-2)">
           Account
         </p>
         <nav className="flex flex-col gap-1 px-2">
