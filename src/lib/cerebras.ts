@@ -4,7 +4,11 @@
  */
 
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
-const CEREBRAS_MODEL = 'llama3.1-8b';
+// Cerebras retired llama3.1-8b for this account (404 model_not_found). The
+// account currently has gpt-oss-120b and zai-glm-4.7. Default to gpt-oss-120b
+// (stronger, OpenAI-compatible JSON mode); override via env if the available
+// models change again so this never needs a code edit + redeploy.
+const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL ?? 'gpt-oss-120b';
 
 // Retry policy: a single autopilot run fans out to 3-4 Cerebras calls
 // (god-mode design, image-query, captions main, optional narrative).
