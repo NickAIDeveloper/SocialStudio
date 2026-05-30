@@ -2,12 +2,12 @@ export const metadata = { title: 'Terms of Service | GoViraleza' };
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-300">
+    <div className="min-h-screen bg-(--bg) text-(--muted)">
       <div className="mx-auto max-w-3xl px-6 py-20">
-        <h1 className="text-3xl font-bold text-white mb-2">Terms of Service</h1>
-        <p className="text-sm text-zinc-500 mb-12">Last updated: April 10, 2026</p>
+        <h1 className="text-3xl font-bold text-(--txt) mb-2">Terms of Service</h1>
+        <p className="text-sm text-(--muted-2) mb-12">Last updated: April 10, 2026</p>
 
-        <div className="prose prose-invert prose-sm prose-zinc max-w-none space-y-8 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-white [&_h2]:mt-10 [&_h2]:mb-4 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-zinc-200 [&_p]:leading-relaxed [&_ul]:space-y-2 [&_li]:text-zinc-400">
+        <div className="prose prose-invert prose-sm prose-zinc max-w-none space-y-8 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-(--txt) [&_h2]:mt-10 [&_h2]:mb-4 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-(--txt) [&_p]:leading-relaxed [&_ul]:space-y-2 [&_li]:text-(--muted)">
 
           <p>
             These Terms of Service (&quot;Terms&quot;) govern your access to and use of GoViraleza (&quot;the Service&quot;, &quot;we&quot;, &quot;us&quot;, or &quot;our&quot;), operated by GoViraleza. By accessing or using the Service, you agree to be bound by these Terms. If you do not agree, do not use the Service.
@@ -55,7 +55,7 @@ export default function TermsPage() {
 
           <h2>5. AI-Generated Content Disclaimer</h2>
           <p>
-            <strong className="text-white">The Service uses artificial intelligence to generate captions, hooks, hashtags, and content suggestions. You acknowledge and agree that:</strong>
+            <strong className="text-(--txt)">The Service uses artificial intelligence to generate captions, hooks, hashtags, and content suggestions. You acknowledge and agree that:</strong>
           </p>
           <ul>
             <li>AI-generated content may contain errors, inaccuracies, or inappropriate material</li>
@@ -91,7 +91,7 @@ export default function TermsPage() {
 
           <h2>8. Disclaimer of Warranties</h2>
           <p>
-            <strong className="text-white">THE SERVICE IS PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND TITLE.</strong>
+            <strong className="text-(--txt)">THE SERVICE IS PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND TITLE.</strong>
           </p>
           <p>We do not warrant that:</p>
           <ul>
@@ -105,7 +105,7 @@ export default function TermsPage() {
 
           <h2>9. Limitation of Liability</h2>
           <p>
-            <strong className="text-white">TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL GOVIRALEZA, ITS OFFICERS, DIRECTORS, EMPLOYEES, AGENTS, OR AFFILIATES BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO:</strong>
+            <strong className="text-(--txt)">TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL GOVIRALEZA, ITS OFFICERS, DIRECTORS, EMPLOYEES, AGENTS, OR AFFILIATES BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO:</strong>
           </p>
           <ul>
             <li>Loss of profits, revenue, data, or business opportunities</li>
@@ -116,7 +116,7 @@ export default function TermsPage() {
             <li>Any damages resulting from unauthorized access to your account</li>
           </ul>
           <p>
-            <strong className="text-white">OUR TOTAL AGGREGATE LIABILITY ARISING OUT OF OR RELATED TO THESE TERMS SHALL NOT EXCEED THE AMOUNT YOU PAID TO US IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM, OR ONE HUNDRED DOLLARS ($100 USD), WHICHEVER IS LESS.</strong>
+            <strong className="text-(--txt)">OUR TOTAL AGGREGATE LIABILITY ARISING OUT OF OR RELATED TO THESE TERMS SHALL NOT EXCEED THE AMOUNT YOU PAID TO US IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM, OR ONE HUNDRED DOLLARS ($100 USD), WHICHEVER IS LESS.</strong>
           </p>
 
           <h2>10. Indemnification</h2>
@@ -169,7 +169,7 @@ export default function TermsPage() {
 
           <h2>18. Contact</h2>
           <p>
-            If you have questions about these Terms, contact us at: <strong className="text-white">legal@goviraleza.com</strong>
+            If you have questions about these Terms, contact us at: <strong className="text-(--txt)">legal@goviraleza.com</strong>
           </p>
         </div>
       </div>

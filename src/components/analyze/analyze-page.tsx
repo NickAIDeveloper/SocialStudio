@@ -27,8 +27,8 @@ export function AnalyzePage() {
       />
       {brandId && <BrainPanel brandId={brandId} />}
       {latest && <InsightFeed result={latest} />}
-      <details className="group rounded-xl border border-zinc-800/60 bg-zinc-900/30">
-        <summary className="cursor-pointer list-none px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300">
+      <details className="group rounded-2xl border border-(--line) bg-(--surface)">
+        <summary className="cursor-pointer list-none px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-(--muted-2) hover:text-(--muted)">
           Detailed views (legacy)
         </summary>
         <div className="space-y-6 p-4">

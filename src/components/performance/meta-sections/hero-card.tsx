@@ -56,14 +56,14 @@ export function HeroCard({
   const thumb = topMedia?.thumbnail_url ?? topMedia?.media_url;
 
   return (
-    <div className="rounded-xl border border-amber-400/20 bg-gradient-to-br from-amber-500/10 via-fuchsia-500/5 to-sky-500/5 p-5 space-y-3">
+    <div className="rounded-2xl border border-(--violet-24) bg-gradient-to-br from-(--violet-12) via-(--violet-08) to-(--violet-08) p-5 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-[11px] uppercase tracking-wider text-amber-300/80">What&apos;s working</span>
           {loading && <span className="text-[11px] text-white/50">· analyzing…</span>}
         </div>
       </div>
-      {error && <div className="text-xs text-rose-300/80">{error}</div>}
+      {error && <div className="text-xs text-(--pink)/80">{error}</div>}
       {top && (
         <div className="flex gap-4">
           {thumb && (
@@ -76,7 +76,7 @@ export function HeroCard({
             </div>
             <div className="text-[11px] text-white/50 mt-1">
               <FormatBadge format={top.format} /> · reach{' '}
-              <span className="text-emerald-300 font-semibold">
+              <span className="text-(--cyan) font-semibold">
                 {formatNumber(top.reach ?? undefined)}
               </span>
               {medians.reach && top.reach && (
@@ -97,7 +97,7 @@ export function HeroCard({
             {analysis?.makeMorePrompt && (
               <a
                 href={`/smart-posts?preset=${encodeURIComponent(analysis.makeMorePrompt)}`}
-                className="whitespace-nowrap rounded-lg bg-gradient-to-r from-fuchsia-500 to-amber-500 px-3 py-2 text-xs font-medium text-white hover:opacity-90"
+                className="whitespace-nowrap rounded-lg bg-gradient-to-r from-(--violet) to-(--violet-deep) px-3 py-2 text-xs font-medium text-white hover:opacity-90"
               >
                 Make more like this
               </a>

@@ -23,7 +23,7 @@ function friendlyCta(cta: string): string {
 
 function NoImage() {
   return (
-    <div className="flex aspect-[1.91/1] w-full items-center justify-center bg-zinc-800 text-xs text-zinc-500">
+    <div className="flex aspect-[1.91/1] w-full items-center justify-center bg-(--surface-2) text-xs text-(--muted-2)">
       No image
     </div>
   );
@@ -60,11 +60,11 @@ function PreviewImage(props: { src: string; overlay?: React.ReactNode }) {
 export function AdPreview(props: { draft: AdDraft | null }) {
   const d = props.draft;
   return (
-    <div className="h-fit rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Preview</p>
-      <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900">
-        <div className="px-3 py-2 text-xs text-zinc-300">Your Page · Sponsored</div>
-        {d?.primaryText && <div className="px-3 pb-2 text-sm text-zinc-200 whitespace-pre-wrap">{d.primaryText}</div>}
+    <div className="h-fit rounded-2xl border border-(--line) bg-(--bg) p-4">
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-(--muted-2)">Preview</p>
+      <div className="overflow-hidden rounded-2xl border border-(--line) bg-(--surface)">
+        <div className="px-3 py-2 text-xs text-(--muted)">Your Page · Sponsored</div>
+        {d?.primaryText && <div className="px-3 pb-2 text-sm text-(--txt) whitespace-pre-wrap">{d.primaryText}</div>}
         {d?.mediaType === 'video'
           ? (d?.thumbnailUrl
             ? (
@@ -81,12 +81,12 @@ export function AdPreview(props: { draft: AdDraft | null }) {
           : (d?.imageUrl
             ? <PreviewImage src={d.imageUrl} />
             : <NoImage />)}
-        <div className="flex items-center justify-between gap-2 border-t border-zinc-800 px-3 py-2">
+        <div className="flex items-center justify-between gap-2 border-t border-(--line) px-3 py-2">
           <div className="min-w-0">
-            <div className="truncate text-xs text-zinc-500">{d?.destinationUrl || 'yoursite.com'}</div>
-            <div className="truncate text-sm font-semibold text-zinc-100">{d?.headline || 'Your headline'}</div>
+            <div className="truncate text-xs text-(--muted-2)">{d?.destinationUrl || 'yoursite.com'}</div>
+            <div className="truncate text-sm font-semibold text-(--txt)">{d?.headline || 'Your headline'}</div>
           </div>
-          <span className="shrink-0 rounded bg-zinc-700 px-2 py-1 text-xs text-zinc-200">{friendlyCta(d?.cta ?? 'LEARN_MORE')}</span>
+          <span className="shrink-0 rounded bg-(--surface-2) px-2 py-1 text-xs text-(--txt)">{friendlyCta(d?.cta ?? 'LEARN_MORE')}</span>
         </div>
       </div>
     </div>

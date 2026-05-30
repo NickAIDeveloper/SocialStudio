@@ -20,21 +20,21 @@ const STEP_ICON = {
 } as const;
 
 const STEP_COLOR = {
-  pending: 'text-zinc-500',
-  running: 'text-teal-300 animate-spin',
-  success: 'text-emerald-400',
-  skipped: 'text-zinc-500',
+  pending: 'text-(--muted-2)',
+  running: 'text-(--violet-bright) animate-spin',
+  success: 'text-(--success)',
+  skipped: 'text-(--muted-2)',
   error: 'text-rose-400',
 } as const;
 
 function StepRow({ step }: { step: AnalysisStep }) {
   const Icon = STEP_ICON[step.status];
   return (
-    <div className="flex items-center gap-2 text-xs text-zinc-300">
+    <div className="flex items-center gap-2 text-xs text-(--muted)">
       <Icon className={`h-3.5 w-3.5 shrink-0 ${STEP_COLOR[step.status]}`} />
       <span className="flex-1">{step.label}</span>
       {step.durationMs != null && step.status === 'success' && (
-        <span className="text-zinc-500">{(step.durationMs / 1000).toFixed(1)}s</span>
+        <span className="text-(--muted-2)">{(step.durationMs / 1000).toFixed(1)}s</span>
       )}
       {step.status === 'error' && step.error && (
         <span className="text-rose-400 truncate max-w-[200px]" title={step.error}>
@@ -55,21 +55,21 @@ export function RunAnalysisButton({ brandId, igUserId, onComplete }: RunAnalysis
   };
 
   return (
-    <div className="rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-900/20 to-zinc-900/50 p-5">
+    <div className="rounded-2xl border border-(--violet-24) bg-gradient-to-br from-(--violet-12) to-(--surface) p-5">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-500/15">
-          <Sparkles className="h-5 w-5 text-teal-300" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-(--violet-12)">
+          <Sparkles className="h-5 w-5 text-(--violet-bright)" />
         </div>
         <div className="flex-1">
-          <h2 className="text-base font-semibold text-white">Run Full Analysis</h2>
-          <p className="mt-0.5 text-sm text-zinc-300">
+          <h2 className="text-base font-semibold text-(--txt)">Run Full Analysis</h2>
+          <p className="mt-0.5 text-sm text-(--muted)">
             One-tap refresh of your insights, deep profile, competitor benchmarks, and health delta.
           </p>
         </div>
         <button
           onClick={() => void handleClick()}
           disabled={running}
-          className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-60"
+          className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-(--violet) px-4 py-2 text-sm font-semibold text-white hover:bg-(--violet-bright) disabled:opacity-60"
         >
           {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {running ? 'Running...' : 'Run Full Analysis'}
@@ -77,12 +77,12 @@ export function RunAnalysisButton({ brandId, igUserId, onComplete }: RunAnalysis
       </div>
 
       {state.status === 'success' && (
-        <div className="mt-4 space-y-1.5 rounded-lg border border-zinc-800/60 bg-zinc-950/50 p-3">
+        <div className="mt-4 space-y-1.5 rounded-lg border border-(--line) bg-(--bg)/50 p-3">
           {state.result.steps.map((s) => (
             <StepRow key={s.id} step={s} />
           ))}
           {state.result.summary && (
-            <p className="mt-2 border-t border-zinc-800/60 pt-2 text-sm text-zinc-200">
+            <p className="mt-2 border-t border-(--line) pt-2 text-sm text-(--muted)">
               {state.result.summary}
             </p>
           )}

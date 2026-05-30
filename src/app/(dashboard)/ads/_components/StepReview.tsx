@@ -41,11 +41,11 @@ export function StepReview(props: {
 
   if (result) {
     return (
-      <div className="space-y-4 rounded-xl border border-teal-700 bg-teal-500/10 p-6">
-        <h2 className="text-lg font-semibold text-teal-200">Paused ad created</h2>
-        <p className="text-sm text-zinc-300">Your ad is in Meta as a PAUSED campaign. It will not spend until you turn it on.</p>
+      <div className="space-y-4 rounded-2xl border border-(--violet-24) bg-(--violet-08) p-6">
+        <h2 className="text-lg font-semibold text-(--violet-bright)">Paused ad created</h2>
+        <p className="text-sm text-(--muted)">Your ad is in Meta as a PAUSED campaign. It will not spend until you turn it on.</p>
         <a href={result.adsManagerUrl} target="_blank" rel="noreferrer"
-          className="inline-block rounded-lg bg-teal-500 px-4 py-2 text-sm font-medium text-white">Open in Ads Manager</a>
+          className="inline-block rounded-2xl bg-(--violet) px-4 py-2 text-sm font-medium text-white">Open in Ads Manager</a>
       </div>
     );
   }
@@ -54,22 +54,22 @@ export function StepReview(props: {
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-300">Ad account</label>
+          <label className="mb-1 block text-sm font-medium text-(--muted)">Ad account</label>
           <select value={adAccountId} onChange={(e) => setAdAccountId(e.target.value)}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100">
+            className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)">
             {props.adAccounts.map((a) => <option key={a.id} value={a.id}>{a.name ?? a.id}{a.currency ? ` (${a.currency})` : ''}</option>)}
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-300">Facebook Page</label>
+          <label className="mb-1 block text-sm font-medium text-(--muted)">Facebook Page</label>
           <select value={pageId} onChange={(e) => setPageId(e.target.value)}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100">
+            className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)">
             {props.pages.map((p) => <option key={p.id} value={p.id}>{p.name ?? p.id}</option>)}
           </select>
         </div>
       </div>
 
-      <dl className="rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-sm">
+      <dl className="rounded-2xl border border-(--line) bg-(--surface) p-4 text-sm">
         <Row k="Goal" v={props.draft.objective} />
         <Row k="Headline" v={props.draft.headline} />
         <Row k="Destination" v={props.draft.destinationUrl} />
@@ -85,9 +85,9 @@ export function StepReview(props: {
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="flex justify-between">
-        <button type="button" onClick={props.onBack} className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300">Back</button>
+        <button type="button" onClick={props.onBack} className="rounded-2xl border border-(--line-strong) px-4 py-2 text-sm text-(--muted)">Back</button>
         <button type="button" onClick={publish} disabled={submitting || !adAccountId || !pageId}
-          className="rounded-lg bg-teal-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+          className="rounded-2xl bg-(--violet) px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
           {submitting ? 'Creating…' : 'Create Paused Ad'}
         </button>
       </div>
@@ -97,9 +97,9 @@ export function StepReview(props: {
 
 function Row(props: { k: string; v: string }) {
   return (
-    <div className="flex justify-between border-b border-zinc-800 py-1.5 last:border-0">
-      <dt className="text-zinc-500">{props.k}</dt>
-      <dd className="max-w-[60%] truncate text-zinc-200">{props.v}</dd>
+    <div className="flex justify-between border-b border-(--line) py-1.5 last:border-0">
+      <dt className="text-(--muted-2)">{props.k}</dt>
+      <dd className="max-w-[60%] truncate text-(--txt)">{props.v}</dd>
     </div>
   );
 }

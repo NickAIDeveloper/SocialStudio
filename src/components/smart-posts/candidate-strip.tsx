@@ -68,8 +68,8 @@ export function CandidateStrip({
               disabled={isPending || pendingUrl !== null}
               className={`relative h-14 w-14 overflow-hidden rounded-lg border transition disabled:opacity-60 ${
                 isActive
-                  ? 'border-teal-400 ring-2 ring-teal-400/40'
-                  : 'border-zinc-700 hover:border-zinc-500'
+                  ? 'border-(--violet-bright) ring-2 ring-(--violet-24)'
+                  : 'border-(--line-strong) hover:border-(--line-strong)'
               }`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -80,7 +80,7 @@ export function CandidateStrip({
                 </span>
               )}
               {c.source === 'past' && !isPending && (
-                <span className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 py-0.5 text-[8px] font-medium uppercase tracking-wide text-teal-200">
+                <span className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 py-0.5 text-[8px] font-medium uppercase tracking-wide text-(--violet-bright)">
                   Past
                 </span>
               )}
@@ -91,7 +91,7 @@ export function CandidateStrip({
           type="button"
           onClick={onOpenMoreOptions}
           disabled={pendingUrl !== null}
-          className="inline-flex h-14 items-center gap-1 rounded-lg border border-dashed border-zinc-700 px-3 text-xs font-medium text-zinc-300 hover:border-zinc-500 hover:text-white disabled:opacity-60"
+          className="inline-flex h-14 items-center gap-1 rounded-lg border border-dashed border-(--line-strong) px-3 text-xs font-medium text-(--muted) hover:border-(--line-strong) hover:text-(--txt) disabled:opacity-60"
         >
           <ImagePlus className="h-3.5 w-3.5" />
           More options

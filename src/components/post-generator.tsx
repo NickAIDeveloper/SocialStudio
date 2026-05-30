@@ -835,11 +835,11 @@ export function PostGenerator() {
   if (apiBrands.length === 0 && brandsLoadedRef.current) {
     return (
       <div className="text-center py-20">
-        <div className="w-16 h-16 rounded-2xl bg-zinc-800/60 flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 rounded-2xl bg-(--surface-2) flex items-center justify-center mx-auto mb-4">
           <span className="text-2xl">&#9997;</span>
         </div>
-        <h3 className="text-lg font-medium text-white mb-1">No brands yet</h3>
-        <p className="text-sm text-white max-w-md mx-auto mb-4">
+        <h3 className="text-lg font-medium text-(--txt) mb-1">No brands yet</h3>
+        <p className="text-sm text-(--muted) max-w-md mx-auto mb-4">
           Create a brand in Settings before generating posts.
         </p>
       </div>
@@ -854,17 +854,17 @@ export function PostGenerator() {
         {/* Random Generator */}
         <Button
           onClick={randomGenerate}
-          className="w-full h-11 text-sm font-semibold bg-teal-600 hover:bg-teal-700 text-white active:scale-[0.98] transition-all duration-200"
+          className="cta-violet w-full h-11 text-sm font-semibold active:scale-[0.98] transition-all duration-200"
         >
           Random Generator — Viral Post
         </Button>
 
         {/* Brand, Content Type, Logo Position */}
         <div className="glass-card p-5 space-y-4">
-          <h3 className="text-xs font-medium uppercase tracking-wider text-white">Configuration</h3>
+          <h3 className="text-xs font-medium uppercase tracking-wider text-(--txt)">Configuration</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs text-white">Brand</label>
+              <label className="text-xs text-(--muted)">Brand</label>
               <Select value={brand} onValueChange={(v) => {
                   const newBrand = v as Brand;
                   setBrand(newBrand);
@@ -880,46 +880,46 @@ export function PostGenerator() {
                   setDerivedSuggestions([]);
                                 setCarouselIndex(0);
                 }}>
-                <SelectTrigger className="bg-white border-zinc-300 text-zinc-900 h-9 text-sm">
+                <SelectTrigger className="bg-(--surface-2) border-(--line) text-(--txt) h-9 text-sm">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
+                <SelectContent className="bg-(--surface-2) border-(--line)">
                   {apiBrands.map((b) => (
-                    <SelectItem key={b.id} value={b.slug} className="text-white">{b.name}</SelectItem>
+                    <SelectItem key={b.id} value={b.slug} className="text-(--txt)">{b.name}</SelectItem>
                   ))}
                   {apiBrands.length === 0 && (
-                    <SelectItem value="" disabled className="text-zinc-400">No brands yet</SelectItem>
+                    <SelectItem value="" disabled className="text-(--muted-2)">No brands yet</SelectItem>
                   )}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs text-white">Content Type</label>
+              <label className="text-xs text-(--muted)">Content Type</label>
               <Select value={contentType} onValueChange={(v) => setContentType(v as ContentType)}>
-                <SelectTrigger className="bg-white border-zinc-300 text-zinc-900 h-9 text-sm">
+                <SelectTrigger className="bg-(--surface-2) border-(--line) text-(--txt) h-9 text-sm">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="quote" className="text-white">Quote</SelectItem>
-                  <SelectItem value="tip" className="text-white">Tips / How-to</SelectItem>
-                  <SelectItem value="carousel" className="text-white">Carousel</SelectItem>
-                  <SelectItem value="community" className="text-white">Community</SelectItem>
-                  <SelectItem value="promo" className="text-white">Promo</SelectItem>
+                <SelectContent className="bg-(--surface-2) border-(--line)">
+                  <SelectItem value="quote" className="text-(--txt)">Quote</SelectItem>
+                  <SelectItem value="tip" className="text-(--txt)">Tips / How-to</SelectItem>
+                  <SelectItem value="carousel" className="text-(--txt)">Carousel</SelectItem>
+                  <SelectItem value="community" className="text-(--txt)">Community</SelectItem>
+                  <SelectItem value="promo" className="text-(--txt)">Promo</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           {/* Template hint */}
-          <div className="bg-zinc-800/40 rounded-lg px-3 py-2">
-            <p className="text-xs text-white">
-              <span className="text-white font-medium">{templates.find((t) => t.type === contentType)?.title}:</span>{' '}
+          <div className="bg-(--surface-2) rounded-lg px-3 py-2">
+            <p className="text-xs text-(--muted)">
+              <span className="text-(--txt) font-medium">{templates.find((t) => t.type === contentType)?.title}:</span>{' '}
               {templates.find((t) => t.type === contentType)?.captionStructure}
             </p>
           </div>
           {/* Competitor insight tip */}
           {competitorTip && (
-            <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-lg px-3 py-2">
-              <p className="text-xs text-emerald-400/80">
+            <div className="bg-(--violet-08) border border-(--violet-24) rounded-lg px-3 py-2">
+              <p className="text-xs text-(--violet-bright)">
                 <span className="font-medium">Competitor Insight:</span>{' '}
                 {competitorTip}
               </p>
@@ -930,7 +930,7 @@ export function PostGenerator() {
         {/* Caption */}
         <div className="glass-card p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-white">Caption</h3>
+            <h3 className="text-xs font-medium uppercase tracking-wider text-(--txt)">Caption</h3>
             <div className="flex items-center gap-2">
               {(() => {
                 const matchedBrand = apiBrands.find(
@@ -953,7 +953,7 @@ export function PostGenerator() {
               <Button
                 onClick={generateCaption}
                 size="sm"
-                className="h-8 text-xs font-medium text-white active:scale-[0.98] transition-all duration-200 bg-teal-600 hover:bg-teal-700"
+                className="cta-violet h-8 text-xs font-medium active:scale-[0.98] transition-all duration-200"
               >
                 Generate
               </Button>
@@ -963,19 +963,19 @@ export function PostGenerator() {
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             placeholder="Click Generate or write your own caption..."
-            className="bg-white border-zinc-300 text-zinc-900 min-h-[160px] resize-y text-sm leading-relaxed"
+            className="bg-(--surface-2) border-(--line) text-(--txt) min-h-[160px] resize-y text-sm leading-relaxed"
           />
           <div className="space-y-1.5">
-            <label className="text-xs text-white">Hashtags</label>
+            <label className="text-xs text-(--muted)">Hashtags</label>
             <Textarea
               value={hashtags}
               onChange={(e) => setHashtags(e.target.value)}
               placeholder="Generated with caption..."
-              className="bg-white border-zinc-300 text-zinc-900 min-h-[60px] resize-y text-xs"
+              className="bg-(--surface-2) border-(--line) text-(--txt) min-h-[60px] resize-y text-xs"
             />
           </div>
           {caption && (
-            <p className="text-xs text-zinc-600 font-mono">
+            <p className="text-xs text-(--muted-2) font-mono">
               {caption.length} chars &middot; {hashtags.split('\n').filter(t => t.trim().startsWith('#')).length} tags
             </p>
           )}
@@ -985,12 +985,12 @@ export function PostGenerator() {
         <div className="glass-card p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-white">Image Hook Text</h3>
-              <p className="text-[10px] text-zinc-600">Attention-grabbing text overlaid on your image</p>
+              <h3 className="text-xs font-medium uppercase tracking-wider text-(--txt)">Image Hook Text</h3>
+              <p className="text-[10px] text-(--muted-2)">Attention-grabbing text overlaid on your image</p>
             </div>
             <button
               onClick={() => setOverlayEnabled((prev) => !prev)}
-              className={`relative w-10 h-5 rounded-full transition-colors ${overlayEnabled ? 'bg-teal-600' : 'bg-zinc-700'}`}
+              className={`relative w-10 h-5 rounded-full transition-colors ${overlayEnabled ? 'bg-(--violet)' : 'bg-(--surface-2)'}`}
               type="button"
               aria-label="Toggle text overlay"
             >
@@ -1005,7 +1005,7 @@ export function PostGenerator() {
                   value={overlayText}
                   onChange={(e) => setOverlayText(e.target.value)}
                   placeholder="Hook text extracted from your caption..."
-                  className="bg-white border-zinc-300 text-zinc-900 min-h-[70px] resize-y text-sm pr-24"
+                  className="bg-(--surface-2) border-(--line) text-(--txt) min-h-[70px] resize-y text-sm pr-24"
                 />
                 <button
                   type="button"
@@ -1014,18 +1014,18 @@ export function PostGenerator() {
                     if (hook) setOverlayText(hook);
                   }}
                   disabled={!caption.trim()}
-                  className="absolute top-2 right-2 text-[10px] px-2 py-1 rounded bg-teal-500/15 border border-teal-500/30 text-teal-400 hover:bg-teal-500/25 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="absolute top-2 right-2 text-[10px] px-2 py-1 rounded bg-(--violet-12) border border-(--violet-24) text-(--violet-bright) hover:bg-(--violet-24) transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   Extract Hook
                 </button>
               </div>
               {overlayText && (
-                <p className="text-[10px] text-zinc-600 font-mono">{overlayText.length}/60 chars</p>
+                <p className="text-[10px] text-(--muted-2) font-mono">{overlayText.length}/60 chars</p>
               )}
 
               {/* Style selector — visual cards */}
               <div className="space-y-2">
-                <label className="text-xs text-white">Overlay Style</label>
+                <label className="text-xs text-(--muted)">Overlay Style</label>
                 <div className="grid grid-cols-2 gap-2">
                   {(Object.entries(OVERLAY_STYLE_META) as [OverlayStyle, { label: string; desc: string }][]).map(([key, meta]) => (
                     <button
@@ -1034,12 +1034,12 @@ export function PostGenerator() {
                       onClick={() => setOverlayStyle(key)}
                       className={`text-left p-2.5 rounded-lg border transition-all duration-200 ${
                         overlayStyle === key
-                          ? 'border-teal-500/60 bg-teal-500/10'
-                          : 'border-zinc-800/50 bg-zinc-800/30 hover:border-zinc-600'
+                          ? 'border-(--violet) bg-(--violet-12)'
+                          : 'border-(--line) bg-(--surface-2) hover:border-(--line-strong)'
                       }`}
                     >
-                      <p className={`text-xs font-medium ${overlayStyle === key ? 'text-teal-300' : 'text-white'}`}>{meta.label}</p>
-                      <p className="text-[10px] text-white mt-0.5 leading-snug">{meta.desc}</p>
+                      <p className={`text-xs font-medium ${overlayStyle === key ? 'text-(--violet-bright)' : 'text-(--txt)'}`}>{meta.label}</p>
+                      <p className="text-[10px] text-(--muted) mt-0.5 leading-snug">{meta.desc}</p>
                     </button>
                   ))}
                 </div>
@@ -1048,15 +1048,15 @@ export function PostGenerator() {
               {/* Position & Size */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs text-white">Position</label>
+                  <label className="text-xs text-(--muted)">Position</label>
                   <Select value={textPosition} onValueChange={(v) => setTextPosition(v as TextPosition)}>
-                    <SelectTrigger className="bg-white border-zinc-300 text-zinc-900 h-9 text-sm">
+                    <SelectTrigger className="bg-(--surface-2) border-(--line) text-(--txt) h-9 text-sm">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-800 border-zinc-700">
-                      <SelectItem value="top" className="text-white">Top</SelectItem>
-                      <SelectItem value="center" className="text-white">Center</SelectItem>
-                      <SelectItem value="bottom" className="text-white">Bottom</SelectItem>
+                    <SelectContent className="bg-(--surface-2) border-(--line)">
+                      <SelectItem value="top" className="text-(--txt)">Top</SelectItem>
+                      <SelectItem value="center" className="text-(--txt)">Center</SelectItem>
+                      <SelectItem value="bottom" className="text-(--txt)">Bottom</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1066,7 +1066,7 @@ export function PostGenerator() {
 
           {/* Image Effect selector */}
           <div className="space-y-2">
-            <label className="text-xs text-white">Image Effect</label>
+            <label className="text-xs text-(--muted)">Image Effect</label>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
               {(Object.entries(IMAGE_EFFECT_META) as [ImageEffect, { label: string; desc: string }][]).map(([key, meta]) => (
                 <button
@@ -1075,12 +1075,12 @@ export function PostGenerator() {
                   onClick={() => setImageEffect(key)}
                   className={`text-center p-2 rounded-lg border transition-all duration-200 ${
                     imageEffect === key
-                      ? 'border-teal-500/60 bg-teal-500/10'
-                      : 'border-zinc-800/50 bg-zinc-800/30 hover:border-zinc-600'
+                      ? 'border-(--violet) bg-(--violet-12)'
+                      : 'border-(--line) bg-(--surface-2) hover:border-(--line-strong)'
                   }`}
                 >
-                  <p className={`text-[11px] font-medium ${imageEffect === key ? 'text-teal-300' : 'text-white'}`}>{meta.label}</p>
-                  <p className="text-[9px] text-zinc-400 mt-0.5 leading-snug hidden sm:block">{meta.desc}</p>
+                  <p className={`text-[11px] font-medium ${imageEffect === key ? 'text-(--violet-bright)' : 'text-(--txt)'}`}>{meta.label}</p>
+                  <p className="text-[9px] text-(--muted-2) mt-0.5 leading-snug hidden sm:block">{meta.desc}</p>
                 </button>
               ))}
             </div>
@@ -1089,11 +1089,11 @@ export function PostGenerator() {
 
         {/* Image Search */}
         <div className="glass-card p-5 space-y-4">
-          <h3 className="text-xs font-medium uppercase tracking-wider text-white">
-            Find Images {isCarousel && <span className="text-teal-400 normal-case">(select up to 10 for carousel)</span>}
+          <h3 className="text-xs font-medium uppercase tracking-wider text-(--txt)">
+            Find Images {isCarousel && <span className="text-(--violet-bright) normal-case">(select up to 10 for carousel)</span>}
           </h3>
           {caption.trim() && (
-            <p className="text-[10px] text-zinc-500">
+            <p className="text-[10px] text-(--muted-2)">
               Images are auto-matched to your caption. Hit Generate or search manually below.
             </p>
           )}
@@ -1108,7 +1108,7 @@ export function PostGenerator() {
               <button
                 key={query}
                 onClick={() => imageSelectorRef.current?.triggerSearch(query)}
-                className="text-xs px-2 py-1 rounded-md bg-zinc-800/60 text-white hover:text-teal-300 hover:bg-teal-500/10 hover:scale-105 transition-all duration-200"
+                className="text-xs px-2 py-1 rounded-md bg-(--surface-2) text-(--txt) hover:text-(--violet-bright) hover:bg-(--violet-12) hover:scale-105 transition-all duration-200"
                 type="button"
               >
                 {query}
@@ -1131,14 +1131,14 @@ export function PostGenerator() {
                     onClick={() => handleImageSelect(img)}
                     className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all hover:scale-[1.02] ${
                       isSelected
-                        ? 'border-teal-500 ring-2 ring-teal-500/30'
-                        : 'border-zinc-800/50 hover:border-zinc-600'
+                        ? 'border-(--violet) ring-2 ring-(--violet-24)'
+                        : 'border-(--line) hover:border-(--line-strong)'
                     }`}
                     type="button"
                   >
                     <Image src={img.previewURL} alt={img.tags} fill className="object-cover" sizes="150px" />
                     {isCarousel && carouselNum > 0 && (
-                      <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-teal-500 flex items-center justify-center">
+                      <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-(--violet) flex items-center justify-center">
                         <span className="text-[10px] font-bold text-white">{carouselNum}</span>
                       </div>
                     )}
@@ -1155,21 +1155,21 @@ export function PostGenerator() {
           {isCarousel && selectedCarouselImages.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs text-white">{selectedCarouselImages.length} slides selected</p>
+                <p className="text-xs text-(--muted)">{selectedCarouselImages.length} slides selected</p>
                 <Button
                   onClick={handleProcessCarousel}
                   disabled={isProcessing}
                   size="sm"
-                  className="h-7 text-xs bg-teal-600 hover:bg-teal-700 text-white"
+                  className="cta-violet h-7 text-xs"
                 >
                   {isProcessing ? 'Processing...' : 'Process Images'}
                 </Button>
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {selectedCarouselImages.map((img, i) => (
-                  <div key={img.id} className="relative w-14 h-14 rounded-md overflow-hidden shrink-0 border border-zinc-700">
+                  <div key={img.id} className="relative w-14 h-14 rounded-md overflow-hidden shrink-0 border border-(--line-strong)">
                     <Image src={img.previewURL} alt={img.tags} fill className="object-cover" sizes="56px" />
-                    <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-teal-500 flex items-center justify-center">
+                    <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-(--violet) flex items-center justify-center">
                       <span className="text-[9px] font-bold text-white">{i + 1}</span>
                     </div>
                   </div>
@@ -1182,23 +1182,23 @@ export function PostGenerator() {
 
       {/* Right Column - Preview */}
       <div className="w-full lg:w-[40%]">
-        <div className="lg:sticky lg:top-20 space-y-5 bg-zinc-900/30 rounded-2xl p-4 -m-4">
+        <div className="lg:sticky lg:top-20 space-y-5 bg-(--surface) rounded-2xl p-4 -m-4">
 
           {/* Post Preview */}
           <div className="glass-card p-5 space-y-4">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-white">Preview</h3>
+            <h3 className="text-xs font-medium uppercase tracking-wider text-(--txt)">Preview</h3>
 
-            <div className="rounded-xl overflow-hidden border border-zinc-800/50 bg-black">
+            <div className="rounded-xl overflow-hidden border border-(--line) bg-black">
               {/* IG Header */}
               <div className="flex items-center gap-2.5 px-3 py-2.5">
-                <div className="w-7 h-7 rounded-full bg-teal-600" />
+                <div className="w-7 h-7 rounded-full bg-(--violet)" />
                 <span className="text-xs font-medium text-white">
                   {apiBrands.find(b => b.slug === brand)?.name || brand || 'Your Brand'}
                 </span>
               </div>
 
               {/* Image */}
-              <div className="relative aspect-square bg-zinc-900">
+              <div className="relative aspect-square bg-(--surface)">
                 {previewImageSrc ? (
                   <>
                     <Image
@@ -1220,7 +1220,7 @@ export function PostGenerator() {
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
                         )}
                         {overlayStyle === 'full-tint' && (
-                          <div className="absolute inset-0 bg-teal-900/70" />
+                          <div className="absolute inset-0 bg-(--violet-deep)/70" />
                         )}
 
                         {/* Text container — editorial uses height-constrained zone above logo */}
@@ -1235,7 +1235,7 @@ export function PostGenerator() {
 
                           {/* Bold card background */}
                           {overlayStyle === 'bold-card' && (
-                            <div className="absolute inset-x-6 inset-y-0 rounded-2xl bg-gradient-to-br from-teal-600/90 to-teal-800/95 border border-white/10" />
+                            <div className="absolute inset-x-6 inset-y-0 rounded-2xl bg-gradient-to-br from-(--violet)/90 to-(--violet-deep)/95 border border-white/10" />
                           )}
 
                           <p
@@ -1257,20 +1257,20 @@ export function PostGenerator() {
                           </p>
                           {/* Accent line — inside constrained zone, always above logo */}
                           {overlayStyle === 'editorial' && (
-                            <div className="w-12 h-0.5 bg-teal-400 rounded-full mt-6 shrink-0" />
+                            <div className="w-12 h-0.5 bg-(--violet-bright) rounded-full mt-6 shrink-0" />
                           )}
                         </div>
                       </>
                     )}
                     {isProcessing && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                        <div className="w-6 h-6 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-6 h-6 border-2 border-(--violet-bright) border-t-transparent rounded-full animate-spin" />
                       </div>
                     )}
                   </>
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <p className="text-zinc-600 text-xs">Select an image</p>
+                    <p className="text-(--muted-2) text-xs">Select an image</p>
                   </div>
                 )}
 
@@ -1325,7 +1325,7 @@ export function PostGenerator() {
                   {caption || 'Caption will appear here...'}
                 </p>
                 {hashtags && (
-                  <p className="text-[11px] text-blue-400">{hashtags}</p>
+                  <p className="text-[11px] text-(--violet-bright)">{hashtags}</p>
                 )}
               </div>
             </div>
@@ -1336,19 +1336,19 @@ export function PostGenerator() {
           {/* Buffer Scheduling */}
           {hasCompletePost && (
             <div className="glass-card p-5 space-y-4">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-white">Schedule to Buffer</h3>
+              <h3 className="text-xs font-medium uppercase tracking-wider text-(--txt)">Schedule to Buffer</h3>
 
               {allChannels.length > 0 ? (
                 <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs text-white">Channel (auto selected for {brand})</label>
+                    <label className="text-xs text-(--muted)">Channel (auto selected for {brand})</label>
                     <Select value={selectedChannelId} onValueChange={(v) => { if (v) setSelectedChannelId(v); }}>
-                      <SelectTrigger className="bg-white border-zinc-300 text-zinc-900 h-9 text-sm">
+                      <SelectTrigger className="bg-(--surface-2) border-(--line) text-(--txt) h-9 text-sm">
                         <SelectValue placeholder="Select channel" />
                       </SelectTrigger>
-                      <SelectContent className="bg-zinc-800 border-zinc-700">
+                      <SelectContent className="bg-(--surface-2) border-(--line)">
                         {allChannels.map((c) => (
-                          <SelectItem key={c.id} value={c.id} className="text-white">
+                          <SelectItem key={c.id} value={c.id} className="text-(--txt)">
                             {c.name} ({c.service})
                           </SelectItem>
                         ))}
@@ -1358,7 +1358,7 @@ export function PostGenerator() {
 
                   {/* Recommended time slots — one click to pick */}
                   <div className="space-y-1.5">
-                    <label className="text-xs text-white">Pick a recommended time</label>
+                    <label className="text-xs text-(--muted)">Pick a recommended time</label>
                     <div className="grid grid-cols-1 gap-1.5">
                       {(() => {
                         const slots: { label: string; dateStr: string }[] = [];
@@ -1400,8 +1400,8 @@ export function PostGenerator() {
                             onClick={() => setScheduleDateTime(slot.dateStr)}
                             className={`text-left text-xs px-3 py-2 rounded-lg transition-colors ${
                               scheduleDateTime === slot.dateStr
-                                ? 'bg-teal-500/20 text-teal-400 ring-1 ring-teal-500/30'
-                                : 'bg-zinc-800/60 text-white hover:text-teal-400 hover:bg-teal-500/10'
+                                ? 'bg-(--violet-12) text-(--violet-bright) ring-1 ring-(--violet-24)'
+                                : 'bg-(--surface-2) text-(--txt) hover:text-(--violet-bright) hover:bg-(--violet-12)'
                             }`}
                           >
                             {slot.label}
@@ -1409,16 +1409,16 @@ export function PostGenerator() {
                         ));
                       })()}
                     </div>
-                    <p className="text-[10px] text-zinc-600">★ = best day from competitor analysis</p>
+                    <p className="text-[10px] text-(--muted-2)">★ = best day from competitor analysis</p>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs text-white">Or pick a custom date/time</label>
+                    <label className="text-xs text-(--muted)">Or pick a custom date/time</label>
                     <Input
                       type="datetime-local"
                       value={scheduleDateTime}
                       onChange={(e) => setScheduleDateTime(e.target.value)}
-                      className="bg-white border-zinc-300 text-zinc-900 h-9 text-sm"
+                      className="bg-(--surface-2) border-(--line) text-(--txt) h-9 text-sm"
                     />
                   </div>
 
@@ -1426,13 +1426,13 @@ export function PostGenerator() {
                     onClick={() => scheduleToBuffer(false)}
                     disabled={bufferLoading || !scheduleDateTime}
                     size="sm"
-                    className="w-full bg-teal-600 hover:bg-teal-700 text-white text-xs h-9 disabled:opacity-40"
+                    className="cta-violet w-full text-xs h-9 disabled:opacity-40"
                   >
                     {bufferLoading ? 'Scheduling...' : scheduleDateTime ? `Schedule for ${new Date(scheduleDateTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : 'Select a date/time to schedule'}
                   </Button>
 
                   {bufferSuccess && (
-                    <p className="text-xs text-emerald-400">Post scheduled successfully.</p>
+                    <p className="text-xs text-(--success)">Post scheduled successfully.</p>
                   )}
                   {bufferError && (
                     <p className="text-xs text-red-400">{bufferError}</p>
@@ -1443,11 +1443,11 @@ export function PostGenerator() {
                   {bufferLoadError ? (
                     <p className="text-xs text-red-400">{bufferLoadError}</p>
                   ) : (
-                    <p className="text-xs text-zinc-400">Loading Buffer channels...</p>
+                    <p className="text-xs text-(--muted)">Loading Buffer channels...</p>
                   )}
                   <button
                     onClick={() => void loadBufferChannels(true)}
-                    className="text-xs text-teal-400 hover:text-teal-300 underline"
+                    className="text-xs text-(--violet-bright) hover:text-(--violet) underline"
                   >
                     Retry
                   </button>

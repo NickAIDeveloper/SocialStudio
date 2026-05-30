@@ -77,23 +77,23 @@ function ProviderSection({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-white">{label}</h3>
-          <p className="text-sm text-white mt-0.5">{description}</p>
+          <p className="text-sm text-(--muted) mt-0.5">{description}</p>
         </div>
         {account ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-500/10 px-3 py-1 text-xs font-medium text-teal-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-(--success)/10 px-3 py-1 text-xs font-medium text-(--success)">
+            <span className="h-1.5 w-1.5 rounded-full bg-(--success)" />
             Connected
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-700/50 px-3 py-1 text-xs font-medium text-white">
-            <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-(--surface-2)/50 px-3 py-1 text-xs font-medium text-(--muted)">
+            <span className="h-1.5 w-1.5 rounded-full bg-(--muted-2)" />
             Not connected
           </span>
         )}
       </div>
 
       {account && (
-        <div className="rounded-lg bg-zinc-800/40 border border-white/5 px-4 py-3 text-sm text-white">
+        <div className="rounded-lg bg-(--surface-2)/40 border border-white/5 px-4 py-3 text-sm text-(--muted)">
           Connected on{' '}
           {new Date(account.connectedAt).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -113,12 +113,12 @@ function ProviderSection({
             onChange={(e) => setToken(e.target.value)}
             placeholder={placeholder}
             disabled={loading}
-            className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 disabled:opacity-50"
+            className="flex-1 rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) placeholder:text-(--muted-2) focus:outline-none focus:ring-2 focus:ring-(--violet)/50 disabled:opacity-50"
           />
           <button
             onClick={handleConnect}
             disabled={loading}
-            className="rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg bg-(--violet) px-5 py-2.5 text-sm font-medium text-white transition hover:bg-(--violet-bright) disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Validating...' : 'Connect'}
           </button>
@@ -136,7 +136,7 @@ function ProviderSection({
       {message && (
         <p
           className={`text-sm ${
-            message.type === 'success' ? 'text-teal-400' : 'text-red-400'
+            message.type === 'success' ? 'text-(--success)' : 'text-red-400'
           }`}
         >
           {message.text}
@@ -218,9 +218,9 @@ export function SettingsPanel() {
             key={i}
             className="glass-card rounded-xl border border-white/5 p-6 animate-pulse"
           >
-            <div className="h-5 w-32 rounded bg-zinc-700/50" />
-            <div className="mt-2 h-4 w-64 rounded bg-zinc-700/30" />
-            <div className="mt-4 h-10 w-full rounded bg-zinc-800/40" />
+            <div className="h-5 w-32 rounded bg-(--surface-2)/50" />
+            <div className="mt-2 h-4 w-64 rounded bg-(--surface-2)/30" />
+            <div className="mt-4 h-10 w-full rounded bg-(--surface-2)/40" />
           </div>
         ))}
       </div>

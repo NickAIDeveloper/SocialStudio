@@ -56,7 +56,7 @@ export function Sidebar() {
       {/* Mobile hamburger button */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed top-3 left-3 z-50 flex md:hidden h-10 w-10 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-800 text-white hover:text-zinc-100 transition-colors"
+        className="fixed top-3 left-3 z-50 flex md:hidden h-10 w-10 items-center justify-center rounded-lg bg-(--surface) border border-(--line) text-(--txt) hover:text-(--txt) transition-colors"
         aria-label="Open menu"
       >
         <Menu className="h-5 w-5" />
@@ -72,17 +72,17 @@ export function Sidebar() {
 
     <aside
       className={cn(
-        'fixed left-0 top-0 bottom-0 z-40 flex flex-col border-r border-zinc-800/60 bg-zinc-950 transition-all duration-200',
+        'fixed left-0 top-0 bottom-0 z-40 flex flex-col border-r border-(--line) bg-(--bg) transition-all duration-200',
         collapsed ? 'w-16' : 'w-60',
         mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       )}
     >
       {/* Logo */}
-      <div className="flex h-14 items-center justify-between gap-2.5 px-4 border-b border-zinc-800/60">
+      <div className="flex h-14 items-center justify-between gap-2.5 px-4 border-b border-(--line)">
         <div className="flex items-center gap-2.5">
           <Image src="/logo-goviraleza.png" alt="GoViraleza" width={32} height={22} className="shrink-0 rounded" />
           {!collapsed && (
-            <span className="text-sm font-semibold tracking-tight text-zinc-100">
+            <span className="text-sm font-semibold tracking-tight text-(--txt)">
               GoViraleza
             </span>
           )}
@@ -90,7 +90,7 @@ export function Sidebar() {
         {/* Mobile close button */}
         <button
           onClick={() => setMobileOpen(false)}
-          className="flex md:hidden h-8 w-8 items-center justify-center rounded-lg text-white hover:text-zinc-100 hover:bg-zinc-800/40 transition-colors"
+          className="flex md:hidden h-8 w-8 items-center justify-center rounded-lg text-(--muted) hover:text-(--txt) hover:bg-(--surface-2)/40 transition-colors"
           aria-label="Close menu"
         >
           <X className="h-4 w-4" />
@@ -113,13 +113,13 @@ export function Sidebar() {
               className={cn(
                 'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-zinc-800/80 text-white'
-                  : 'text-white hover:bg-zinc-800/40 hover:text-white'
+                  ? 'bg-(--surface-2)/80 text-(--txt)'
+                  : 'text-(--muted) hover:bg-(--surface-2)/40 hover:text-(--txt)'
               )}
             >
               {/* Active indicator bar */}
               {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-full bg-teal-400" />
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-full bg-(--violet)" />
               )}
               <Icon className="h-4 w-4 shrink-0" />
               {!collapsed && <span>{item.label}</span>}
@@ -131,14 +131,14 @@ export function Sidebar() {
       {/* Brand filter */}
       {!collapsed && userBrands.length > 0 && (
         <div className="px-3 pb-3">
-          <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-white">
+          <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-(--muted)">
             Brand
           </p>
-          <div className="flex rounded-lg bg-zinc-900 p-0.5">
+          <div className="flex rounded-lg bg-(--surface) p-0.5">
             <span
               className={cn(
                 'flex-1 rounded-md px-2 py-1 text-center text-xs font-medium transition-colors cursor-default',
-                'bg-zinc-800 text-zinc-100'
+                'bg-(--surface-2) text-(--txt)'
               )}
             >
               All
@@ -146,7 +146,7 @@ export function Sidebar() {
             {userBrands.map((brand) => (
               <span
                 key={brand.id}
-                className="flex-1 rounded-md px-2 py-1 text-center text-xs font-medium transition-colors cursor-default text-white"
+                className="flex-1 rounded-md px-2 py-1 text-center text-xs font-medium transition-colors cursor-default text-(--muted)"
               >
                 {brand.name}
               </span>
@@ -156,10 +156,10 @@ export function Sidebar() {
       )}
 
       {/* Collapse toggle */}
-      <div className="border-t border-zinc-800/60 px-2 py-2">
+      <div className="border-t border-(--line) px-2 py-2">
         <button
           onClick={() => setCollapsed((prev) => !prev)}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white hover:bg-zinc-800/40 hover:text-zinc-200 transition-colors"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-(--muted) hover:bg-(--surface-2)/40 hover:text-(--txt) transition-colors"
         >
           {collapsed ? (
             <PanelLeft className="h-4 w-4 shrink-0" />
@@ -174,19 +174,19 @@ export function Sidebar() {
 
       {/* User footer */}
       {session?.user && (
-        <div className="mt-auto border-t border-zinc-800/60 px-2 py-3">
+        <div className="mt-auto border-t border-(--line) px-2 py-3">
           <div className="flex items-center gap-3 px-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-sm font-medium text-zinc-100">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-(--surface-2) text-sm font-medium text-(--txt)">
               {session.user.name?.charAt(0).toUpperCase() ?? '?'}
             </div>
             {!collapsed && (
               <div className="flex flex-1 flex-col overflow-hidden">
-                <span className="truncate text-sm font-medium text-zinc-200">
+                <span className="truncate text-sm font-medium text-(--txt)">
                   {session.user.name}
                 </span>
                 <button
                   onClick={() => signOut({ callbackUrl: '/login' })}
-                  className="mt-0.5 text-left text-xs text-white hover:text-white transition-colors"
+                  className="mt-0.5 text-left text-xs text-(--muted) hover:text-(--txt) transition-colors"
                 >
                   Sign out
                 </button>

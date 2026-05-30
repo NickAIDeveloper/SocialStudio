@@ -50,7 +50,7 @@ export function InsightFeed({ result }: InsightFeedProps) {
         summary={result.summary}
       />
       {allCards.length === 0 ? (
-        <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5 text-sm text-zinc-400">
+        <div className="rounded-2xl border border-(--line) bg-(--surface) p-5 text-sm text-(--muted)">
           No insights available yet — post a few times and run analysis again.
         </div>
       ) : (

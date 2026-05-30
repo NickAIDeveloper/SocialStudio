@@ -34,13 +34,13 @@ export function BrainPanel({ brandId }: Props) {
     }
   }
 
-  if (!data) return <div className="text-sm text-neutral-500">Loading brain…</div>;
+  if (!data) return <div className="text-sm text-(--muted-2)">Loading brain…</div>;
   if (!data.brain) {
     return (
-      <div className="border rounded-lg p-6 bg-neutral-50">
-        <div className="font-medium mb-2">🧠 Brand Brain</div>
-        <p className="text-sm text-neutral-600 mb-3">No brain yet for this brand.</p>
-        <button onClick={runNow} disabled={running} className="px-3 py-1.5 rounded bg-emerald-600 text-white text-sm disabled:opacity-50">
+      <div className="border border-(--line) rounded-2xl p-6 bg-(--surface)">
+        <div className="font-medium mb-2 text-(--txt)">🧠 Brand Brain</div>
+        <p className="text-sm text-(--muted) mb-3">No brain yet for this brand.</p>
+        <button onClick={runNow} disabled={running} className="px-3 py-1.5 rounded bg-(--violet) text-white text-sm disabled:opacity-50">
           {running ? 'Running…' : 'Run now'}
         </button>
         {error && <div className="text-xs text-red-600 mt-2">{error}</div>}
@@ -50,14 +50,14 @@ export function BrainPanel({ brandId }: Props) {
 
   const sources = data.brain.ingestedSources ?? {};
   return (
-    <div className="border rounded-lg p-6 bg-white">
+    <div className="border border-(--line) rounded-2xl p-6 bg-(--surface)">
       <div className="flex items-center justify-between mb-3">
-        <div className="font-medium">🧠 Brand Brain · v{data.brain.briefVersion}</div>
-        <button onClick={runNow} disabled={running} className="text-sm px-3 py-1 rounded border disabled:opacity-50">
+        <div className="font-medium text-(--txt)">🧠 Brand Brain · v{data.brain.briefVersion}</div>
+        <button onClick={runNow} disabled={running} className="text-sm px-3 py-1 rounded border border-(--line-strong) text-(--txt) disabled:opacity-50">
           {running ? 'Running…' : 'Run now'}
         </button>
       </div>
-      <div className="text-xs text-neutral-500 mb-4">
+      <div className="text-xs text-(--muted-2) mb-4">
         Sources: {(['ig', 'ads', 'competitor_account'] as const).map((s) => (
           <span key={s} className="mr-3">
             {sources[s] === 'ok' ? '✓' : sources[s]?.startsWith('skipped') ? '—' : '⚠'} {s}

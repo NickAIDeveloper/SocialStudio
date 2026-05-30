@@ -2,12 +2,12 @@ export const metadata = { title: 'Privacy Policy | GoViraleza' };
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-300">
+    <div className="min-h-screen bg-(--bg) text-(--muted)">
       <div className="mx-auto max-w-3xl px-6 py-20">
-        <h1 className="text-3xl font-bold text-white mb-2">Privacy Policy</h1>
-        <p className="text-sm text-zinc-500 mb-12">Last updated: April 10, 2026</p>
+        <h1 className="text-3xl font-bold text-(--txt) mb-2">Privacy Policy</h1>
+        <p className="text-sm text-(--muted-2) mb-12">Last updated: April 10, 2026</p>
 
-        <div className="prose prose-invert prose-sm prose-zinc max-w-none space-y-8 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-white [&_h2]:mt-10 [&_h2]:mb-4 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-zinc-200 [&_p]:leading-relaxed [&_ul]:space-y-2 [&_li]:text-zinc-400">
+        <div className="prose prose-invert prose-sm prose-zinc max-w-none space-y-8 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-(--txt) [&_h2]:mt-10 [&_h2]:mb-4 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-(--txt) [&_p]:leading-relaxed [&_ul]:space-y-2 [&_li]:text-(--muted)">
 
           <p>
             This Privacy Policy describes how GoViraleza (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) collects, uses, stores, and protects your personal information when you use our Service. By using the Service, you consent to the data practices described in this policy.
@@ -76,17 +76,17 @@ export default function PrivacyPage() {
 
           <h2>3. Data Sharing and Third Parties</h2>
           <p>
-            <strong className="text-white">We do not sell, rent, or trade your personal information to third parties.</strong>
+            <strong className="text-(--txt)">We do not sell, rent, or trade your personal information to third parties.</strong>
           </p>
           <p>Your data may be shared with third-party services only as necessary to provide the Service:</p>
           <ul>
-            <li><strong className="text-zinc-200">Cerebras AI:</strong> Your brand information and content context are sent to generate captions. We do not send personal information.</li>
-            <li><strong className="text-zinc-200">Buffer:</strong> Post content and scheduling information are sent when you schedule posts.</li>
-            <li><strong className="text-zinc-200">Pixabay / Image Providers:</strong> Search queries are sent to find images. No personal data is shared.</li>
-            <li><strong className="text-zinc-200">Google Gemini:</strong> Image generation prompts are sent when using AI image generation. No personal data is shared.</li>
-            <li><strong className="text-zinc-200">Instagram:</strong> We access publicly available data. We do not use your Instagram login credentials.</li>
-            <li><strong className="text-zinc-200">Neon (Database):</strong> Your data is stored in a PostgreSQL database hosted by Neon. Data is encrypted in transit.</li>
-            <li><strong className="text-zinc-200">Vercel (Hosting):</strong> The Service is hosted on Vercel. Vercel may collect server logs and performance data.</li>
+            <li><strong className="text-(--txt)">Cerebras AI:</strong> Your brand information and content context are sent to generate captions. We do not send personal information.</li>
+            <li><strong className="text-(--txt)">Buffer:</strong> Post content and scheduling information are sent when you schedule posts.</li>
+            <li><strong className="text-(--txt)">Pixabay / Image Providers:</strong> Search queries are sent to find images. No personal data is shared.</li>
+            <li><strong className="text-(--txt)">Google Gemini:</strong> Image generation prompts are sent when using AI image generation. No personal data is shared.</li>
+            <li><strong className="text-(--txt)">Instagram:</strong> We access publicly available data. We do not use your Instagram login credentials.</li>
+            <li><strong className="text-(--txt)">Neon (Database):</strong> Your data is stored in a PostgreSQL database hosted by Neon. Data is encrypted in transit.</li>
+            <li><strong className="text-(--txt)">Vercel (Hosting):</strong> The Service is hosted on Vercel. Vercel may collect server logs and performance data.</li>
           </ul>
 
           <h2>4. Data Security</h2>
@@ -99,7 +99,7 @@ export default function PrivacyPage() {
             <li>Sessions use JWT tokens with secure, HTTP-only cookies</li>
           </ul>
           <p>
-            <strong className="text-white">However, no method of transmission or storage is 100% secure. We cannot guarantee absolute security of your data. You acknowledge and accept this inherent risk.</strong>
+            <strong className="text-(--txt)">However, no method of transmission or storage is 100% secure. We cannot guarantee absolute security of your data. You acknowledge and accept this inherent risk.</strong>
           </p>
 
           <h2>5. Data Retention</h2>
@@ -113,15 +113,15 @@ export default function PrivacyPage() {
           <h2>6. Your Rights</h2>
           <p>Depending on your jurisdiction, you may have the right to:</p>
           <ul>
-            <li><strong className="text-zinc-200">Access:</strong> Request a copy of the personal data we hold about you</li>
-            <li><strong className="text-zinc-200">Rectification:</strong> Request correction of inaccurate data</li>
-            <li><strong className="text-zinc-200">Deletion:</strong> Request deletion of your personal data</li>
-            <li><strong className="text-zinc-200">Portability:</strong> Request your data in a structured, machine-readable format</li>
-            <li><strong className="text-zinc-200">Objection:</strong> Object to certain processing of your data</li>
-            <li><strong className="text-zinc-200">Withdrawal of Consent:</strong> Withdraw consent at any time where processing is based on consent</li>
+            <li><strong className="text-(--txt)">Access:</strong> Request a copy of the personal data we hold about you</li>
+            <li><strong className="text-(--txt)">Rectification:</strong> Request correction of inaccurate data</li>
+            <li><strong className="text-(--txt)">Deletion:</strong> Request deletion of your personal data</li>
+            <li><strong className="text-(--txt)">Portability:</strong> Request your data in a structured, machine-readable format</li>
+            <li><strong className="text-(--txt)">Objection:</strong> Object to certain processing of your data</li>
+            <li><strong className="text-(--txt)">Withdrawal of Consent:</strong> Withdraw consent at any time where processing is based on consent</li>
           </ul>
           <p>
-            To exercise any of these rights, contact us at <strong className="text-white">privacy@goviraleza.com</strong>.
+            To exercise any of these rights, contact us at <strong className="text-(--txt)">privacy@goviraleza.com</strong>.
           </p>
 
           <h2>7. Cookies and Tracking</h2>
@@ -173,10 +173,10 @@ export default function PrivacyPage() {
 
           <h2>15. Contact</h2>
           <p>
-            For privacy-related inquiries, contact us at: <strong className="text-white">privacy@goviraleza.com</strong>
+            For privacy-related inquiries, contact us at: <strong className="text-(--txt)">privacy@goviraleza.com</strong>
           </p>
           <p>
-            For general inquiries: <strong className="text-white">support@goviraleza.com</strong>
+            For general inquiries: <strong className="text-(--txt)">support@goviraleza.com</strong>
           </p>
         </div>
       </div>

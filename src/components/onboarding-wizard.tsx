@@ -55,10 +55,10 @@ function ProgressDots({ current, total }: { current: number; total: number }) {
             key={step}
             className={`h-2.5 rounded-full transition-all duration-300 ${
               isCurrent
-                ? 'w-8 bg-teal-500'
+                ? 'w-8 bg-(--violet)'
                 : isCompleted
-                  ? 'w-2.5 bg-teal-500/60'
-                  : 'w-2.5 bg-zinc-700'
+                  ? 'w-2.5 bg-(--violet)/60'
+                  : 'w-2.5 bg-(--surface-2)'
             }`}
           />
         );
@@ -160,7 +160,7 @@ function StepBrand({
     <div className="space-y-5">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-white">What&apos;s your brand?</h2>
-        <p className="text-sm text-white mt-1">Tell us about your brand identity</p>
+        <p className="text-sm text-(--muted) mt-1">Tell us about your brand identity</p>
       </div>
 
       {/* Brand Name */}
@@ -173,7 +173,7 @@ function StepBrand({
           value={brand.name}
           onChange={(e) => handleNameChange(e.target.value)}
           placeholder="My Brand"
-          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+          className="w-full rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) placeholder:text-(--muted-2) focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
         />
       </div>
 
@@ -185,11 +185,11 @@ function StepBrand({
             <img
               src={brand.logoUrl}
               alt="Logo preview"
-              className="h-10 w-10 rounded-lg object-contain bg-zinc-800/60 border border-white/5 p-0.5"
+              className="h-10 w-10 rounded-lg object-contain bg-(--surface-2)/60 border border-white/5 p-0.5"
             />
           )}
           <label className="flex-1 cursor-pointer">
-            <div className="flex items-center justify-center rounded-lg border border-dashed border-white/10 bg-zinc-800/40 px-4 py-2.5 text-sm text-white transition hover:border-teal-500/30 hover:text-white">
+            <div className="flex items-center justify-center rounded-lg border border-dashed border-white/10 bg-(--surface-2)/40 px-4 py-2.5 text-sm text-(--muted) transition hover:border-(--violet-24) hover:text-(--txt)">
               {uploading ? 'Uploading...' : brand.logoUrl ? 'Change logo' : 'Upload logo'}
             </div>
             <input
@@ -223,7 +223,7 @@ function StepBrand({
               type="text"
               value={brand.primaryColor}
               onChange={(e) => onChange({ primaryColor: e.target.value })}
-              className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+              className="flex-1 rounded-lg border border-(--line-strong) bg-(--surface-2) px-3 py-2.5 text-sm text-(--txt) focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
             />
           </div>
         </div>
@@ -245,7 +245,7 @@ function StepBrand({
               type="text"
               value={brand.secondaryColor}
               onChange={(e) => onChange({ secondaryColor: e.target.value })}
-              className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+              className="flex-1 rounded-lg border border-(--line-strong) bg-(--surface-2) px-3 py-2.5 text-sm text-(--txt) focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
             />
           </div>
         </div>
@@ -255,7 +255,7 @@ function StepBrand({
       <div>
         <label className="block text-sm font-medium text-white mb-1.5">Instagram Handle</label>
         <div className="flex items-center">
-          <span className="flex h-[42px] items-center rounded-l-lg border border-r-0 border-zinc-300 bg-zinc-100 px-3 text-sm text-white">
+          <span className="flex h-[42px] items-center rounded-l-lg border border-r-0 border-(--line-strong) bg-(--surface-2)/80 px-3 text-sm text-(--muted)">
             @
           </span>
           <input
@@ -263,10 +263,10 @@ function StepBrand({
             value={brand.instagramHandle}
             onChange={(e) => onChange({ instagramHandle: e.target.value })}
             placeholder="your_username"
-            className="flex-1 rounded-r-lg border border-l-0 border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+            className="flex-1 rounded-r-lg border border-l-0 border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) placeholder:text-(--muted-2) focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
           />
         </div>
-        <p className="text-xs text-zinc-400 mt-1">Just your username, no URL needed</p>
+        <p className="text-xs text-(--muted) mt-1">Just your username, no URL needed</p>
       </div>
 
       {/* Description */}
@@ -279,7 +279,7 @@ function StepBrand({
           onChange={(e) => onChange({ description: e.target.value })}
           placeholder="A brief description of what your brand does (used for competitor suggestions)"
           rows={2}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 resize-none"
+          className="w-full rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) placeholder:text-(--muted-2) focus:outline-none focus:ring-2 focus:ring-(--violet)/50 resize-none"
         />
         {brand.description.trim().length >= 5 && (
           <button
@@ -303,7 +303,7 @@ function StepBrand({
                 setRewriting(false);
               }
             }}
-            className="mt-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="mt-1.5 bg-(--violet) hover:bg-(--violet-bright) text-white text-xs px-3 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             {rewriting ? 'Rewriting...' : 'Rewrite with AI'}
           </button>
@@ -315,7 +315,7 @@ function StepBrand({
       <button
         onClick={handleNext}
         disabled={saving || uploading}
-        className="w-full rounded-lg bg-teal-600 py-2.5 text-sm font-medium text-white transition hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-lg bg-(--violet) py-2.5 text-sm font-medium text-white transition hover:bg-(--violet-bright) disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {saving ? 'Creating brand...' : 'Next'}
       </button>
@@ -435,12 +435,12 @@ function StepTools({
     <div className="space-y-5">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-white">Connect your tools</h2>
-        <p className="text-sm text-white mt-1">
+        <p className="text-sm text-(--muted) mt-1">
           Link Buffer + at least one image source to get started
         </p>
       </div>
 
-      <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-2.5 text-xs text-blue-300">
+      <div className="rounded-lg bg-(--violet-12) border border-(--violet-24) px-4 py-2.5 text-xs text-(--violet-bright)">
         At minimum, connect Buffer and one image source (we recommend Pixabay)
       </div>
 
@@ -448,22 +448,22 @@ function StepTools({
         {tools.map((tool) => (
           <div
             key={tool.provider}
-            className="rounded-xl border border-white/5 bg-zinc-900/60 p-4 space-y-3"
+            className="rounded-2xl border border-white/5 bg-(--surface)/60 p-4 space-y-3"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-white">{tool.label}</span>
+                <span className="text-sm font-medium text-(--txt)">{tool.label}</span>
                 {tool.connected && (
-                  <span className="text-teal-400 text-sm">&#10003;</span>
+                  <span className="text-(--success) text-sm">&#10003;</span>
                 )}
               </div>
               {tool.connected ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-500/10 px-3 py-1 text-xs font-medium text-teal-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-(--success)/10 px-3 py-1 text-xs font-medium text-(--success)">
+                  <span className="h-1.5 w-1.5 rounded-full bg-(--success)" />
                   Connected
                 </span>
               ) : (
-                <span className={`text-xs ${tool.badge === 'Required' ? 'text-red-400' : tool.badge === 'Recommended' ? 'text-amber-400' : 'text-white'}`}>
+                <span className={`text-xs ${tool.badge === 'Required' ? 'text-red-400' : tool.badge === 'Recommended' ? 'text-amber-400' : 'text-(--muted)'}`}>
                   {tool.badge}
                 </span>
               )}
@@ -480,12 +480,12 @@ function StepTools({
                     }
                     placeholder={tool.placeholder}
                     disabled={loadingProvider !== null}
-                    className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 disabled:opacity-50"
+                    className="flex-1 rounded-lg border border-(--line-strong) bg-(--surface-2) px-3 py-2 text-sm text-(--txt) placeholder:text-(--muted-2) focus:outline-none focus:ring-2 focus:ring-(--violet)/50 disabled:opacity-50"
                   />
                   <button
                     onClick={() => handleConnect(tool.provider)}
                     disabled={loadingProvider !== null}
-                    className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-lg bg-(--violet) px-4 py-2 text-sm font-medium text-white transition hover:bg-(--violet-bright) disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loadingProvider === tool.provider ? 'Validating...' : 'Connect'}
                   </button>
@@ -494,7 +494,7 @@ function StepTools({
                   href={tool.helpLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block text-xs text-teal-400 hover:text-teal-300 underline underline-offset-2 transition"
+                  className="inline-block text-xs text-(--violet-bright) hover:text-(--violet) underline underline-offset-2 transition"
                 >
                   How to get this &rarr;
                 </a>
@@ -505,26 +505,26 @@ function StepTools({
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
-      {successMsg && <p className="text-sm text-teal-400">{successMsg}</p>}
+      {successMsg && <p className="text-sm text-(--success)">{successMsg}</p>}
 
       <div className="flex items-center gap-3 pt-2">
         <button
           onClick={onBack}
-          className="rounded-lg border border-white/5 bg-zinc-800/60 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700/60 hover:text-white"
+          className="rounded-lg border border-white/5 bg-(--surface-2)/60 px-5 py-2.5 text-sm font-medium text-(--txt) transition hover:bg-(--surface-2) hover:text-(--txt)"
         >
           Back
         </button>
         <button
           onClick={onNext}
           disabled={!canProceed}
-          className="flex-1 rounded-lg bg-teal-600 py-2.5 text-sm font-medium text-white transition hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 rounded-lg bg-(--violet) py-2.5 text-sm font-medium text-white transition hover:bg-(--violet-bright) disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Next
         </button>
       </div>
       <button
         onClick={onSkip}
-        className="w-full text-center text-sm text-white hover:text-white transition"
+        className="w-full text-center text-sm text-(--muted) hover:text-(--txt) transition"
       >
         Skip for now
       </button>
@@ -668,13 +668,13 @@ function StepCompetitors({
     <div className="space-y-5">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-white">Who are your competitors?</h2>
-        <p className="text-sm text-white mt-1">Track competitors to benchmark your performance</p>
+        <p className="text-sm text-(--muted) mt-1">Track competitors to benchmark your performance</p>
       </div>
 
       {loadingSuggestions ? (
         <div className="flex items-center justify-center py-8">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-teal-500 border-t-transparent" />
-          <span className="ml-3 text-sm text-white">Finding competitors...</span>
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-(--violet) border-t-transparent" />
+          <span className="ml-3 text-sm text-(--muted)">Finding competitors...</span>
         </div>
       ) : (
         <>
@@ -685,8 +685,8 @@ function StepCompetitors({
                   key={s.handle}
                   className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition ${
                     selected.has(s.handle)
-                      ? 'border-teal-500/30 bg-teal-500/5'
-                      : 'border-white/5 bg-zinc-900/40 hover:border-white/10'
+                      ? 'border-(--violet-24) bg-(--violet-08)'
+                      : 'border-white/5 bg-(--surface)/40 hover:border-white/10'
                   }`}
                 >
                   <input
@@ -694,11 +694,11 @@ function StepCompetitors({
                     checked={selected.has(s.handle)}
                     onChange={() => toggleSelection(s.handle)}
                     disabled={tracked}
-                    className="mt-0.5 rounded border-zinc-600 bg-zinc-800 text-teal-500 focus:ring-teal-500/30"
+                    className="mt-0.5 rounded border-(--line-strong) bg-(--surface-2) text-(--violet) focus:ring-(--violet)/30"
                   />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-white">@{s.handle}</p>
-                    <p className="text-xs text-white mt-0.5">{s.reason}</p>
+                    <p className="text-sm font-medium text-(--txt)">@{s.handle}</p>
+                    <p className="text-xs text-(--muted) mt-0.5">{s.reason}</p>
                   </div>
                 </label>
               ))}
@@ -709,7 +709,7 @@ function StepCompetitors({
             <button
               onClick={handleTrackSelected}
               disabled={tracking || selected.size === 0}
-              className="w-full rounded-lg bg-teal-600 py-2.5 text-sm font-medium text-white transition hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-lg bg-(--violet) py-2.5 text-sm font-medium text-white transition hover:bg-(--violet-bright) disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {tracking
                 ? 'Tracking...'
@@ -718,7 +718,7 @@ function StepCompetitors({
           )}
 
           {tracked && (
-            <p className="text-sm text-teal-400 text-center">
+            <p className="text-sm text-(--success) text-center">
               {selected.size} competitor{selected.size !== 1 ? 's' : ''} tracked
             </p>
           )}
@@ -730,7 +730,7 @@ function StepCompetitors({
             </label>
             <div className="flex gap-2">
               <div className="flex flex-1 items-center">
-                <span className="flex h-[38px] items-center rounded-l-lg border border-r-0 border-zinc-300 bg-zinc-100 px-2 text-sm text-white">
+                <span className="flex h-[38px] items-center rounded-l-lg border border-r-0 border-(--line-strong) bg-(--surface-2)/80 px-2 text-sm text-(--muted)">
                   @
                 </span>
                 <input
@@ -738,13 +738,13 @@ function StepCompetitors({
                   value={manualHandle}
                   onChange={(e) => setManualHandle(e.target.value)}
                   placeholder="competitor_handle"
-                  className="flex-1 rounded-r-lg border border-l-0 border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+                  className="flex-1 rounded-r-lg border border-l-0 border-(--line-strong) bg-(--surface-2) px-3 py-2 text-sm text-(--txt) placeholder:text-(--muted-2) focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
                 />
               </div>
               <button
                 onClick={handleAddManual}
                 disabled={addingManual || !manualHandle.trim()}
-                className="rounded-lg bg-zinc-800 border border-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:opacity-50"
+                className="rounded-lg bg-(--surface-2) border border-white/5 px-4 py-2 text-sm font-medium text-(--txt) transition hover:bg-(--surface) disabled:opacity-50"
               >
                 {addingManual ? 'Adding...' : 'Add'}
               </button>
@@ -758,20 +758,20 @@ function StepCompetitors({
       <div className="flex items-center gap-3 pt-2">
         <button
           onClick={onBack}
-          className="rounded-lg border border-white/5 bg-zinc-800/60 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700/60 hover:text-white"
+          className="rounded-lg border border-white/5 bg-(--surface-2)/60 px-5 py-2.5 text-sm font-medium text-(--txt) transition hover:bg-(--surface-2) hover:text-(--txt)"
         >
           Back
         </button>
         <button
           onClick={onNext}
-          className="flex-1 rounded-lg bg-teal-600 py-2.5 text-sm font-medium text-white transition hover:bg-teal-500"
+          className="flex-1 rounded-lg bg-(--violet) py-2.5 text-sm font-medium text-white transition hover:bg-(--violet-bright)"
         >
           Next
         </button>
       </div>
       <button
         onClick={onSkip}
-        className="w-full text-center text-sm text-white hover:text-white transition"
+        className="w-full text-center text-sm text-(--muted) hover:text-(--txt) transition"
       >
         Skip for now
       </button>
@@ -846,7 +846,7 @@ function StepAnalyzing({
         <h2 className="text-2xl font-bold text-white">
           {analyzing ? 'Analyzing your account...' : 'Analysis complete'}
         </h2>
-        <p className="text-sm text-white mt-1">
+        <p className="text-sm text-(--muted) mt-1">
           {analyzing
             ? 'Crunching your Instagram data'
             : 'Here is your starting Health Score'}
@@ -855,8 +855,8 @@ function StepAnalyzing({
 
       {analyzing ? (
         <div className="flex flex-col items-center justify-center py-12 gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-3 border-teal-500 border-t-transparent" />
-          <p className="text-sm text-white animate-pulse">
+          <div className="h-12 w-12 animate-spin rounded-full border-3 border-(--violet) border-t-transparent" />
+          <p className="text-sm text-(--muted) animate-pulse">
             Analyzing your Instagram...
           </p>
         </div>
@@ -873,14 +873,14 @@ function StepAnalyzing({
         <button
           onClick={onBack}
           disabled={analyzing}
-          className="rounded-lg border border-white/5 bg-zinc-800/60 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700/60 hover:text-white disabled:opacity-50"
+          className="rounded-lg border border-white/5 bg-(--surface-2)/60 px-5 py-2.5 text-sm font-medium text-(--txt) transition hover:bg-(--surface-2) hover:text-(--txt) disabled:opacity-50"
         >
           Back
         </button>
         <button
           onClick={onNext}
           disabled={analyzing}
-          className="flex-1 rounded-lg bg-teal-600 py-2.5 text-sm font-medium text-white transition hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 rounded-lg bg-(--violet) py-2.5 text-sm font-medium text-white transition hover:bg-(--violet-bright) disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {analyzing ? 'Analyzing...' : 'Continue'}
         </button>
@@ -905,9 +905,9 @@ function StepReady({
   return (
     <div className="space-y-6 text-center">
       <div className="mb-6">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-teal-500/10">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-(--violet-12)">
           <svg
-            className="h-8 w-8 text-teal-400"
+            className="h-8 w-8 text-(--violet-bright)"
             fill="none"
             viewBox="0 0 24 24"
             strokeWidth={2}
@@ -917,26 +917,26 @@ function StepReady({
           </svg>
         </div>
         <h2 className="text-2xl font-bold text-white">You&apos;re ready!</h2>
-        <p className="text-sm text-white mt-1">
+        <p className="text-sm text-(--muted) mt-1">
           Your workspace is set up and ready to go
         </p>
       </div>
 
       <div className="space-y-3">
-        <div className="rounded-lg border border-white/5 bg-zinc-900/40 p-4 text-left">
-          <p className="text-xs text-white uppercase tracking-wider">Brand</p>
-          <p className="text-sm font-medium text-white mt-1">{brandName || 'Not set'}</p>
+        <div className="rounded-lg border border-white/5 bg-(--surface)/40 p-4 text-left">
+          <p className="text-xs text-(--muted) uppercase tracking-wider">Brand</p>
+          <p className="text-sm font-medium text-(--txt) mt-1">{brandName || 'Not set'}</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg border border-white/5 bg-zinc-900/40 p-4 text-left">
-            <p className="text-xs text-white uppercase tracking-wider">Tools</p>
-            <p className="text-sm font-medium text-white mt-1">
+          <div className="rounded-lg border border-white/5 bg-(--surface)/40 p-4 text-left">
+            <p className="text-xs text-(--muted) uppercase tracking-wider">Tools</p>
+            <p className="text-sm font-medium text-(--txt) mt-1">
               {toolsConnected} connected
             </p>
           </div>
-          <div className="rounded-lg border border-white/5 bg-zinc-900/40 p-4 text-left">
-            <p className="text-xs text-white uppercase tracking-wider">Competitors</p>
-            <p className="text-sm font-medium text-white mt-1">
+          <div className="rounded-lg border border-white/5 bg-(--surface)/40 p-4 text-left">
+            <p className="text-xs text-(--muted) uppercase tracking-wider">Competitors</p>
+            <p className="text-sm font-medium text-(--txt) mt-1">
               {competitorsTracked} tracked
             </p>
           </div>
@@ -945,7 +945,7 @@ function StepReady({
 
       <button
         onClick={onComplete}
-        className="w-full rounded-lg bg-teal-600 py-3 text-sm font-semibold text-white transition hover:bg-teal-500"
+        className="w-full rounded-lg bg-(--violet) py-3 text-sm font-semibold text-white transition hover:bg-(--violet-bright)"
       >
         Go to Dashboard
       </button>
@@ -1016,7 +1016,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   }, [onComplete]);
 
   return (
-    <div className="fixed inset-0 bg-zinc-950/95 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-(--bg)/95 z-50 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         <ProgressDots current={step} total={TOTAL_STEPS} />
 
@@ -1024,7 +1024,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           {/* Skip for now link */}
           <button
             onClick={handleComplete}
-            className="absolute top-3 right-3 text-xs text-white hover:text-white transition-colors"
+            className="absolute top-3 right-3 text-xs text-(--muted) hover:text-(--txt) transition-colors"
           >
             Skip for now
           </button>

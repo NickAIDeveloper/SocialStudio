@@ -15,7 +15,7 @@ const AnalyticsDashboard = dynamic(
   () => import('@/components/analytics-dashboard'),
   {
     loading: () => (
-      <div className="rounded-lg border border-zinc-800/40 bg-zinc-900/30 px-4 py-8 text-center text-sm text-zinc-500">
+      <div className="rounded-2xl border border-(--line) bg-(--surface) px-4 py-8 text-center text-sm text-(--muted-2)">
         Loading analytics...
       </div>
     ),
@@ -44,7 +44,7 @@ export function PerformancePage({ defaults }: PerformancePageProps) {
   return (
     <div className="space-y-8">
       {/* Top controls bar */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-4">
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-(--line) bg-(--surface) p-4">
         {source === 'meta' && (
           <IgAccountPicker value={ig} onChange={setIg} />
         )}
@@ -70,7 +70,7 @@ export function PerformancePage({ defaults }: PerformancePageProps) {
           {ig ? (
             <DeepProfileSection igUserId={ig} />
           ) : (
-            <p className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5 text-sm text-zinc-500">
+            <p className="rounded-2xl border border-(--line) bg-(--surface) p-5 text-sm text-(--muted-2)">
               Pick an Instagram account above to see the deep profile.
             </p>
           )}

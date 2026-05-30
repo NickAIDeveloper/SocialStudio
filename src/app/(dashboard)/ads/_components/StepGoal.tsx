@@ -100,24 +100,24 @@ export function StepGoal(props: {
   return (
     <div className="space-y-5">
       <div>
-        <label className="mb-1 block text-sm font-medium text-zinc-300">Brand</label>
+        <label className="mb-1 block text-sm font-medium text-(--muted)">Brand</label>
         <select value={props.brandId} onChange={(e) => props.setBrandId(e.target.value)}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100">
+          className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)">
           {props.brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-zinc-300">Goal</label>
+        <label className="mb-1 block text-sm font-medium text-(--muted)">Goal</label>
         <div className="grid gap-2 sm:grid-cols-3">
           {(Object.keys(OBJECTIVE_CONFIG) as AdObjective[]).map((key) => {
             const c = OBJECTIVE_CONFIG[key];
             const active = props.objective === key;
             return (
               <button key={key} type="button" onClick={() => props.setObjective(key)}
-                className={`rounded-lg border p-3 text-left ${active ? 'border-teal-500 bg-teal-500/10' : 'border-zinc-700 bg-zinc-900'}`}>
-                <div className="text-sm font-semibold text-zinc-100">{c.label}</div>
-                <div className="mt-1 text-xs text-zinc-400">{c.description}</div>
+                className={`rounded-2xl border p-3 text-left ${active ? 'border-(--violet-24) bg-(--violet-08)' : 'border-(--line-strong) bg-(--surface)'}`}>
+                <div className="text-sm font-semibold text-(--txt)">{c.label}</div>
+                <div className="mt-1 text-xs text-(--muted)">{c.description}</div>
               </button>
             );
           })}
@@ -126,18 +126,18 @@ export function StepGoal(props: {
 
       {isApp && (
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-300">App</label>
+          <label className="mb-1 block text-sm font-medium text-(--muted)">App</label>
           {appsLoading ? (
-            <p className="text-sm text-zinc-400">Loading apps…</p>
+            <p className="text-sm text-(--muted)">Loading apps…</p>
           ) : appsTokenExpired ? (
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-(--muted)">
               Your Meta connection has expired. Reconnect to load your apps.{' '}
-              <a href="/api/meta/oauth/start" className="text-teal-400 hover:text-teal-300 underline">
+              <a href="/api/meta/oauth/start" className="text-(--violet-bright) hover:text-(--violet) underline">
                 Reconnect Meta
               </a>
             </p>
           ) : apps.length === 0 ? (
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-(--muted)">
               No promotable apps found on your ad account. Add your iOS app in Meta
               (Business Settings → Apps) and associate it with your App Store listing,
               then come back.
@@ -146,7 +146,7 @@ export function StepGoal(props: {
             <select
               value={applicationId}
               onChange={(e) => handleAppSelect(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+              className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)"
             >
               <option value="">Select an app…</option>
               {apps.map((a) => (
@@ -158,21 +158,21 @@ export function StepGoal(props: {
       )}
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-zinc-300">
+        <label className="mb-1 block text-sm font-medium text-(--muted)">
           {isApp ? 'App Store URL' : 'Destination URL'}
         </label>
         <input
           value={props.destinationUrl}
           onChange={(e) => props.setDestinationUrl(e.target.value)}
           placeholder={isApp ? 'https://apps.apple.com/...' : 'https://yoursite.com/offer'}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+          className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)"
         />
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <button type="button" onClick={generate} disabled={loading}
-        className="rounded-lg bg-teal-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+        className="rounded-2xl bg-(--violet) px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
         {loading ? 'Generating…' : 'Generate ad'}
       </button>
     </div>

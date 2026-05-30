@@ -30,7 +30,7 @@ export function ModeToggle() {
   );
 
   return (
-    <div role="tablist" aria-label="Create mode" className="inline-flex items-center rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-1">
+    <div role="tablist" aria-label="Create mode" className="inline-flex items-center rounded-xl border border-(--line) bg-(--surface) p-1">
       {(['single', 'batch'] as CreateMode[]).map((m) => (
         <button
           key={m}
@@ -39,7 +39,7 @@ export function ModeToggle() {
           onClick={() => onSelect(m)}
           className={cn(
             'rounded-lg px-4 py-1.5 text-sm font-medium transition-colors',
-            active === m ? 'bg-zinc-800 text-white shadow-sm' : 'text-white hover:bg-zinc-800/40',
+            active === m ? 'bg-(--surface-2) text-(--txt) shadow-sm' : 'text-(--txt) hover:bg-white/[0.04]',
           )}
         >
           {m === 'single' ? 'Single' : 'Batch'}

@@ -16,12 +16,12 @@ export function SourceToggle({
   disabledReason = 'Connect Meta in Settings',
 }: SourceToggleProps) {
   const baseBtn =
-    'px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500';
-  const activeBtn = 'bg-zinc-100 text-zinc-900';
-  const inactiveBtn = 'text-zinc-400 hover:text-zinc-200';
+    'px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-(--violet)';
+  const activeBtn = 'bg-(--violet) text-white';
+  const inactiveBtn = 'text-(--muted) hover:text-(--txt)';
 
   return (
-    <div className="inline-flex items-center rounded-full border border-zinc-700 bg-zinc-900 overflow-hidden">
+    <div className="inline-flex items-center rounded-full border border-(--line-strong) bg-(--surface) overflow-hidden">
       {disabled ? (
         <span
           title={disabledReason}

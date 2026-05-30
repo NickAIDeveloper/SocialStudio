@@ -24,13 +24,13 @@ interface InsightsResponse {
 type Status = 'loading' | 'error' | 'empty' | 'ready';
 
 const COLORS = {
-  teal: '#14b8a6',
-  blue: '#3b82f6',
+  teal: '#8B5CF6',
+  blue: '#4FCEE4',
   amber: '#f59e0b',
-  red: '#ef4444',
-  green: '#10b981',
-  purple: '#a855f7',
-  pink: '#ec4899',
+  red: '#FF4D8D',
+  green: '#5FD07F',
+  purple: '#A78BFA',
+  pink: '#FF4D8D',
   orange: '#f97316',
 };
 
@@ -128,19 +128,19 @@ function TimingHeatmap({ data }: { data: Record<string, unknown> }) {
       <div className="grid grid-cols-5 gap-1 text-xs">
         <div />
         {times.map(t => (
-          <div key={t} className="text-center text-zinc-400 font-medium">{t}</div>
+          <div key={t} className="text-center text-(--muted) font-medium">{t}</div>
         ))}
       </div>
       {days.map((day, di) => (
         <div key={day} className="grid grid-cols-5 gap-1">
-          <div className="text-xs text-zinc-400 font-medium flex items-center">{day}</div>
+          <div className="text-xs text-(--muted) font-medium flex items-center">{day}</div>
           {(grid[di] ?? [0, 0, 0, 0]).map((level, ci) => (
             <div
               key={ci}
               className="h-8 rounded-md transition-colors"
               style={{
                 backgroundColor: level > 0
-                  ? `rgba(20, 184, 166, ${Math.min(1, 0.15 + level * 0.22)})`
+                  ? `rgba(139, 92, 246, ${Math.min(1, 0.15 + level * 0.22)})`
                   : 'rgba(39, 39, 42, 0.5)',
               }}
               title={`${day} ${times[ci]}: ${level > 0 ? `${level}x engagement` : 'No data'}`}
@@ -149,15 +149,15 @@ function TimingHeatmap({ data }: { data: Record<string, unknown> }) {
         </div>
       ))}
       <div className="flex items-center justify-end gap-2 mt-2">
-        <span className="text-[10px] text-zinc-500">Low</span>
+        <span className="text-[10px] text-(--muted-2)">Low</span>
         {[0.15, 0.35, 0.55, 0.75, 0.95].map((opacity, i) => (
           <div
             key={i}
             className="w-4 h-4 rounded-sm"
-            style={{ backgroundColor: `rgba(20, 184, 166, ${opacity})` }}
+            style={{ backgroundColor: `rgba(139, 92, 246, ${opacity})` }}
           />
         ))}
-        <span className="text-[10px] text-zinc-500">High</span>
+        <span className="text-[10px] text-(--muted-2)">High</span>
       </div>
     </div>
   );
@@ -173,13 +173,13 @@ function HashtagVisual({ data }: { data: Record<string, unknown> }) {
       {tryTags && tryTags.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-            <span className="text-xs font-bold text-green-400 uppercase tracking-wider">Top Performing</span>
+            <div className="w-2.5 h-2.5 rounded-full bg-(--success)" />
+            <span className="text-xs font-bold text-(--success) uppercase tracking-wider">Top Performing</span>
           </div>
           <div className="space-y-1.5">
             {tryTags.map((tag) => (
-              <div key={tag} className="flex items-center gap-2 rounded-lg bg-green-500/10 border border-green-500/20 px-3 py-2">
-                <span className="text-sm text-green-400 font-medium">{tag.startsWith('#') ? tag : `#${tag}`}</span>
+              <div key={tag} className="flex items-center gap-2 rounded-lg bg-(--success)/10 border border-(--success)/20 px-3 py-2">
+                <span className="text-sm text-(--success) font-medium">{tag.startsWith('#') ? tag : `#${tag}`}</span>
               </div>
             ))}
           </div>
@@ -188,13 +188,13 @@ function HashtagVisual({ data }: { data: Record<string, unknown> }) {
       {drop && drop.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-            <span className="text-xs font-bold text-red-400 uppercase tracking-wider">Worst Performing</span>
+            <div className="w-2.5 h-2.5 rounded-full bg-(--pink)" />
+            <span className="text-xs font-bold text-(--pink) uppercase tracking-wider">Worst Performing</span>
           </div>
           <div className="space-y-1.5">
             {drop.map((tag) => (
-              <div key={tag} className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2">
-                <span className="text-sm text-red-400 font-medium">{tag.startsWith('#') ? tag : `#${tag}`}</span>
+              <div key={tag} className="flex items-center gap-2 rounded-lg bg-(--pink)/10 border border-(--pink)/20 px-3 py-2">
+                <span className="text-sm text-(--pink) font-medium">{tag.startsWith('#') ? tag : `#${tag}`}</span>
               </div>
             ))}
           </div>
@@ -230,12 +230,12 @@ function CaptionGauge({ data }: { data: Record<string, unknown> }) {
         </ResponsiveContainer>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-400">0 words</span>
+        <span className="text-xs text-(--muted)">0 words</span>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded bg-teal-500" />
-          <span className="text-xs text-white">Sweet spot: {sweetSpot[0]}–{sweetSpot[1]} words</span>
+          <div className="w-3 h-3 rounded bg-(--violet)" />
+          <span className="text-xs text-(--txt)">Sweet spot: {sweetSpot[0]}–{sweetSpot[1]} words</span>
         </div>
-        <span className="text-xs text-white">You: <span className="font-bold text-teal-400">{current}</span></span>
+        <span className="text-xs text-(--txt)">You: <span className="font-bold text-(--violet-bright)">{current}</span></span>
       </div>
     </div>
   );
@@ -266,7 +266,7 @@ function MomentumChart({ data }: { data: Record<string, unknown> }) {
           <p className="text-3xl font-bold" style={{ color }}>
             {direction === 'up' ? '+' : direction === 'down' ? '-' : ''}{pct}%
           </p>
-          <p className="text-xs text-zinc-400">vs last 2 weeks</p>
+          <p className="text-xs text-(--muted)">vs last 2 weeks</p>
         </div>
       </div>
       <div className="flex-1 h-16">
@@ -304,23 +304,23 @@ function PostHighlight({ insight, isTop }: { insight: InsightCardType; isTop: bo
     <div className="space-y-4">
       {/* Engagement stats */}
       <div className="grid grid-cols-3 gap-3 text-center">
-        <div className="rounded-lg bg-zinc-800/50 p-3">
-          <p className="text-xl font-bold text-white">{total.toLocaleString()}</p>
-          <p className="text-[10px] text-zinc-400 uppercase tracking-wider mt-1">Total</p>
+        <div className="rounded-lg bg-(--surface-2) p-3">
+          <p className="text-xl font-bold text-(--txt)">{total.toLocaleString()}</p>
+          <p className="text-[10px] text-(--muted) uppercase tracking-wider mt-1">Total</p>
         </div>
-        <div className="rounded-lg bg-zinc-800/50 p-3">
-          <p className="text-xl font-bold text-white">{likes.toLocaleString()}</p>
-          <p className="text-[10px] text-zinc-400 uppercase tracking-wider mt-1">Likes</p>
+        <div className="rounded-lg bg-(--surface-2) p-3">
+          <p className="text-xl font-bold text-(--txt)">{likes.toLocaleString()}</p>
+          <p className="text-[10px] text-(--muted) uppercase tracking-wider mt-1">Likes</p>
         </div>
-        <div className="rounded-lg bg-zinc-800/50 p-3">
-          <p className="text-xl font-bold text-white">{comments.toLocaleString()}</p>
-          <p className="text-[10px] text-zinc-400 uppercase tracking-wider mt-1">Comments</p>
+        <div className="rounded-lg bg-(--surface-2) p-3">
+          <p className="text-xl font-bold text-(--txt)">{comments.toLocaleString()}</p>
+          <p className="text-[10px] text-(--muted) uppercase tracking-wider mt-1">Comments</p>
         </div>
       </div>
 
       {/* Caption preview */}
       {post?.caption && (
-        <p className="text-xs text-zinc-300 italic line-clamp-3 leading-relaxed bg-zinc-800/30 rounded-lg px-3 py-2">
+        <p className="text-xs text-(--muted) italic line-clamp-3 leading-relaxed bg-white/[0.04] rounded-lg px-3 py-2">
           &ldquo;{post.caption.slice(0, 200)}{post.caption.length > 200 ? '...' : ''}&rdquo;
         </p>
       )}
@@ -353,8 +353,8 @@ function PostHighlight({ insight, isTop }: { insight: InsightCardType; isTop: bo
 
 function VisualCard({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-5 ${className}`}>
-      <h3 className="text-sm font-semibold text-white mb-4 uppercase tracking-wider">{title}</h3>
+    <div className={`surface-card p-5 ${className}`}>
+      <h3 className="text-sm font-semibold text-(--txt) mb-4 uppercase tracking-wider">{title}</h3>
       {children}
     </div>
   );
@@ -367,11 +367,11 @@ function VisualCard({ title, children, className = '' }: { title: string; childr
 function LoadingSkeleton() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-pulse">
-      <div className="lg:col-span-1 rounded-xl bg-zinc-800/60 h-64" />
-      <div className="lg:col-span-2 rounded-xl bg-zinc-800/60 h-64" />
-      <div className="rounded-xl bg-zinc-800/60 h-48" />
-      <div className="rounded-xl bg-zinc-800/60 h-48" />
-      <div className="rounded-xl bg-zinc-800/60 h-48" />
+      <div className="lg:col-span-1 rounded-2xl bg-(--surface-2) h-64" />
+      <div className="lg:col-span-2 rounded-2xl bg-(--surface-2) h-64" />
+      <div className="rounded-2xl bg-(--surface-2) h-48" />
+      <div className="rounded-2xl bg-(--surface-2) h-48" />
+      <div className="rounded-2xl bg-(--surface-2) h-48" />
     </div>
   );
 }
@@ -549,11 +549,11 @@ export default function AnalyticsDashboard() {
 
   if (status === 'error') {
     return (
-      <div className="rounded-xl bg-zinc-900/80 p-10 text-center space-y-3">
-        <p className="text-white">Something went wrong loading analytics.</p>
+      <div className="surface-card p-10 text-center space-y-3">
+        <p className="text-(--txt)">Something went wrong loading analytics.</p>
         <button
           onClick={() => fetchInsights(false)}
-          className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-500"
+          className="px-4 py-2 rounded-lg bg-(--violet) text-white text-sm font-medium hover:bg-(--violet-bright)"
         >
           Retry
         </button>
@@ -563,33 +563,33 @@ export default function AnalyticsDashboard() {
 
   if (status === 'empty' || !data) {
     return (
-      <div className="rounded-xl bg-zinc-900/80 p-10 space-y-6">
+      <div className="surface-card p-10 space-y-6">
         <div className="text-center">
-          <h2 className="text-xl font-bold text-white mb-2">No analytics data yet</h2>
-          <p className="text-sm text-zinc-400 max-w-md mx-auto">Follow these steps to start seeing your analytics</p>
+          <h2 className="text-xl font-bold text-(--txt) mb-2">No analytics data yet</h2>
+          <p className="text-sm text-(--muted) max-w-md mx-auto">Follow these steps to start seeing your analytics</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
-          <div className="rounded-lg border border-zinc-800/50 bg-zinc-900/60 p-5 text-center space-y-2">
-            <div className="w-10 h-10 rounded-full bg-teal-500/10 flex items-center justify-center mx-auto">
-              <span className="text-lg font-bold text-teal-400">1</span>
+          <div className="rounded-2xl border border-(--line) bg-(--surface) p-5 text-center space-y-2">
+            <div className="w-10 h-10 rounded-full bg-(--violet-12) flex items-center justify-center mx-auto">
+              <span className="text-lg font-bold text-(--violet-bright)">1</span>
             </div>
-            <h3 className="text-sm font-semibold text-white">Connect Buffer</h3>
-            <p className="text-xs text-zinc-400">Link your Buffer account in Settings to enable scheduling</p>
+            <h3 className="text-sm font-semibold text-(--txt)">Connect Buffer</h3>
+            <p className="text-xs text-(--muted)">Link your Buffer account in Settings to enable scheduling</p>
           </div>
-          <div className="rounded-lg border border-zinc-800/50 bg-zinc-900/60 p-5 text-center space-y-2">
-            <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto">
-              <span className="text-lg font-bold text-blue-400">2</span>
+          <div className="rounded-2xl border border-(--line) bg-(--surface) p-5 text-center space-y-2">
+            <div className="w-10 h-10 rounded-full bg-(--violet-12) flex items-center justify-center mx-auto">
+              <span className="text-lg font-bold text-(--violet-bright)">2</span>
             </div>
-            <h3 className="text-sm font-semibold text-white">Create a post</h3>
-            <p className="text-xs text-zinc-400">Use the Create page to generate and schedule your first post</p>
+            <h3 className="text-sm font-semibold text-(--txt)">Create a post</h3>
+            <p className="text-xs text-(--muted)">Use the Create page to generate and schedule your first post</p>
           </div>
-          <div className="rounded-lg border border-zinc-800/50 bg-zinc-900/60 p-5 text-center space-y-2">
-            <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center mx-auto">
-              <span className="text-lg font-bold text-purple-400">3</span>
+          <div className="rounded-2xl border border-(--line) bg-(--surface) p-5 text-center space-y-2">
+            <div className="w-10 h-10 rounded-full bg-(--violet-12) flex items-center justify-center mx-auto">
+              <span className="text-lg font-bold text-(--violet-bright)">3</span>
             </div>
-            <h3 className="text-sm font-semibold text-white">Sync Instagram data</h3>
-            <p className="text-xs text-zinc-400">Pull in your Instagram metrics to power analytics</p>
+            <h3 className="text-sm font-semibold text-(--txt)">Sync Instagram data</h3>
+            <p className="text-xs text-(--muted)">Pull in your Instagram metrics to power analytics</p>
           </div>
         </div>
 
@@ -597,7 +597,7 @@ export default function AnalyticsDashboard() {
           <button
             onClick={handleSync}
             disabled={syncing}
-            className="px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 disabled:opacity-50 transition inline-flex items-center gap-2"
+            className="px-5 py-2.5 rounded-lg bg-(--violet) text-white text-sm font-medium hover:bg-(--violet-bright) disabled:opacity-50 transition inline-flex items-center gap-2"
           >
             {syncing ? (
               <>
@@ -609,7 +609,7 @@ export default function AnalyticsDashboard() {
             )}
           </button>
           {syncMessage && (
-            <p className="text-sm text-blue-300 mt-3">{syncMessage}</p>
+            <p className="text-sm text-(--violet-bright) mt-3">{syncMessage}</p>
           )}
         </div>
       </div>
@@ -634,11 +634,11 @@ export default function AnalyticsDashboard() {
     <div className="space-y-4">
       {/* Header — single action button */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-white">Analytics</h2>
+        <h2 className="text-lg font-semibold text-(--txt)">Analytics</h2>
         <button
           disabled={syncing || refreshing || aiLoading}
           onClick={handleSync}
-          className="px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2 shadow-lg transition-all"
+          className="px-4 py-2 rounded-lg bg-gradient-to-r from-(--violet) to-(--violet-deep) hover:opacity-90 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2 shadow-lg transition-all"
         >
           {syncing || refreshing || aiLoading ? (
             <>
@@ -660,11 +660,11 @@ export default function AnalyticsDashboard() {
               onClick={() => setSelectedBrand(b.id)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
                 selectedBrand === b.id
-                  ? 'bg-teal-600 text-white'
-                  : 'bg-zinc-800 text-white border border-zinc-700 hover:bg-zinc-700'
+                  ? 'bg-(--violet) text-white'
+                  : 'bg-(--surface-2) text-(--txt) border border-(--line) hover:bg-white/[0.04]'
               }`}
             >
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-teal-500 to-blue-500 flex items-center justify-center text-[10px] font-bold">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-(--violet) to-(--violet-deep) flex items-center justify-center text-[10px] font-bold">
                 {b.name.charAt(0)}
               </div>
               {b.name}
@@ -676,43 +676,43 @@ export default function AnalyticsDashboard() {
 
       {/* Sync status message */}
       {syncMessage && (
-        <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-2.5 text-sm text-blue-300 flex items-center justify-between">
+        <div className="rounded-lg bg-(--violet-12) border border-(--violet-24) px-4 py-2.5 text-sm text-(--violet-bright) flex items-center justify-between">
           <span>{syncMessage}</span>
-          <button onClick={() => setSyncMessage(null)} className="text-blue-400 hover:text-white ml-2">&times;</button>
+          <button onClick={() => setSyncMessage(null)} className="text-(--violet-bright) hover:text-(--txt) ml-2">&times;</button>
         </div>
       )}
 
       {/* AI-Powered Insights */}
-      <div className="rounded-xl border border-purple-500/20 bg-zinc-900/60 p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-purple-500" />
+      <div className="rounded-2xl border border-(--violet-24) bg-(--surface) p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-(--txt) uppercase tracking-wider flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-(--violet)" />
           AI Insights
         </h3>
 
         {aiError && (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
             {aiError}
           </div>
         )}
 
         {aiInsights.length === 0 && !aiLoading && !aiError && (
-          <p className="text-sm text-zinc-400">Hit &ldquo;Sync &amp; Analyze&rdquo; to generate AI-powered recommendations.</p>
+          <p className="text-sm text-(--muted)">Hit &ldquo;Sync &amp; Analyze&rdquo; to generate AI-powered recommendations.</p>
         )}
 
         {aiInsights.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {aiInsights.map((insight: { title: string; insight: string; action: string; type: string }, i: number) => {
-              const borderColor = insight.type === 'positive' ? 'border-green-500/30' : insight.type === 'warning' ? 'border-red-500/30' : 'border-amber-500/30';
-              const dotColor = insight.type === 'positive' ? 'bg-green-500' : insight.type === 'warning' ? 'bg-red-500' : 'bg-amber-500';
+              const borderColor = insight.type === 'positive' ? 'border-(--success)/30' : insight.type === 'warning' ? 'border-(--pink)/30' : 'border-amber-500/30';
+              const dotColor = insight.type === 'positive' ? 'bg-(--success)' : insight.type === 'warning' ? 'bg-(--pink)' : 'bg-amber-500';
               return (
-                <div key={i} className={`rounded-lg border ${borderColor} bg-zinc-800/30 p-4 space-y-2`}>
+                <div key={i} className={`rounded-lg border ${borderColor} bg-white/[0.04] p-4 space-y-2`}>
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${dotColor}`} />
-                    <h4 className="text-sm font-semibold text-white">{insight.title}</h4>
+                    <h4 className="text-sm font-semibold text-(--txt)">{insight.title}</h4>
                   </div>
-                  <p className="text-xs text-zinc-300 leading-relaxed">{insight.insight}</p>
-                  <div className="rounded bg-teal-500/10 border border-teal-500/20 px-2.5 py-1.5">
-                    <p className="text-[11px] text-teal-300">{insight.action}</p>
+                  <p className="text-xs text-(--muted) leading-relaxed">{insight.insight}</p>
+                  <div className="rounded bg-(--violet-12) border border-(--violet-24) px-2.5 py-1.5">
+                    <p className="text-[11px] text-(--violet-bright)">{insight.action}</p>
                   </div>
                 </div>
               );
@@ -732,42 +732,42 @@ export default function AnalyticsDashboard() {
             .map(profile => {
               const brand = brands.find(b => b.instagramHandle === profile.handle);
               return (
-                <div key={profile.handle} className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-5">
+                <div key={profile.handle} className="surface-card p-5">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-(--violet) to-(--violet-deep) flex items-center justify-center text-white font-bold">
                       {brand?.name?.charAt(0) ?? '@'}
                     </div>
                     <div>
-                      <h3 className="text-base font-semibold text-white">{brand?.name ?? profile.handle}</h3>
-                      <p className="text-xs text-zinc-400">@{profile.handle}</p>
+                      <h3 className="text-base font-semibold text-(--txt)">{brand?.name ?? profile.handle}</h3>
+                      <p className="text-xs text-(--muted)">@{profile.handle}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-5 gap-3">
                     <div className="text-center">
-                      <p className="text-xl font-bold text-white">{profile.followers.toLocaleString()}</p>
-                      <p className="text-[10px] text-zinc-400 mt-1">Followers</p>
+                      <p className="text-xl font-bold text-(--txt)">{profile.followers.toLocaleString()}</p>
+                      <p className="text-[10px] text-(--muted) mt-1">Followers</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xl font-bold text-white">{profile.following.toLocaleString()}</p>
-                      <p className="text-[10px] text-zinc-400 mt-1">Following</p>
+                      <p className="text-xl font-bold text-(--txt)">{profile.following.toLocaleString()}</p>
+                      <p className="text-[10px] text-(--muted) mt-1">Following</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xl font-bold text-white">{profile.postCount.toLocaleString()}</p>
-                      <p className="text-[10px] text-zinc-400 mt-1">Posts</p>
+                      <p className="text-xl font-bold text-(--txt)">{profile.postCount.toLocaleString()}</p>
+                      <p className="text-[10px] text-(--muted) mt-1">Posts</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xl font-bold text-teal-400">
+                      <p className="text-xl font-bold text-(--violet-bright)">
                         {profile.following > 0 ? (profile.followers / profile.following).toFixed(1) : '—'}
                       </p>
-                      <p className="text-[10px] text-zinc-400 mt-1">F/F Ratio</p>
+                      <p className="text-[10px] text-(--muted) mt-1">F/F Ratio</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xl font-bold text-teal-400">
+                      <p className="text-xl font-bold text-(--violet-bright)">
                         {profile.followers > 0 && profile.postCount > 0
                           ? `${((profile.postCount / Math.max(1, Math.floor(profile.postCount / 30))) * 100 / profile.followers).toFixed(2)}%`
                           : '—'}
                       </p>
-                      <p className="text-[10px] text-zinc-400 mt-1">Est. Eng Rate</p>
+                      <p className="text-[10px] text-(--muted) mt-1">Est. Eng Rate</p>
                     </div>
                   </div>
                 </div>
@@ -786,20 +786,20 @@ export default function AnalyticsDashboard() {
                   <span className="text-3xl font-bold" style={{ color: (engBenchmark.data.status as string) === 'above' ? COLORS.green : (engBenchmark.data.status as string) === 'at' ? COLORS.amber : COLORS.red }}>
                     {engBenchmark.data.rate as number}%
                   </span>
-                  <span className="text-sm text-zinc-400">your rate</span>
+                  <span className="text-sm text-(--muted)">your rate</span>
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-zinc-400">Tier avg: {engBenchmark.data.tierAvg as number}%</span>
-                    <span className="text-zinc-400">{engBenchmark.data.tier as string}</span>
+                    <span className="text-(--muted)">Tier avg: {engBenchmark.data.tierAvg as number}%</span>
+                    <span className="text-(--muted)">{engBenchmark.data.tier as string}</span>
                   </div>
-                  <div className="h-3 bg-zinc-800 rounded-full overflow-hidden relative">
+                  <div className="h-3 bg-(--surface-2) rounded-full overflow-hidden relative">
                     <div className="h-full rounded-full" style={{ width: `${Math.min(100, ((engBenchmark.data.rate as number) / ((engBenchmark.data.tierAvg as number) * 2)) * 100)}%`, backgroundColor: (engBenchmark.data.status as string) === 'above' ? COLORS.green : (engBenchmark.data.status as string) === 'at' ? COLORS.amber : COLORS.red }} />
                     <div className="absolute top-0 h-full w-0.5 bg-white/50" style={{ left: '50%' }} title="Tier average" />
                   </div>
                 </div>
-                <div className="rounded-md bg-teal-500/10 border border-teal-500/20 px-3 py-2">
-                  <p className="text-xs text-teal-300">{engBenchmark.action}</p>
+                <div className="rounded-md bg-(--violet-12) border border-(--violet-24) px-3 py-2">
+                  <p className="text-xs text-(--violet-bright)">{engBenchmark.action}</p>
                 </div>
               </div>
             </VisualCard>
@@ -814,17 +814,17 @@ export default function AnalyticsDashboard() {
                       <circle cx="18" cy="18" r="15" fill="none" stroke={(consistency.data.score as number) >= 70 ? COLORS.green : (consistency.data.score as number) >= 40 ? COLORS.amber : COLORS.red} strokeWidth="3" strokeDasharray={`${(consistency.data.score as number) * 0.94} 100`} strokeLinecap="round" />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-lg font-bold text-white">{consistency.data.score as number}</span>
+                      <span className="text-lg font-bold text-(--txt)">{consistency.data.score as number}</span>
                     </div>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-white">{consistency.data.postsPerWeek as number}/week</p>
-                    <p className="text-xs text-zinc-400">Every {consistency.data.avgInterval as number} days</p>
-                    <p className="text-xs text-zinc-500">{consistency.data.postsLast30 as number} posts last 30d</p>
+                    <p className="text-sm font-semibold text-(--txt)">{consistency.data.postsPerWeek as number}/week</p>
+                    <p className="text-xs text-(--muted)">Every {consistency.data.avgInterval as number} days</p>
+                    <p className="text-xs text-(--muted-2)">{consistency.data.postsLast30 as number} posts last 30d</p>
                   </div>
                 </div>
-                <div className="rounded-md bg-teal-500/10 border border-teal-500/20 px-3 py-2">
-                  <p className="text-xs text-teal-300">{consistency.action}</p>
+                <div className="rounded-md bg-(--violet-12) border border-(--violet-24) px-3 py-2">
+                  <p className="text-xs text-(--violet-bright)">{consistency.action}</p>
                 </div>
               </div>
             </VisualCard>
@@ -834,18 +834,18 @@ export default function AnalyticsDashboard() {
               <div className="space-y-2">
                 {(captionPatterns.data.patterns as Array<{type: string; label: string; count: number; avgEngagement: number; lift: number}>).map((p) => (
                   <div key={p.type} className="flex items-center gap-2">
-                    <span className="text-[11px] text-zinc-300 w-20 shrink-0 truncate">{p.label}</span>
-                    <div className="flex-1 h-5 bg-zinc-800 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full flex items-center justify-end pr-1.5" style={{ width: `${Math.min(100, Math.max(15, 50 + p.lift / 2))}%`, backgroundColor: p.lift > 0 ? 'rgba(16,185,129,0.5)' : 'rgba(239,68,68,0.35)' }}>
+                    <span className="text-[11px] text-(--muted) w-20 shrink-0 truncate">{p.label}</span>
+                    <div className="flex-1 h-5 bg-(--surface-2) rounded-full overflow-hidden">
+                      <div className="h-full rounded-full flex items-center justify-end pr-1.5" style={{ width: `${Math.min(100, Math.max(15, 50 + p.lift / 2))}%`, backgroundColor: p.lift > 0 ? 'rgba(95,208,127,0.5)' : 'rgba(255,77,141,0.35)' }}>
                         <span className="text-[9px] font-bold text-white">{p.lift > 0 ? '+' : ''}{p.lift}%</span>
                       </div>
                     </div>
-                    <span className="text-[9px] text-zinc-500 w-8 text-right">{p.count}</span>
+                    <span className="text-[9px] text-(--muted-2) w-8 text-right">{p.count}</span>
                   </div>
                 ))}
               </div>
-              <div className="rounded-md bg-teal-500/10 border border-teal-500/20 px-3 py-2 mt-3">
-                <p className="text-xs text-teal-300">{captionPatterns.action}</p>
+              <div className="rounded-md bg-(--violet-12) border border-(--violet-24) px-3 py-2 mt-3">
+                <p className="text-xs text-(--violet-bright)">{captionPatterns.action}</p>
               </div>
             </VisualCard>
           )}
@@ -860,7 +860,7 @@ export default function AnalyticsDashboard() {
             <div className="space-y-3">
               <HealthGauge score={data.healthScore} />
               {data.summary && (
-                <p className="text-xs text-zinc-300 text-center mt-6 leading-relaxed">{data.summary}</p>
+                <p className="text-xs text-(--muted) text-center mt-6 leading-relaxed">{data.summary}</p>
               )}
             </div>
           )}
@@ -871,13 +871,13 @@ export default function AnalyticsDashboard() {
           {momentum ? (
             <div className="space-y-2">
               <MomentumChart data={momentum.data} />
-              <p className="text-xs text-zinc-300 mt-2">{momentum.title}</p>
-              <div className="rounded-md bg-teal-500/10 border border-teal-500/20 px-3 py-2">
-                <p className="text-xs text-teal-300">{momentum.action}</p>
+              <p className="text-xs text-(--muted) mt-2">{momentum.title}</p>
+              <div className="rounded-md bg-(--violet-12) border border-(--violet-24) px-3 py-2">
+                <p className="text-xs text-(--violet-bright)">{momentum.action}</p>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-zinc-400">Not enough data yet</p>
+            <p className="text-sm text-(--muted)">Not enough data yet</p>
           )}
         </VisualCard>
 
@@ -886,12 +886,12 @@ export default function AnalyticsDashboard() {
           {contentType ? (
             <div className="space-y-3">
               <ContentTypeChart data={contentType.data} />
-              <div className="rounded-md bg-teal-500/10 border border-teal-500/20 px-3 py-2">
-                <p className="text-xs text-teal-300">{contentType.action}</p>
+              <div className="rounded-md bg-(--violet-12) border border-(--violet-24) px-3 py-2">
+                <p className="text-xs text-(--violet-bright)">{contentType.action}</p>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-zinc-400">Not enough data yet</p>
+            <p className="text-sm text-(--muted)">Not enough data yet</p>
           )}
         </VisualCard>
       </div>
@@ -903,12 +903,12 @@ export default function AnalyticsDashboard() {
           {timing ? (
             <div className="space-y-2">
               <TimingHeatmap data={timing.data} />
-              <div className="rounded-md bg-teal-500/10 border border-teal-500/20 px-3 py-2 mt-3">
-                <p className="text-xs text-teal-300">{timing.action}</p>
+              <div className="rounded-md bg-(--violet-12) border border-(--violet-24) px-3 py-2 mt-3">
+                <p className="text-xs text-(--violet-bright)">{timing.action}</p>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-zinc-400">Not enough data yet</p>
+            <p className="text-sm text-(--muted)">Not enough data yet</p>
           )}
         </VisualCard>
 
@@ -917,13 +917,13 @@ export default function AnalyticsDashboard() {
           {caption ? (
             <div className="space-y-3">
               <CaptionGauge data={caption.data} />
-              <p className="text-sm text-zinc-300 mt-2">{caption.title}</p>
-              <div className="rounded-md bg-teal-500/10 border border-teal-500/20 px-3 py-2">
-                <p className="text-xs text-teal-300">{caption.action}</p>
+              <p className="text-sm text-(--muted) mt-2">{caption.title}</p>
+              <div className="rounded-md bg-(--violet-12) border border-(--violet-24) px-3 py-2">
+                <p className="text-xs text-(--violet-bright)">{caption.action}</p>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-zinc-400">Not enough data yet</p>
+            <p className="text-sm text-(--muted)">Not enough data yet</p>
           )}
         </VisualCard>
       </div>
@@ -932,8 +932,8 @@ export default function AnalyticsDashboard() {
       {hashtags && (
         <VisualCard title="Hashtag Health">
           <HashtagVisual data={hashtags.data} />
-          <div className="rounded-md bg-teal-500/10 border border-teal-500/20 px-3 py-2 mt-4">
-            <p className="text-xs text-teal-300">{hashtags.action}</p>
+          <div className="rounded-md bg-(--violet-12) border border-(--violet-24) px-3 py-2 mt-4">
+            <p className="text-xs text-(--violet-bright)">{hashtags.action}</p>
           </div>
         </VisualCard>
       )}
@@ -944,15 +944,15 @@ export default function AnalyticsDashboard() {
           <VisualCard title="Top Performers">
             <div className="space-y-2">
               {(leaderboard.data.top as Array<{caption: string; total: number; likes: number; comments: number; contentType: string}>).map((post, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-lg bg-green-500/5 border border-green-500/10 px-3 py-2">
-                  <span className="text-base font-bold text-green-400 w-6">#{i + 1}</span>
+                <div key={i} className="flex items-center gap-3 rounded-lg bg-(--success)/5 border border-(--success)/10 px-3 py-2">
+                  <span className="text-base font-bold text-(--success) w-6">#{i + 1}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-zinc-300 truncate">{post.caption || 'No caption'}</p>
-                    <p className="text-[10px] text-zinc-500">{post.contentType}</p>
+                    <p className="text-xs text-(--muted) truncate">{post.caption || 'No caption'}</p>
+                    <p className="text-[10px] text-(--muted-2)">{post.contentType}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-white">{post.total}</p>
-                    <p className="text-[10px] text-zinc-400">{post.likes} likes {post.comments} comments</p>
+                    <p className="text-sm font-bold text-(--txt)">{post.total}</p>
+                    <p className="text-[10px] text-(--muted)">{post.likes} likes {post.comments} comments</p>
                   </div>
                 </div>
               ))}
@@ -961,15 +961,15 @@ export default function AnalyticsDashboard() {
           <VisualCard title="Underperformers">
             <div className="space-y-2">
               {(leaderboard.data.bottom as Array<{caption: string; total: number; likes: number; comments: number; contentType: string}>).map((post, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-lg bg-red-500/5 border border-red-500/10 px-3 py-2">
-                  <span className="text-base font-bold text-red-400/50 w-6">#{i + 1}</span>
+                <div key={i} className="flex items-center gap-3 rounded-lg bg-(--pink)/5 border border-(--pink)/10 px-3 py-2">
+                  <span className="text-base font-bold text-(--pink)/50 w-6">#{i + 1}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-zinc-300 truncate">{post.caption || 'No caption'}</p>
-                    <p className="text-[10px] text-zinc-500">{post.contentType}</p>
+                    <p className="text-xs text-(--muted) truncate">{post.caption || 'No caption'}</p>
+                    <p className="text-[10px] text-(--muted-2)">{post.contentType}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-white">{post.total}</p>
-                    <p className="text-[10px] text-zinc-400">{post.likes} likes {post.comments} comments</p>
+                    <p className="text-sm font-bold text-(--txt)">{post.total}</p>
+                    <p className="text-[10px] text-(--muted)">{post.likes} likes {post.comments} comments</p>
                   </div>
                 </div>
               ))}

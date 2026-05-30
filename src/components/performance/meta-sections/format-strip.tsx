@@ -8,7 +8,7 @@ export function FormatStrip({ stats }: { stats: FormatStats[] }) {
   if (!hasData) return null;
   const top = stats.find((s) => s.sampleSize > 0);
   return (
-    <div className="rounded-xl border border-white/5 bg-black/20 p-4 space-y-3">
+    <div className="rounded-2xl border border-white/5 bg-black/20 p-4 space-y-3">
       <div className="flex items-baseline justify-between">
         <h4 className="text-sm font-semibold text-white">Format performance</h4>
         <span className="text-[11px] text-white/40">median reach per post</span>
@@ -21,7 +21,7 @@ export function FormatStrip({ stats }: { stats: FormatStats[] }) {
               s.sampleSize === 0
                 ? 'border-white/5 bg-black/10 opacity-60'
                 : s === top
-                  ? 'border-emerald-400/30 bg-emerald-500/5'
+                  ? 'border-(--success)/30 bg-(--success)/5'
                   : 'border-white/10 bg-black/20'
             }`}
           >
@@ -38,7 +38,7 @@ export function FormatStrip({ stats }: { stats: FormatStats[] }) {
               </div>
             )}
             {s === top && s.sampleSize > 0 && (
-              <div className="text-[11px] text-emerald-300/80 mt-0.5">Your top format</div>
+              <div className="text-[11px] text-(--success)/80 mt-0.5">Your top format</div>
             )}
           </div>
         ))}

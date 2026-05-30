@@ -23,8 +23,8 @@ export function AutopilotSection() {
   if (loading) {
     return (
       <div className="space-y-3">
-        <div className="h-24 animate-pulse rounded-xl bg-zinc-900/40" />
-        <div className="h-24 animate-pulse rounded-xl bg-zinc-900/40" />
+        <div className="h-24 animate-pulse rounded-2xl bg-(--surface)/40" />
+        <div className="h-24 animate-pulse rounded-2xl bg-(--surface)/40" />
       </div>
     );
   }
@@ -39,10 +39,10 @@ export function AutopilotSection() {
 
   if (brands.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-6 text-center">
-        <p className="text-sm text-zinc-300">No brands yet.</p>
-        <p className="mt-1 text-xs text-zinc-500">
-          Add a brand in <a href="/settings" className="text-teal-300 underline">Settings</a> to switch on autopilot.
+      <div className="rounded-2xl border border-(--line) bg-(--surface)/50 p-6 text-center">
+        <p className="text-sm text-(--muted)">No brands yet.</p>
+        <p className="mt-1 text-xs text-(--muted-2)">
+          Add a brand in <a href="/settings" className="text-(--violet-bright) underline">Settings</a> to switch on autopilot.
         </p>
       </div>
     );

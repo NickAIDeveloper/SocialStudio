@@ -44,7 +44,7 @@ export function AnalyzeTabs() {
     <div
       role="tablist"
       aria-label="Analyze sections"
-      className="inline-flex items-center gap-1 rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-1"
+      className="inline-flex items-center gap-1 rounded-xl border border-(--line) bg-(--surface) p-1"
     >
       {TABS.map((tab) => {
         const Icon = tab.icon;
@@ -58,8 +58,8 @@ export function AnalyzeTabs() {
             className={cn(
               'inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors',
               isActive
-                ? 'bg-zinc-800 text-white shadow-sm'
-                : 'text-white hover:bg-zinc-800/40 hover:text-zinc-100',
+                ? 'bg-(--surface-2) text-(--txt) shadow-sm'
+                : 'text-(--muted) hover:bg-white/[0.04] hover:text-(--txt)',
             )}
           >
             <Icon className="h-4 w-4" />

@@ -11,10 +11,10 @@ export default function AutopilotPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white">
+        <h1 className="text-2xl font-bold tracking-tight text-(--txt)">
           Autopilot <span aria-hidden>🤖</span>
         </h1>
-        <p className="mt-1 text-sm text-zinc-400">
+        <p className="mt-1 text-sm text-(--muted)">
           Your brain learns. Your account ships. You watch the engagement climb.
         </p>
       </div>
@@ -23,14 +23,14 @@ export default function AutopilotPage() {
         {PILLARS.map(({ icon: Icon, label, detail }) => (
           <div
             key={label}
-            className="flex items-center gap-3 rounded-xl border border-zinc-800/60 bg-gradient-to-br from-zinc-900/70 to-zinc-950 p-4"
+            className="flex items-center gap-3 rounded-2xl border border-(--line) bg-gradient-to-br from-(--surface) to-(--bg) p-4"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-950/40 text-teal-300">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-(--violet-12) text-(--violet-bright)">
               <Icon className="h-4 w-4" />
             </span>
             <div>
-              <div className="text-sm font-semibold text-white">{label}</div>
-              <div className="text-xs text-zinc-500">{detail}</div>
+              <div className="text-sm font-semibold text-(--txt)">{label}</div>
+              <div className="text-xs text-(--muted-2)">{detail}</div>
             </div>
           </div>
         ))}
@@ -38,8 +38,8 @@ export default function AutopilotPage() {
 
       <div>
         <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">This week</h2>
-          <span className="text-[11px] text-zinc-500">Click a brand to dive in</span>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-(--muted)">This week</h2>
+          <span className="text-[11px] text-(--muted-2)">Click a brand to dive in</span>
         </div>
         <AutopilotSection />
       </div>

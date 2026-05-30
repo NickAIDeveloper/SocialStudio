@@ -79,18 +79,18 @@ export default function ProfilePage() {
     <>
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-white">Profile</h1>
-        <p className="text-sm text-white mt-1">Manage your account details</p>
+        <p className="text-sm text-(--muted) mt-1">Manage your account details</p>
       </div>
 
       {message && (
-        <div className={`mb-6 rounded-lg px-4 py-3 text-sm ${message.type === 'success' ? 'bg-teal-500/10 border border-teal-500/20 text-teal-300' : 'bg-red-500/10 border border-red-500/20 text-red-300'}`}>
+        <div className={`mb-6 rounded-lg px-4 py-3 text-sm ${message.type === 'success' ? 'bg-(--success)/10 border border-(--success)/20 text-(--success)' : 'bg-red-500/10 border border-red-500/20 text-red-300'}`}>
           {message.text}
         </div>
       )}
 
       <div className="space-y-6 max-w-xl">
         {/* Profile Info */}
-        <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-6 space-y-4">
+        <div className="rounded-2xl border border-(--line) bg-(--surface)/50 p-6 space-y-4">
           <h2 className="text-lg font-semibold text-white">Account Information</h2>
 
           <div className="space-y-2">
@@ -99,7 +99,7 @@ export default function ProfilePage() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+              className="w-full rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
             />
           </div>
 
@@ -109,22 +109,22 @@ export default function ProfilePage() {
               type="email"
               value={email}
               disabled
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm text-zinc-400 cursor-not-allowed"
+              className="w-full rounded-lg border border-(--line) bg-(--surface-2) px-4 py-2.5 text-sm text-(--muted-2) cursor-not-allowed"
             />
-            <p className="text-xs text-zinc-500">Email cannot be changed</p>
+            <p className="text-xs text-(--muted-2)">Email cannot be changed</p>
           </div>
 
           <button
             onClick={handleSaveProfile}
             disabled={saving}
-            className="rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50 transition"
+            className="rounded-lg bg-(--violet) px-5 py-2.5 text-sm font-medium text-white hover:bg-(--violet-bright) disabled:opacity-50 transition"
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
 
         {/* Change Password */}
-        <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-6 space-y-4">
+        <div className="rounded-2xl border border-(--line) bg-(--surface)/50 p-6 space-y-4">
           <h2 className="text-lg font-semibold text-white">Change Password</h2>
 
           <div className="space-y-2">
@@ -133,7 +133,7 @@ export default function ProfilePage() {
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+              className="w-full rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
             />
           </div>
 
@@ -144,7 +144,7 @@ export default function ProfilePage() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="At least 8 characters"
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+              className="w-full rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
             />
           </div>
 
@@ -154,14 +154,14 @@ export default function ProfilePage() {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+              className="w-full rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
             />
           </div>
 
           <button
             onClick={handleChangePassword}
             disabled={saving || !currentPassword || !newPassword}
-            className="rounded-lg bg-zinc-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-600 disabled:opacity-50 transition"
+            className="rounded-lg bg-(--surface-2) px-5 py-2.5 text-sm font-medium text-(--txt) hover:bg-(--surface) disabled:opacity-50 transition border border-(--line-strong)"
           >
             {saving ? 'Updating...' : 'Update Password'}
           </button>

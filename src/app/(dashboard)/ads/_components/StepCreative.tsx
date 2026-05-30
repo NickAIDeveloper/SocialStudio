@@ -104,19 +104,19 @@ export function StepCreative(props: {
   return (
     <div className="space-y-5">
       <div>
-        <label className="mb-1 block text-sm font-medium text-zinc-300">Media type</label>
-        <div className="inline-flex rounded-lg border border-zinc-700 bg-zinc-900 p-0.5">
+        <label className="mb-1 block text-sm font-medium text-(--muted)">Media type</label>
+        <div className="inline-flex rounded-2xl border border-(--line-strong) bg-(--surface) p-0.5">
           <button
             type="button"
             onClick={() => set('mediaType', 'image')}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium ${!isVideo ? 'bg-teal-500 text-white' : 'text-zinc-300 hover:bg-zinc-800'}`}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium ${!isVideo ? 'bg-(--violet) text-white' : 'text-(--muted) hover:bg-(--surface-2)'}`}
           >
             Photo
           </button>
           <button
             type="button"
             onClick={() => set('mediaType', 'video')}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium ${isVideo ? 'bg-teal-500 text-white' : 'text-zinc-300 hover:bg-zinc-800'}`}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium ${isVideo ? 'bg-(--violet) text-white' : 'text-(--muted) hover:bg-(--surface-2)'}`}
           >
             Video
           </button>
@@ -128,7 +128,7 @@ export function StepCreative(props: {
           type="button"
           onClick={handleRegenerateAll}
           disabled={regenerating}
-          className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm font-medium text-teal-300 hover:bg-zinc-800 disabled:opacity-50"
+          className="rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-1.5 text-sm font-medium text-(--violet-bright) hover:bg-(--surface-2) disabled:opacity-50"
         >
           {regenerating ? 'Regenerating…' : '✨ Regenerate all copy'}
         </button>
@@ -148,7 +148,7 @@ export function StepCreative(props: {
         }
       >
         <textarea value={draft.primaryText} onChange={(e) => set('primaryText', e.target.value)} rows={6}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
+          className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)" />
       </Field>
 
       <Field
@@ -165,7 +165,7 @@ export function StepCreative(props: {
       >
         <input value={draft.headline} maxLength={HEADLINE_MAX}
           onChange={(e) => set('headline', e.target.value)}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
+          className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)" />
       </Field>
 
       <Field
@@ -181,7 +181,7 @@ export function StepCreative(props: {
         }
       >
         <input value={draft.hook} onChange={(e) => set('hook', e.target.value)}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
+          className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)" />
       </Field>
 
       <Field
@@ -198,19 +198,19 @@ export function StepCreative(props: {
       >
         <input value={draft.hashtags.join(' ')}
           onChange={(e) => set('hashtags', e.target.value.split(/\s+/).map((t) => t.replace(/^#+/, '')).filter(Boolean).map((t) => `#${t}`).slice(0, 5))}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
+          className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)" />
       </Field>
 
       {isVideo ? (
         <>
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">Video</label>
+            <label className="mb-1 block text-sm font-medium text-(--muted)">Video</label>
             <div className="mb-2 flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => videoInputRef.current?.click()}
                 disabled={videoUploading}
-                className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
+                className="rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-1.5 text-sm text-(--muted) hover:bg-(--surface-2) disabled:opacity-50"
               >
                 {videoUploading ? 'Uploading & processing…' : 'Upload video'}
               </button>
@@ -224,7 +224,7 @@ export function StepCreative(props: {
               onChange={handleVideoChange}
             />
             {draft.videoUrl && (
-              <video src={draft.videoUrl} controls className="w-full rounded-lg" />
+              <video src={draft.videoUrl} controls className="w-full rounded-2xl" />
             )}
           </div>
 
@@ -247,9 +247,9 @@ export function StepCreative(props: {
       )}
 
       <div className="flex justify-between">
-        <button type="button" onClick={props.onBack} className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300">Back</button>
+        <button type="button" onClick={props.onBack} className="rounded-2xl border border-(--line-strong) px-4 py-2 text-sm text-(--muted)">Back</button>
         <button type="button" onClick={props.onNext} disabled={!canNext}
-          className="rounded-lg bg-teal-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Next</button>
+          className="rounded-2xl bg-(--violet) px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Next</button>
       </div>
     </div>
   );
@@ -295,7 +295,7 @@ function ImageChooser(props: {
 
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium text-zinc-300">{props.label}</label>
+      <label className="mb-1 block text-sm font-medium text-(--muted)">{props.label}</label>
 
       {props.imageMissing && props.candidates.length === 0 && extraUploads.length === 0 && (
         <p className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
@@ -310,7 +310,7 @@ function ImageChooser(props: {
               key={url}
               type="button"
               onClick={() => props.onChange(url)}
-              className={`overflow-hidden rounded aspect-square ${props.value === url ? 'ring-2 ring-teal-400' : ''}`}
+              className={`overflow-hidden rounded aspect-square ${props.value === url ? 'ring-2 ring-(--violet-bright)' : ''}`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={url} alt="" className="h-full w-full object-cover" />
@@ -324,7 +324,7 @@ function ImageChooser(props: {
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
+          className="rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-1.5 text-sm text-(--muted) hover:bg-(--surface-2) disabled:opacity-50"
         >
           {uploading ? 'Uploading…' : 'Upload your own'}
         </button>
@@ -341,7 +341,7 @@ function ImageChooser(props: {
 
       <input value={props.value} onChange={(e) => props.onChange(e.target.value)}
         placeholder="https://example.com/image.jpg"
-        className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
+        className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)" />
     </div>
   );
 }
@@ -350,7 +350,7 @@ function Field(props: { label: string; action?: React.ReactNode; children: React
   return (
     <div>
       <div className="mb-1 flex items-center justify-between gap-2">
-        <label className="block text-sm font-medium text-zinc-300">{props.label}</label>
+        <label className="block text-sm font-medium text-(--muted)">{props.label}</label>
         {props.action}
       </div>
       {props.children}
@@ -407,7 +407,7 @@ function SuggestButton(props: {
         type="button"
         onClick={handleSuggest}
         disabled={loading}
-        className="text-xs font-medium text-teal-300 hover:text-teal-200 disabled:opacity-50"
+        className="text-xs font-medium text-(--violet-bright) hover:text-(--violet) disabled:opacity-50"
       >
         {loading ? '…' : '✨ Suggest'}
       </button>
@@ -415,13 +415,13 @@ function SuggestButton(props: {
       {error && <span className="ml-2 text-xs text-red-400">{error}</span>}
 
       {options && (
-        <div className="absolute right-0 z-10 mt-1 w-80 max-w-[80vw] rounded-lg border border-zinc-700 bg-zinc-900 p-2 shadow-lg">
+        <div className="absolute right-0 z-10 mt-1 w-80 max-w-[80vw] rounded-2xl border border-(--line-strong) bg-(--surface) p-2 shadow-lg">
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-400">Viral suggestions</span>
+            <span className="text-xs font-medium text-(--muted)">Viral suggestions</span>
             <button
               type="button"
               onClick={() => setOptions(null)}
-              className="text-xs text-zinc-500 hover:text-zinc-300"
+              className="text-xs text-(--muted-2) hover:text-(--muted)"
               aria-label="Dismiss suggestions"
             >
               ✕
@@ -436,7 +436,7 @@ function SuggestButton(props: {
                     props.onApply(opt);
                     setOptions(null);
                   }}
-                  className="w-full rounded border border-zinc-700 px-2 py-1.5 text-left text-xs text-zinc-200 hover:border-teal-500 hover:bg-zinc-800"
+                  className="w-full rounded border border-(--line-strong) px-2 py-1.5 text-left text-xs text-(--txt) hover:border-(--violet) hover:bg-(--surface-2)"
                 >
                   {props.field === 'primaryText' && opt.length > 140
                     ? `${opt.slice(0, 140)}…`

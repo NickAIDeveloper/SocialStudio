@@ -131,11 +131,11 @@ export function BrandVoiceSettings() {
   if (loading) {
     return (
       <div className="glass-card rounded-xl border border-white/5 p-6 animate-pulse">
-        <div className="h-5 w-40 rounded bg-zinc-700/50" />
-        <div className="mt-2 h-4 w-64 rounded bg-zinc-700/30" />
+        <div className="h-5 w-40 rounded bg-(--surface-2)/50" />
+        <div className="mt-2 h-4 w-64 rounded bg-(--surface-2)/30" />
         <div className="mt-6 space-y-4">
-          <div className="h-10 w-full rounded bg-zinc-800/40" />
-          <div className="h-10 w-full rounded bg-zinc-800/40" />
+          <div className="h-10 w-full rounded bg-(--surface-2)/40" />
+          <div className="h-10 w-full rounded bg-(--surface-2)/40" />
         </div>
       </div>
     );
@@ -144,7 +144,7 @@ export function BrandVoiceSettings() {
   if (brands.length === 0) {
     return (
       <div className="glass-card rounded-xl border border-white/5 p-6">
-        <p className="text-sm text-white">No brands found. Add a brand first to configure voice settings.</p>
+        <p className="text-sm text-(--muted)">No brands found. Add a brand first to configure voice settings.</p>
       </div>
     );
   }
@@ -152,27 +152,27 @@ export function BrandVoiceSettings() {
   return (
     <div className="glass-card rounded-xl border border-white/5 p-6 space-y-6">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10">
-          <Mic className="h-5 w-5 text-purple-400" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-(--violet-12)">
+          <Mic className="h-5 w-5 text-(--violet-bright)" />
         </div>
         <div>
           <h3 className="text-lg font-semibold text-white">Brand Voice</h3>
-          <p className="text-sm text-white">
+          <p className="text-sm text-(--muted)">
             Configure how AI generates captions for each brand
           </p>
         </div>
       </div>
 
       {/* Brand selector tabs */}
-      <div className="flex gap-1 border-b border-zinc-800 pb-2">
+      <div className="flex gap-1 border-b border-(--line) pb-2">
         {brands.map((b) => (
           <button
             key={b.id}
             onClick={() => handleBrandChange(b.id)}
             className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
               selectedBrandId === b.id
-                ? 'bg-zinc-800 text-teal-400 border-b-2 border-teal-400'
-                : 'text-white hover:text-white hover:bg-zinc-800/50'
+                ? 'bg-(--surface-2) text-(--violet-bright) border-b-2 border-(--violet)'
+                : 'text-(--muted) hover:text-(--txt) hover:bg-(--surface-2)/50'
             }`}
           >
             {b.name}
@@ -188,9 +188,9 @@ export function BrandVoiceSettings() {
           value={websiteUrl}
           onChange={(e) => setWebsiteUrl(e.target.value)}
           placeholder="https://www.yourapp.com"
-          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+          className="w-full rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) placeholder:text-(--muted-2) focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
         />
-        <p className="text-xs text-white">Your app or brand website. Used to give AI context about your product.</p>
+        <p className="text-xs text-(--muted)">Your app or brand website. Used to give AI context about your product.</p>
       </div>
 
       <div className="space-y-2">
@@ -200,9 +200,9 @@ export function BrandVoiceSettings() {
           onChange={(e) => setDescription(e.target.value)}
           placeholder="e.g., Affectly is an AI-powered learning app that adapts lessons to your emotional state. It offers mood check-ins, personalized study sessions, flashcards with spaced repetition, and emotional analytics."
           rows={3}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 resize-none"
+          className="w-full rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) placeholder:text-(--muted-2) focus:outline-none focus:ring-2 focus:ring-(--violet)/50 resize-none"
         />
-        <p className="text-xs text-white">A short summary of your brand. AI uses this to write accurate, relevant captions.</p>
+        <p className="text-xs text-(--muted)">A short summary of your brand. AI uses this to write accurate, relevant captions.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -211,7 +211,7 @@ export function BrandVoiceSettings() {
           <select
             value={tone}
             onChange={(e) => setTone(e.target.value)}
-            className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+            className="w-full rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
           >
             {TONE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -226,7 +226,7 @@ export function BrandVoiceSettings() {
           <select
             value={style}
             onChange={(e) => setStyle(e.target.value)}
-            className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+            className="w-full rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
           >
             {STYLE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -246,9 +246,9 @@ export function BrandVoiceSettings() {
           onChange={(e) => setDos(e.target.value)}
           placeholder="e.g., call-to-action, brand hashtag, community questions"
           rows={3}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 resize-none"
+          className="w-full rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) placeholder:text-(--muted-2) focus:outline-none focus:ring-2 focus:ring-(--violet)/50 resize-none"
         />
-        <p className="text-xs text-white">Comma-separated list of things AI should include in captions</p>
+        <p className="text-xs text-(--muted)">Comma-separated list of things AI should include in captions</p>
       </div>
 
       <div className="space-y-2">
@@ -260,16 +260,16 @@ export function BrandVoiceSettings() {
           onChange={(e) => setDonts(e.target.value)}
           placeholder="e.g., slang, technical jargon, competitor mentions"
           rows={3}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 resize-none"
+          className="w-full rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) placeholder:text-(--muted-2) focus:outline-none focus:ring-2 focus:ring-(--violet)/50 resize-none"
         />
-        <p className="text-xs text-white">Comma-separated list of things AI should avoid in captions</p>
+        <p className="text-xs text-(--muted)">Comma-separated list of things AI should avoid in captions</p>
       </div>
 
       <div className="flex items-center gap-4">
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 rounded-lg bg-(--violet) px-5 py-2.5 text-sm font-medium text-white transition hover:bg-(--violet-bright) disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -282,7 +282,7 @@ export function BrandVoiceSettings() {
         {message && (
           <p
             className={`text-sm ${
-              message.type === 'success' ? 'text-teal-400' : 'text-red-400'
+              message.type === 'success' ? 'text-(--success)' : 'text-red-400'
             }`}
           >
             {message.text}

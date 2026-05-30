@@ -47,16 +47,16 @@ export function PostAnalyzer() {
   };
 
   return (
-    <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-5 space-y-5">
+    <div className="rounded-2xl border border-(--line) bg-(--surface) p-5 space-y-5">
       <div className="flex items-center gap-3">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
           <Sparkles className="h-4 w-4 text-purple-400" />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-white uppercase tracking-wider">
+          <h3 className="text-sm font-semibold text-(--txt) uppercase tracking-wider">
             Post Analyzer
           </h3>
-          <p className="text-xs text-white">
+          <p className="text-xs text-(--muted)">
             Paste an Instagram post URL to get AI-powered analysis
           </p>
         </div>
@@ -70,7 +70,7 @@ export function PostAnalyzer() {
           onKeyDown={(e) => { if (e.key === 'Enter') void handleAnalyze(); }}
           placeholder="https://instagram.com/p/ABC123/"
           disabled={loading}
-          className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 disabled:opacity-50"
+          className="flex-1 rounded-lg border border-(--line) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) placeholder:text-(--muted-2) focus:outline-none focus:ring-2 focus:ring-(--violet) disabled:opacity-50"
         />
         <button
           onClick={() => void handleAnalyze()}
@@ -95,9 +95,9 @@ export function PostAnalyzer() {
       {result && (
         <div className="space-y-4">
           {/* Post preview */}
-          <div className="flex flex-col md:flex-row gap-4 rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-4">
+          <div className="flex flex-col md:flex-row gap-4 rounded-2xl border border-(--line) bg-(--surface-2) p-4">
             {result.imageUrl && (
-              <div className="w-full md:w-48 h-48 flex-shrink-0 rounded-lg overflow-hidden bg-zinc-700">
+              <div className="w-full md:w-48 h-48 flex-shrink-0 rounded-lg overflow-hidden bg-(--surface-2)">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={result.imageUrl}
@@ -108,26 +108,26 @@ export function PostAnalyzer() {
             )}
             <div className="flex-1 space-y-3">
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5 text-white">
+                <div className="flex items-center gap-1.5 text-(--txt)">
                   <Heart className="h-4 w-4 text-red-400" />
                   <span className="text-sm font-medium">{result.likes.toLocaleString()}</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-white">
-                  <MessageCircle className="h-4 w-4 text-blue-400" />
+                <div className="flex items-center gap-1.5 text-(--txt)">
+                  <MessageCircle className="h-4 w-4 text-(--violet-bright)" />
                   <span className="text-sm font-medium">{result.comments.toLocaleString()}</span>
                 </div>
                 <a
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ml-auto flex items-center gap-1 text-xs text-teal-400 hover:text-teal-300"
+                  className="ml-auto flex items-center gap-1 text-xs text-(--violet-bright) hover:text-(--violet)"
                 >
                   <ExternalLink className="h-3 w-3" />
                   View Post
                 </a>
               </div>
               {result.caption && (
-                <p className="text-sm text-white leading-relaxed line-clamp-4">
+                <p className="text-sm text-(--muted) leading-relaxed line-clamp-4">
                   {result.caption}
                 </p>
               )}
@@ -138,9 +138,9 @@ export function PostAnalyzer() {
           <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-4 space-y-2">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-purple-400" />
-              <h4 className="text-sm font-semibold text-white">AI Analysis</h4>
+              <h4 className="text-sm font-semibold text-(--txt)">AI Analysis</h4>
             </div>
-            <div className="text-sm text-white leading-relaxed whitespace-pre-line">
+            <div className="text-sm text-(--muted) leading-relaxed whitespace-pre-line">
               {result.analysis}
             </div>
           </div>

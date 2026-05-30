@@ -84,9 +84,9 @@ interface HistoryPayload {
 }
 
 const VERDICT_STYLES: Record<InsightCard['verdict'], string> = {
-  positive: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+  positive: 'bg-(--cyan)/15 text-(--cyan) border-(--cyan)/30',
   opportunity: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  negative: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+  negative: 'bg-(--pink)/15 text-(--pink) border-rose-500/30',
 };
 
 interface MetaOverrides {
@@ -448,17 +448,17 @@ export function SmartPostsDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-4">
+      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-(--line) bg-(--surface) p-4">
         {/* Single brand picker — IG account is resolved from the brand's
             instagramHandle, so we never show a separate IG dropdown. The
             label on each option includes the @handle when we can match it
             to a connected Meta account. */}
         <div className="flex items-center gap-3">
-          <label className="text-sm text-white">Brand</label>
+          <label className="text-sm text-(--muted)">Brand</label>
           <select
             value={brandId}
             onChange={(e) => setBrand(e.target.value || null)}
-            className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-white focus:border-teal-500 focus:outline-none"
+            className="rounded-lg border border-(--line) bg-(--surface-2) px-3 py-1.5 text-sm text-(--txt) focus:border-(--violet) focus:outline-none"
           >
             {brandList.length === 0 && <option value="">No brands</option>}
             {brandList.map((b) => {
@@ -481,13 +481,13 @@ export function SmartPostsDashboard() {
         <div className="flex items-center gap-4 text-sm">
           {healthScore !== null && (
             <div className="flex items-center gap-2">
-              <span className="text-white">Health</span>
-              <span className="text-lg font-semibold text-teal-300">{healthScore}/100</span>
+              <span className="text-(--muted)">Health</span>
+              <span className="text-lg font-semibold text-(--cyan)">{healthScore}/100</span>
               {history?.delta != null && <DeltaBadge delta={history.delta} />}
             </div>
           )}
-          <span className="text-white">·</span>
-          <span className="text-white">{actionable.length} learnings</span>
+          <span className="text-(--muted-2)">·</span>
+          <span className="text-(--muted)">{actionable.length} learnings</span>
         </div>
 
         {/* Source toggle: only render when the user has at least one IG
@@ -510,7 +510,7 @@ export function SmartPostsDashboard() {
             onClick={() => void loadInsights(true)}
             disabled={refreshing || loadingInsights}
             title="Rescrape Instagram + Buffer engagement, then recompute learnings"
-            className={`${hasIgAccounts ? '' : 'ml-auto '}inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60`}
+            className={`${hasIgAccounts ? '' : 'ml-auto '}inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--surface-2) px-3 py-1.5 text-sm font-medium text-(--txt) hover:bg-white/[0.04] disabled:opacity-60`}
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshStage === 'syncing'
@@ -522,7 +522,7 @@ export function SmartPostsDashboard() {
         ) : (
           <Link
             href="/analytics"
-            className={`${hasIgAccounts ? '' : 'ml-auto '}inline-flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-teal-500`}
+            className={`${hasIgAccounts ? '' : 'ml-auto '}cta-violet inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold`}
           >
             Scrape in Analytics →
           </Link>
@@ -530,7 +530,7 @@ export function SmartPostsDashboard() {
       </div>
 
       {refreshMessage && (
-        <div className="flex items-center gap-2 rounded-lg border border-teal-500/20 bg-teal-500/5 px-3 py-2 text-xs text-teal-200">
+        <div className="flex items-center gap-2 rounded-lg border border-(--violet-24) bg-(--violet-08) px-3 py-2 text-xs text-(--violet-bright)">
           <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
           {refreshMessage}
         </div>
@@ -540,7 +540,7 @@ export function SmartPostsDashboard() {
 
       {loadingInsights ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-teal-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-(--violet-bright)" />
         </div>
       ) : loadError ? (
         <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-6 text-sm text-rose-200">
@@ -555,14 +555,14 @@ export function SmartPostsDashboard() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           {/* Generate area */}
           <section className="space-y-4">
-            <div className="rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-900/20 to-zinc-900/50 p-6">
+            <div className="rounded-2xl border border-(--violet-24) bg-gradient-to-br from-(--violet-12) to-(--surface) p-6">
               <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-500/15">
-                  <Sparkles className="h-5 w-5 text-teal-300" />
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-(--violet-12)">
+                  <Sparkles className="h-5 w-5 text-(--violet-bright)" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-lg font-semibold text-white">Your Perfect Post</h2>
-                  <p className="mt-1 text-sm text-white">
+                  <h2 className="text-lg font-semibold text-(--txt)">Your Perfect Post</h2>
+                  <p className="mt-1 text-sm text-(--muted)">
                     One post that embeds every learning from your data — best content type, winning
                     hook, optimal timing, and the topics and hashtags to avoid.
                   </p>
@@ -582,7 +582,7 @@ export function SmartPostsDashboard() {
                 <button
                   onClick={() => void handleGenerate()}
                   disabled={!canGenerate}
-                  className="mt-5 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-60"
+                  className="cta-violet mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-60"
                 >
                   {generating ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -595,7 +595,7 @@ export function SmartPostsDashboard() {
 
               {post && (
                 <div className="mt-5 grid gap-5 md:grid-cols-[320px_1fr]">
-                  <div className="relative aspect-square overflow-hidden rounded-xl bg-zinc-950">
+                  <div className="relative aspect-square overflow-hidden rounded-xl bg-(--bg)">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={post.imageDataUrl}
@@ -604,10 +604,10 @@ export function SmartPostsDashboard() {
                     />
                   </div>
                   <div className="space-y-3 text-sm">
-                    <p className="whitespace-pre-wrap text-white">{post.caption}</p>
-                    {post.hashtags && <p className="text-xs text-teal-300">{post.hashtags}</p>}
+                    <p className="whitespace-pre-wrap text-(--muted)">{post.caption}</p>
+                    {post.hashtags && <p className="text-xs text-(--violet-bright)">{post.hashtags}</p>}
                     {post.suggestedPostTime && (
-                      <p className="inline-flex items-center gap-1.5 rounded-full bg-zinc-800/80 px-2.5 py-1 text-xs text-white">
+                      <p className="inline-flex items-center gap-1.5 rounded-full bg-(--surface-2) px-2.5 py-1 text-xs text-(--muted)">
                         <Calendar className="h-3 w-3" />
                         Best time: {post.suggestedPostTime.day} around{' '}
                         {post.suggestedPostTime.hour}:00
@@ -625,7 +625,7 @@ export function SmartPostsDashboard() {
 
                     {post.candidates && post.candidates.length > 1 && post.renderParams && (
                       <div className="pt-2">
-                        <p className="mb-1.5 text-xs uppercase tracking-wide text-zinc-400">
+                        <p className="mb-1.5 text-xs uppercase tracking-wide text-(--muted)">
                           Swap image
                         </p>
                         <CandidateStrip
@@ -642,7 +642,7 @@ export function SmartPostsDashboard() {
                       <button
                         onClick={() => void handleGenerate()}
                         disabled={generating}
-                        className="inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                        className="inline-flex items-center gap-2 rounded-lg border border-(--line-strong) bg-(--surface) px-3 py-1.5 text-xs font-medium text-white hover:bg-(--surface-2) disabled:opacity-60"
                       >
                         {generating ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -654,7 +654,7 @@ export function SmartPostsDashboard() {
                       <button
                         onClick={() => void handleSchedule()}
                         disabled={scheduling}
-                        className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-500 disabled:opacity-60"
+                        className="inline-flex items-center gap-2 rounded-lg bg-(--violet) px-3 py-1.5 text-xs font-semibold text-white hover:bg-(--violet-bright) disabled:opacity-60"
                       >
                         {scheduling ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -667,7 +667,7 @@ export function SmartPostsDashboard() {
                       </button>
                       <button
                         onClick={handleDownload}
-                        className="inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800"
+                        className="inline-flex items-center gap-2 rounded-lg border border-(--line-strong) bg-(--surface) px-3 py-1.5 text-xs font-medium text-white hover:bg-(--surface-2)"
                       >
                         <Download className="h-3.5 w-3.5" />
                         Download
@@ -701,10 +701,10 @@ export function SmartPostsDashboard() {
                     key={card.id}
                     className={`rounded-lg border p-3 transition ${
                       active
-                        ? 'border-teal-500/50 bg-teal-500/5'
+                        ? 'border-(--violet-24) bg-(--violet-08)'
                         : dim
-                          ? 'border-zinc-800/40 bg-zinc-900/30 opacity-50'
-                          : 'border-zinc-800/60 bg-zinc-900/50'
+                          ? 'border-(--line) bg-(--surface) opacity-50'
+                          : 'border-(--line) bg-(--surface)'
                     }`}
                   >
                     <div className="flex items-start gap-2">
@@ -719,17 +719,17 @@ export function SmartPostsDashboard() {
                           {card.summary}
                         </p>
                         {active && (
-                          <p className="mt-1.5 rounded border border-teal-500/30 bg-teal-500/10 px-2 py-1 text-[11px] font-medium text-teal-200">
+                          <p className="mt-1.5 rounded border border-(--violet-24) bg-(--violet-12) px-2 py-1 text-[11px] font-medium text-(--violet-bright)">
                             {contribution}
                           </p>
                         )}
                         {dim && (
-                          <p className="mt-1.5 text-[10px] uppercase tracking-wide text-zinc-500">
+                          <p className="mt-1.5 text-[10px] uppercase tracking-wide text-(--muted-2)">
                             Not used this run
                           </p>
                         )}
                       </div>
-                      {active && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-teal-300" />}
+                      {active && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-(--violet-bright)" />}
                     </div>
                   </div>
                 );
@@ -754,7 +754,7 @@ export function SmartPostsDashboard() {
 function DeltaBadge({ delta }: { delta: number }) {
   if (delta === 0) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-white">
+      <span className="inline-flex items-center gap-1 rounded-full bg-(--surface-2) px-2 py-0.5 text-xs text-white">
         <Minus className="h-3 w-3" /> 0
       </span>
     );
@@ -763,7 +763,7 @@ function DeltaBadge({ delta }: { delta: number }) {
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-        up ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'
+        up ? 'bg-(--cyan)/15 text-(--cyan)' : 'bg-(--pink)/15 text-(--pink)'
       }`}
     >
       {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -817,9 +817,9 @@ function MetaSeedBanner({ overrides }: { overrides: MetaOverrides }) {
 
 function EmptyState() {
   return (
-    <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-10 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-500/10">
-        <Sparkles className="h-7 w-7 text-teal-400" />
+    <div className="rounded-2xl border border-(--line) bg-(--surface) p-10 text-center">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-(--violet-12)">
+        <Sparkles className="h-7 w-7 text-(--violet-bright)" />
       </div>
       <h2 className="mt-4 text-lg font-semibold text-white">No learnings yet</h2>
       <p className="mx-auto mt-2 max-w-md text-sm text-white">
@@ -828,7 +828,7 @@ function EmptyState() {
       </p>
       <Link
         href="/analytics"
-        className="mt-5 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-500"
+        className="mt-5 inline-flex items-center gap-2 rounded-xl bg-(--violet) px-5 py-2.5 text-sm font-semibold text-white hover:bg-(--violet-bright)"
       >
         Go to Analytics
       </Link>
