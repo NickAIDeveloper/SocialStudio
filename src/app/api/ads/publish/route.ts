@@ -7,7 +7,7 @@ import { getUserId } from '@/lib/auth-helpers';
 import { decrypt } from '@/lib/encryption';
 import {
   uploadAdImage, createCampaign, createAdSet, createAdCreative, createAd,
-  uploadAdVideo, waitForVideoReady, createVideoCreative,
+  createVideoCreative,
   searchAdInterests, buildAdsManagerUrl,
 } from '@/lib/meta/ads';
 import {
@@ -141,8 +141,8 @@ export async function POST(request: NextRequest) {
     // Ordered write sequence — all PAUSED.
     // Validate video-specific fields before any write.
     if (draft.mediaType === 'video') {
-      if (!draft.videoUrl || !draft.thumbnailUrl) {
-        return NextResponse.json({ error: 'video_incomplete', message: 'videoUrl and thumbnailUrl are required for video ads.' }, { status: 400 });
+      if (!draft.videoUrl || !draft.thumbnailUrl || !draft.videoId) {
+        return NextResponse.json({ error: 'video_incomplete', message: 'videoUrl, thumbnailUrl, and a processed videoId are required for video ads. Re-upload the video.' }, { status: 400 });
       }
     }
 
@@ -160,12 +160,11 @@ export async function POST(request: NextRequest) {
     const message = [draft.primaryText, draft.hashtags.join(' ')].filter(Boolean).join('\n\n');
 
     if (draft.mediaType === 'video') {
-      // Video path: upload to advideos, poll until ready, then build a video_data creative.
-      const videoId = await uploadAdVideo(accessToken, adAccountId, draft.videoUrl!);
-      await waitForVideoReady(accessToken, videoId);
+      // Video path: the video was already uploaded to /advideos and polled until
+      // READY by /api/ads/upload-video, so we only reference its videoId here.
       createdCreative = await createVideoCreative(accessToken, adAccountId, {
         pageId, igAccountId,
-        videoId, thumbnailUrl: draft.thumbnailUrl!, message, headline: draft.headline,
+        videoId: draft.videoId!, thumbnailUrl: draft.thumbnailUrl!, message, headline: draft.headline,
         link: creativeLink, cta: draft.cta,
       });
     } else {

@@ -85,6 +85,10 @@ export interface AdDraft {
   mediaType?: 'image' | 'video';
   videoUrl?: string;
   thumbnailUrl?: string;
+  // The Meta video id returned by the upload step once the video has finished
+  // processing (READY). publish/ references this directly and never re-uploads
+  // or polls.
+  videoId?: string;
 }
 
 // The audience/budget the user sets in Step 3, sent to /api/ads/publish.

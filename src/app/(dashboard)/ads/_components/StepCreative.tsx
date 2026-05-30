@@ -31,11 +31,11 @@ export function StepCreative(props: {
       const formData = new FormData();
       formData.append('video', file);
       const res = await fetch('/api/ads/upload-video', { method: 'POST', body: formData });
-      const json = await res.json() as { url?: string; error?: string; message?: string };
+      const json = await res.json() as { url?: string; videoId?: string; error?: string; message?: string };
       if (!res.ok) throw new Error(json.message ?? json.error ?? 'Upload failed');
       const url = json.url;
-      if (!url) throw new Error('No URL returned from upload');
-      setDraft({ ...draft, videoUrl: url });
+      if (!url || !json.videoId) throw new Error('Video upload did not complete processing');
+      setDraft({ ...draft, videoUrl: url, videoId: json.videoId });
     } catch (err) {
       setVideoError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -45,7 +45,7 @@ export function StepCreative(props: {
   }
 
   const canNext = isVideo
-    ? Boolean(draft.videoUrl) && /^https?:\/\//.test(draft.thumbnailUrl ?? '') && Boolean(draft.primaryText)
+    ? Boolean(draft.videoUrl) && Boolean(draft.videoId) && /^https?:\/\//.test(draft.thumbnailUrl ?? '') && Boolean(draft.primaryText)
     : /^https?:\/\//.test(draft.imageUrl) && Boolean(draft.primaryText);
 
   return (
@@ -103,7 +103,7 @@ export function StepCreative(props: {
                 disabled={videoUploading}
                 className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
               >
-                {videoUploading ? 'Uploading…' : 'Upload video'}
+                {videoUploading ? 'Uploading & processing…' : 'Upload video'}
               </button>
               {videoError && <span className="text-sm text-red-400">{videoError}</span>}
             </div>

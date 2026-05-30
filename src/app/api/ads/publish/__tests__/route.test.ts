@@ -73,6 +73,8 @@ import {
   createCampaign, createAdSet, createAd, createAdCreative,
   uploadAdVideo, waitForVideoReady, createVideoCreative,
 } from '@/lib/meta/ads';
+// uploadAdVideo + waitForVideoReady moved to /api/ads/upload-video; publish must
+// NOT call them anymore. They remain imported here to assert they are not used.
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -295,22 +297,24 @@ describe('POST /api/ads/publish', () => {
     mediaType: 'video' as const,
     videoUrl: 'https://blob/clip.mp4',
     thumbnailUrl: 'https://blob/thumb.jpg',
+    videoId: 'vid_1', // already uploaded + processed by /api/ads/upload-video
   };
 
-  it('video happy path: returns 200 PAUSED, calls uploadAdVideo + waitForVideoReady + createVideoCreative', async () => {
+  it('video happy path: returns 200 PAUSED, calls createVideoCreative with the ready videoId (no upload/poll)', async () => {
     const res = await POST(makeReq({ ...validBody, draft: validVideoDraft }));
     const json = await res.json();
     expect(res.status).toBe(200);
     expect(json.campaignId).toBe('camp_1');
     expect(json.adId).toBe('ad_1');
 
-    expect(vi.mocked(uploadAdVideo)).toHaveBeenCalledOnce();
-    expect(vi.mocked(waitForVideoReady)).toHaveBeenCalledOnce();
+    // Upload + poll now happen in /api/ads/upload-video, NOT here.
+    expect(vi.mocked(uploadAdVideo)).not.toHaveBeenCalled();
+    expect(vi.mocked(waitForVideoReady)).not.toHaveBeenCalled();
     expect(vi.mocked(createVideoCreative)).toHaveBeenCalledOnce();
     // Image path must NOT be called.
     expect(vi.mocked(createAdCreative)).not.toHaveBeenCalled();
 
-    // createVideoCreative should have received the thumbnailUrl.
+    // createVideoCreative should have received the thumbnailUrl + the ready videoId.
     const videoCreativeInput = vi.mocked(createVideoCreative).mock.calls[0][2];
     expect(videoCreativeInput.thumbnailUrl).toBe('https://blob/thumb.jpg');
     expect(videoCreativeInput.videoId).toBe('vid_1');
@@ -325,6 +329,15 @@ describe('POST /api/ads/publish', () => {
     const res = await POST(makeReq({
       ...validBody,
       draft: { ...validVideoDraft, videoUrl: undefined },
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('video_incomplete');
+  });
+
+  it('returns 400 video_incomplete when mediaType is video but videoId is missing', async () => {
+    const res = await POST(makeReq({
+      ...validBody,
+      draft: { ...validVideoDraft, videoId: undefined },
     }));
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('video_incomplete');

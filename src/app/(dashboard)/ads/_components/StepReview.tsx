@@ -26,9 +26,12 @@ export function StepReview(props: {
           draft: props.draft, targeting: props.targeting,
         }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message ?? json.error ?? 'Publish failed');
-      setResult({ adsManagerUrl: json.adsManagerUrl });
+      // The body may not be JSON on gateway-level failures (e.g. a 504 HTML
+      // page), so parse defensively before reading any error fields.
+      let json: { adsManagerUrl?: string; error?: string; message?: string } = {};
+      try { json = await res.json(); } catch { /* non-JSON error body */ }
+      if (!res.ok) throw new Error(json.message ?? json.error ?? `Request failed (${res.status})`);
+      setResult({ adsManagerUrl: json.adsManagerUrl ?? '' });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Publish failed');
     } finally {
