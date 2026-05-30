@@ -25,6 +25,7 @@ export function StepGoal(props: {
   // APP-objective state
   const [apps, setApps] = useState<AdvertisableApp[]>([]);
   const [appsLoading, setAppsLoading] = useState(false);
+  const [appsTokenExpired, setAppsTokenExpired] = useState(false);
   const [applicationId, setApplicationId] = useState<string>('');
 
   const isApp = props.objective === 'APP';
@@ -36,8 +37,11 @@ export function StepGoal(props: {
     setAppsLoading(true);
     fetch('/api/meta/apps')
       .then((r) => r.json())
-      .then((json: { success?: boolean; apps?: AdvertisableApp[] }) => {
-        if (!cancelled) setApps(json.apps ?? []);
+      .then((json: { success?: boolean; apps?: AdvertisableApp[]; tokenExpired?: boolean }) => {
+        if (!cancelled) {
+          setAppsTokenExpired(Boolean(json.tokenExpired));
+          setApps(json.apps ?? []);
+        }
       })
       .catch(() => {
         if (!cancelled) setApps([]);
@@ -125,6 +129,13 @@ export function StepGoal(props: {
           <label className="mb-1 block text-sm font-medium text-zinc-300">App</label>
           {appsLoading ? (
             <p className="text-sm text-zinc-400">Loading apps…</p>
+          ) : appsTokenExpired ? (
+            <p className="text-sm text-zinc-400">
+              Your Meta connection has expired. Reconnect to load your apps.{' '}
+              <a href="/api/meta/oauth/start" className="text-teal-400 hover:text-teal-300 underline">
+                Reconnect Meta
+              </a>
+            </p>
           ) : apps.length === 0 ? (
             <p className="text-sm text-zinc-400">
               No promotable apps found on your ad account. Add your iOS app in Meta

@@ -41,6 +41,10 @@ export async function GET() {
       return NextResponse.json({ success: true, apps: [] });
     }
 
+    if (account.tokenExpiresAt && account.tokenExpiresAt <= new Date()) {
+      return NextResponse.json({ success: true, apps: [], tokenExpired: true });
+    }
+
     const accessToken = decrypt(account.accessToken);
 
     let apps: Awaited<ReturnType<typeof getAdvertisableApps>> = [];
