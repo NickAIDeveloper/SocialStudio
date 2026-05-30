@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth-helpers';
-import { put } from '@vercel/blob';
+import { uploadImageToGitHub } from '@/lib/github-images';
 import sharp from 'sharp';
 import crypto from 'node:crypto';
 
@@ -55,12 +55,9 @@ export async function POST(request: NextRequest) {
       .jpeg({ quality: 88 })
       .toBuffer();
 
-    const blob = await put(`ad-images/${crypto.randomUUID()}.jpg`, out, {
-      access: 'public',
-      contentType: 'image/jpeg',
-    });
+    const { url } = await uploadImageToGitHub(out, `ad-${crypto.randomUUID()}.jpg`);
 
-    return NextResponse.json({ url: blob.url });
+    return NextResponse.json({ url });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

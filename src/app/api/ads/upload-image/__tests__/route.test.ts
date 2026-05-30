@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-const { putMock, sharpMock } = vi.hoisted(() => {
+const { uploadImageToGitHubMock, sharpMock } = vi.hoisted(() => {
   const metaMock = vi.fn().mockResolvedValue({ format: 'png' });
   const sharpInstance = {
     metadata: metaMock,
@@ -11,13 +11,17 @@ const { putMock, sharpMock } = vi.hoisted(() => {
   };
   const sharpMock = vi.fn(() => sharpInstance);
   return {
-    putMock: vi.fn().mockResolvedValue({ url: 'https://blob/x.jpg' }),
+    uploadImageToGitHubMock: vi.fn().mockResolvedValue({
+      url: 'https://raw.githubusercontent.com/NickAIDeveloper/SocialStudio/main/images/ad-x.jpg',
+      path: 'images/ad-x.jpg',
+      sha: 'abc',
+    }),
     sharpMock,
   };
 });
 
 vi.mock('@/lib/auth-helpers', () => ({ getUserId: vi.fn().mockResolvedValue('u1') }));
-vi.mock('@vercel/blob', () => ({ put: putMock }));
+vi.mock('@/lib/github-images', () => ({ uploadImageToGitHub: uploadImageToGitHubMock }));
 vi.mock('sharp', () => ({ default: sharpMock }));
 
 import { POST } from '../route';
@@ -39,7 +43,11 @@ function makeRequest(fd: FormData): NextRequest {
 describe('POST /api/ads/upload-image', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    putMock.mockResolvedValue({ url: 'https://blob/x.jpg' });
+    uploadImageToGitHubMock.mockResolvedValue({
+      url: 'https://raw.githubusercontent.com/NickAIDeveloper/SocialStudio/main/images/ad-x.jpg',
+      path: 'images/ad-x.jpg',
+      sha: 'abc',
+    });
   });
 
   it('returns 400 when no file is provided', async () => {
@@ -71,19 +79,17 @@ describe('POST /api/ads/upload-image', () => {
     expect(json.error).toContain('8MB');
   });
 
-  it('returns 200 with blob url for valid png upload', async () => {
+  it('returns 200 with github url for valid png upload', async () => {
     const file = new File([new Uint8Array([1, 2, 3])], 'photo.png', { type: 'image/png' });
     const fd = new FormData();
     fd.set('image', file);
     const res = await POST(makeRequest(fd));
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.url).toBe('https://blob/x.jpg');
-    expect(putMock).toHaveBeenCalledOnce();
-    const [blobPath, , opts] = putMock.mock.calls[0];
-    expect(blobPath).toMatch(/^ad-images\/.+\.jpg$/);
-    expect(opts.access).toBe('public');
-    expect(opts.contentType).toBe('image/jpeg');
+    expect(json.url).toBe('https://raw.githubusercontent.com/NickAIDeveloper/SocialStudio/main/images/ad-x.jpg');
+    expect(uploadImageToGitHubMock).toHaveBeenCalledOnce();
+    const [, fileName] = uploadImageToGitHubMock.mock.calls[0];
+    expect(fileName).toMatch(/^ad-.+\.jpg$/);
   });
 
   it('returns 401 when getUserId rejects with Unauthorized', async () => {
