@@ -66,6 +66,10 @@ export async function createCampaign(
       objective: metaObjective,
       status: 'PAUSED',
       special_ad_categories: JSON.stringify([]),
+      // Meta Marketing API v21+ rejects campaign creation without this flag
+      // (error subcode 4834011). We keep budget at the ad-set level (no campaign
+      // budget optimization), so ad-set budget sharing is disabled.
+      is_adset_budget_sharing_enabled: 'false',
     },
   );
   return json.id;

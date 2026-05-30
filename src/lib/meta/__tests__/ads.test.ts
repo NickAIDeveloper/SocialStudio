@@ -54,6 +54,9 @@ describe('meta/ads write client', () => {
     const body = String(fetchMock.mock.calls[0][1].body);
     expect(body).toContain('status=PAUSED');
     expect(body).toContain('OUTCOME_TRAFFIC');
+    // Meta v21 requires this be explicitly set when the campaign has no CBO;
+    // budget lives on the ad set, so sharing is disabled.
+    expect(body).toContain('is_adset_budget_sharing_enabled=false');
   });
 
   it('createAdSet sends PAUSED status and the daily budget', async () => {

@@ -39,6 +39,11 @@ export function StepReview(props: {
     }
   }
 
+  // Budget is stored in minor units (cents). Show it the way the user entered it:
+  // a major-unit amount in the selected ad account's currency, e.g. "A$30.00/day".
+  const selectedCurrency = props.adAccounts.find((a) => a.id === adAccountId)?.currency;
+  const budgetLabel = formatDailyBudget(props.targeting.dailyBudgetMinor, selectedCurrency);
+
   if (result) {
     return (
       <div className="space-y-4 rounded-xl border border-teal-700 bg-teal-500/10 p-6">
@@ -75,7 +80,7 @@ export function StepReview(props: {
         <Row k="Destination" v={props.draft.destinationUrl} />
         <Row k="Countries" v={props.targeting.countries.join(', ')} />
         <Row k="Age" v={`${props.targeting.ageMin}–${props.targeting.ageMax}`} />
-        <Row k="Daily budget (minor)" v={String(props.targeting.dailyBudgetMinor)} />
+        <Row k="Daily budget" v={budgetLabel} />
       </dl>
 
       <div className="rounded-lg border border-amber-700 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
@@ -93,6 +98,21 @@ export function StepReview(props: {
       </div>
     </div>
   );
+}
+
+// Convert minor units (cents) to a human "<amount>/day" string. Uses the ad
+// account currency when known so symbol + decimals match Meta; falls back to a
+// plain two-decimal amount when currency is unavailable.
+function formatDailyBudget(minor: number, currency?: string): string {
+  const major = minor / 100;
+  if (currency) {
+    try {
+      return `${new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(major)}/day`;
+    } catch {
+      /* unknown currency code — fall through to plain formatting */
+    }
+  }
+  return `${major.toFixed(2)}/day`;
 }
 
 function Row(props: { k: string; v: string }) {
