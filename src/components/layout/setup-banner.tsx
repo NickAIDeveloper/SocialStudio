@@ -55,11 +55,11 @@ export function SetupBanner() {
   ];
 
   return (
-    <div className="mb-6 rounded-2xl border border-[--violet-24] bg-[--violet-08] p-4">
+    <div className="mb-6 rounded-2xl border border-(--violet-24) bg-(--violet-08) p-4">
       <div className="flex items-start gap-3">
-        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[--violet-bright]" />
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-(--violet-bright)" />
         <div className="flex-1">
-          <p className="text-sm font-semibold text-[--txt]">Finish setup to unlock everything</p>
+          <p className="text-sm font-semibold text-(--txt)">Finish setup to unlock everything</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {chips.filter((c) => !c.done).map((c) => (
               <Link key={c.label} href={c.href} className="chip hover:brightness-110">
@@ -68,7 +68,7 @@ export function SetupBanner() {
             ))}
           </div>
         </div>
-        <button type="button" onClick={() => setDismissed(true)} aria-label="Dismiss" className="rounded-lg p-1 text-[--muted-2] hover:bg-white/[0.04] hover:text-[--txt]">
+        <button type="button" onClick={() => setDismissed(true)} aria-label="Dismiss" className="rounded-lg p-1 text-(--muted-2) hover:bg-white/[0.04] hover:text-(--txt)">
           <X className="h-4 w-4" />
         </button>
       </div>
