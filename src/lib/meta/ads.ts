@@ -284,6 +284,30 @@ export async function searchAdInterests(
   return json.data?.[0] ?? null;
 }
 
+// Fetch each ad's effective_status from Meta. Best-effort: any failure maps to
+// null so the list still renders from stored data.
+export async function getAdStatuses(
+  accessToken: string,
+  adIds: string[],
+): Promise<Record<string, string | null>> {
+  const entries = await Promise.all(
+    adIds.map(async (id) => {
+      try {
+        const u = new URL(`${GRAPH_BASE}/${id}`);
+        u.searchParams.set('fields', 'effective_status');
+        u.searchParams.set('access_token', accessToken);
+        const res = await fetch(u, { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) return [id, null] as const;
+        const j = (await res.json()) as { effective_status?: string };
+        return [id, j.effective_status ?? null] as const;
+      } catch {
+        return [id, null] as const;
+      }
+    }),
+  );
+  return Object.fromEntries(entries);
+}
+
 // Deep link into Ads Manager filtered to the created campaign.
 export function buildAdsManagerUrl(adAccountId: string, campaignId: string): string {
   const num = adAccountId.replace('act_', '');
