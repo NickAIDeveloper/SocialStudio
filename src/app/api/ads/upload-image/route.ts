@@ -65,8 +65,12 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[ads/upload-image] Error:', message);
+    // Surface the cause so the user/logs show whether it's Blob config, sharp,
+    // etc. instead of an opaque "Failed to upload image".
     return NextResponse.json(
-      { error: 'Failed to upload image' },
+      { error: 'Failed to upload image', message: message.slice(0, 300) },
       { status: 500 },
     );
   }
