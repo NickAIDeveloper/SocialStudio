@@ -1,16 +1,16 @@
 // src/lib/meta/ads-types.ts
 // Single source of truth for the v1 ad-builder's objective/targeting shapes.
 
-export type AdObjective = 'TRAFFIC' | 'ENGAGEMENT' | 'LEADS';
+export type AdObjective = 'TRAFFIC' | 'ENGAGEMENT' | 'LEADS' | 'APP';
 
 // Maps our curated objective to the Meta ODAX objective + the ad-set
 // optimization/billing fields + the default CTA + which caption content-type
 // to ask /api/captions for. CTAs are restricted to ones valid on link ads.
 export interface ObjectiveConfig {
-  metaObjective: 'OUTCOME_TRAFFIC' | 'OUTCOME_ENGAGEMENT' | 'OUTCOME_LEADS';
-  optimizationGoal: 'LINK_CLICKS' | 'POST_ENGAGEMENT';
+  metaObjective: 'OUTCOME_TRAFFIC' | 'OUTCOME_ENGAGEMENT' | 'OUTCOME_LEADS' | 'OUTCOME_APP_PROMOTION';
+  optimizationGoal: 'LINK_CLICKS' | 'POST_ENGAGEMENT' | 'APP_INSTALLS';
   billingEvent: 'IMPRESSIONS';
-  defaultCta: 'LEARN_MORE' | 'SIGN_UP';
+  defaultCta: 'LEARN_MORE' | 'SIGN_UP' | 'INSTALL_MOBILE_APP';
   captionContentType: 'promo' | 'community';
   label: string;
   description: string;
@@ -44,6 +44,19 @@ export const OBJECTIVE_CONFIG: Record<AdObjective, ObjectiveConfig> = {
     label: 'Leads',
     description: 'Drive sign-ups on your site (website leads).',
   },
+  // NOTE: iOS 14+ app campaigns have SKAdNetwork (SKAN) nuances and a 9-campaign
+  // limit enforced by Meta. Delivery requires the app to be registered in Meta
+  // Business Manager (application_id) and SKAdNetwork values set up in the app's
+  // Info.plist. We do NOT configure SKAN here; this is handled on the Meta side.
+  APP: {
+    metaObjective: 'OUTCOME_APP_PROMOTION',
+    optimizationGoal: 'APP_INSTALLS',
+    billingEvent: 'IMPRESSIONS',
+    defaultCta: 'INSTALL_MOBILE_APP',
+    captionContentType: 'promo',
+    label: 'App installs',
+    description: 'Promote your iOS app on the App Store.',
+  },
 };
 
 export const HEADLINE_MAX = 40; // Meta truncates link-ad headlines hard.
@@ -60,6 +73,11 @@ export interface AdDraft {
   cta: ObjectiveConfig['defaultCta'];
   imageUrl: string;
   interestSuggestions: string[];
+  // APP objective only. appStoreUrl is the canonical App Store link used as the
+  // creative destination. applicationId is the Meta-registered app id (numeric
+  // string) required in promoted_object for OUTCOME_APP_PROMOTION delivery.
+  appStoreUrl?: string;
+  applicationId?: string;
 }
 
 // The audience/budget the user sets in Step 3, sent to /api/ads/publish.

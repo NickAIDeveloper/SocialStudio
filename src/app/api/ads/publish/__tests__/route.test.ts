@@ -66,7 +66,7 @@ vi.mock('@/lib/meta/ads', () => ({
 }));
 
 import { POST } from '../route';
-import { createCampaign, createAdSet, createAd } from '@/lib/meta/ads';
+import { createCampaign, createAdSet, createAd, createAdCreative } from '@/lib/meta/ads';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -208,5 +208,69 @@ describe('POST /api/ads/publish', () => {
     const inserted = insertValues.mock.calls[0][0] as Record<string, unknown>;
     expect(inserted.status).toBe('PAUSED');
     expect(inserted.adId).toBe('ad_1');
+  });
+
+  // ── APP objective ─────────────────────────────────────────────────────────
+
+  const validAppDraft = {
+    objective: 'APP',
+    destinationUrl: 'https://example.com', // ignored for APP; appStoreUrl is used
+    primaryText: 'Get the app',
+    hook: 'h',
+    headline: 'Download Now',
+    hashtags: [],
+    cta: 'INSTALL_MOBILE_APP',
+    imageUrl: 'https://img/x.jpg',
+    interestSuggestions: [],
+    appStoreUrl: 'https://apps.apple.com/app/my-app/id123456789',
+    applicationId: '123456789',
+  };
+
+  it('returns 400 app_setup_required when APP objective has no appStoreUrl', async () => {
+    const res = await POST(makeReq({
+      ...validBody,
+      draft: { ...validAppDraft, appStoreUrl: undefined },
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('app_setup_required');
+  });
+
+  it('returns 400 app_setup_required when APP objective has non-App-Store URL', async () => {
+    const res = await POST(makeReq({
+      ...validBody,
+      draft: { ...validAppDraft, appStoreUrl: 'https://play.google.com/store/apps/details?id=com.example' },
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('app_setup_required');
+  });
+
+  it('returns 400 app_setup_required when APP objective has no applicationId', async () => {
+    const res = await POST(makeReq({
+      ...validBody,
+      draft: { ...validAppDraft, applicationId: '' },
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('app_setup_required');
+  });
+
+  it('APP happy path: returns 200, createAdSet called with promotedObject, creative link is App Store URL', async () => {
+    const res = await POST(makeReq({ ...validBody, draft: validAppDraft }));
+    const json = await res.json();
+    expect(res.status).toBe(200);
+    expect(json.campaignId).toBe('camp_1');
+    expect(json.adId).toBe('ad_1');
+
+    // createAdSet must have received promotedObject with both required fields.
+    const adSetCall = vi.mocked(createAdSet).mock.calls[0];
+    const adSetInput = adSetCall[2]; // (token, acctId, input)
+    expect(adSetInput.promotedObject).toBeDefined();
+    expect(adSetInput.promotedObject?.application_id).toBe('123456789');
+    expect(adSetInput.promotedObject?.object_store_url).toBe('https://apps.apple.com/app/my-app/id123456789');
+
+    // createAdCreative link must be the App Store URL, not destinationUrl.
+    const creativeCall = vi.mocked(createAdCreative).mock.calls[0];
+    const creativeInput = creativeCall[2]; // (token, acctId, input)
+    expect(creativeInput.link).toBe('https://apps.apple.com/app/my-app/id123456789');
+    expect(creativeInput.cta).toBe('INSTALL_MOBILE_APP');
   });
 });

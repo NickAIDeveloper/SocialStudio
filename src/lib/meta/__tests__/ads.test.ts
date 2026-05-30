@@ -136,4 +136,52 @@ describe('meta/ads write client', () => {
     expect(url).toContain('123');
     expect(url).toContain('camp_9');
   });
+
+  it('createAdSet with promotedObject includes promoted_object in the form body', async () => {
+    const g = global as unknown as { fetch: typeof fetch };
+    const fetchMock = mockFetchOnce({ id: 'adset_app_1' });
+    g.fetch = fetchMock as unknown as typeof fetch;
+
+    const id = await createAdSet('TOKEN', 'act_1', {
+      campaignId: 'camp_app_1',
+      optimizationGoal: 'APP_INSTALLS',
+      billingEvent: 'IMPRESSIONS',
+      dailyBudgetMinor: 500,
+      startTime: '2026-06-01T00:00:00Z',
+      endTime: '2026-06-08T00:00:00Z',
+      targeting: { geo_locations: { countries: ['US'] }, age_min: 18, age_max: 65 },
+      promotedObject: {
+        application_id: '123456789',
+        object_store_url: 'https://apps.apple.com/app/my-app/id123456789',
+      },
+    });
+    expect(id).toBe('adset_app_1');
+    const rawBody = String(fetchMock.mock.calls[0][1].body);
+    const decoded = decodeURIComponent(rawBody);
+    // promoted_object must be present and contain both required fields.
+    expect(decoded).toContain('"application_id"');
+    expect(decoded).toContain('"object_store_url"');
+    expect(decoded).toContain('123456789');
+    // Safety invariant: PAUSED must always be sent.
+    expect(rawBody).toContain('status=PAUSED');
+  });
+
+  it('createAdSet without promotedObject does NOT include promoted_object', async () => {
+    const g = global as unknown as { fetch: typeof fetch };
+    const fetchMock = mockFetchOnce({ id: 'adset_traffic_1' });
+    g.fetch = fetchMock as unknown as typeof fetch;
+
+    await createAdSet('TOKEN', 'act_1', {
+      campaignId: 'camp_traffic_1',
+      optimizationGoal: 'LINK_CLICKS',
+      billingEvent: 'IMPRESSIONS',
+      dailyBudgetMinor: 500,
+      startTime: '2026-06-01T00:00:00Z',
+      endTime: '2026-06-08T00:00:00Z',
+      targeting: { geo_locations: { countries: ['GB'] }, age_min: 18, age_max: 65 },
+    });
+    const rawBody = String(fetchMock.mock.calls[0][1].body);
+    expect(rawBody).not.toContain('promoted_object');
+    expect(rawBody).toContain('status=PAUSED');
+  });
 });

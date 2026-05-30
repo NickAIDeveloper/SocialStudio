@@ -98,6 +98,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'invalid_dates' }, { status: 400 });
     }
 
+    // APP objective: validate required App Store fields before any write.
+    const APP_STORE_RE = /^https?:\/\/(apps\.apple\.com|itunes\.apple\.com)/;
+    if (draft.objective === 'APP') {
+      if (!draft.appStoreUrl || !APP_STORE_RE.test(draft.appStoreUrl) || !draft.applicationId?.trim()) {
+        return NextResponse.json(
+          { error: 'app_setup_required', message: 'appStoreUrl (apps.apple.com) and applicationId are required for APP objective.' },
+          { status: 400 },
+        );
+      }
+    }
+
     const cfg = OBJECTIVE_CONFIG[draft.objective as AdObjective];
     metaObjective = cfg.metaObjective;
     const accessToken = decrypt(account.accessToken);
@@ -116,6 +127,16 @@ export async function POST(request: NextRequest) {
     if (genders) metaTargeting.genders = genders;
     if (resolved.length) metaTargeting.flexible_spec = [{ interests: resolved.map((r) => ({ id: r.id, name: r.name })) }];
 
+    // For APP objective, promoted_object links the ad set to the registered app.
+    // For all other objectives, promotedObject is undefined (omitted from request).
+    const promotedObject =
+      draft.objective === 'APP' && draft.applicationId && draft.appStoreUrl
+        ? { application_id: draft.applicationId, object_store_url: draft.appStoreUrl }
+        : undefined;
+
+    // APP ads use the App Store URL as the creative link; others use destinationUrl.
+    const creativeLink = draft.objective === 'APP' ? draft.appStoreUrl! : draft.destinationUrl;
+
     // Ordered write sequence — all PAUSED.
     const imageHash = await uploadAdImage(accessToken, adAccountId, draft.imageUrl);
     createdCampaign = await createCampaign(accessToken, adAccountId, cfg.metaObjective);
@@ -127,11 +148,12 @@ export async function POST(request: NextRequest) {
       startTime: targeting.startDate,
       endTime: targeting.endDate,
       targeting: metaTargeting,
+      promotedObject,
     });
     const message = [draft.primaryText, draft.hashtags.join(' ')].filter(Boolean).join('\n\n');
     createdCreative = await createAdCreative(accessToken, adAccountId, {
       pageId, igAccountId,
-      imageHash, message, headline: draft.headline, link: draft.destinationUrl, cta: draft.cta,
+      imageHash, message, headline: draft.headline, link: creativeLink, cta: draft.cta,
     });
     const adId = await createAd(accessToken, adAccountId, {
       adsetId: createdAdset, creativeId: createdCreative, name: `Ad — ${draft.headline}`,

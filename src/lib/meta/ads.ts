@@ -79,28 +79,40 @@ export interface AdSetInput {
   startTime: string;
   endTime: string;
   targeting: Record<string, unknown>;
+  // Required for OUTCOME_APP_PROMOTION. application_id is the Meta app id
+  // (numeric string from Meta Business Manager). object_store_url is the
+  // canonical App Store URL. When absent the field is omitted entirely so
+  // non-APP objectives are unaffected.
+  promotedObject?: { application_id: string; object_store_url: string };
 }
 
 // 3. Ad set (who/how-much/when). PAUSED.
+// For APP objective, pass input.promotedObject = { application_id, object_store_url }
+// so Meta can associate the ad set with the registered app. When absent (all other
+// objectives) the promoted_object field is omitted from the request entirely.
 export async function createAdSet(
   accessToken: string,
   adAccountId: string,
   input: AdSetInput,
 ): Promise<string> {
+  const fields: Record<string, string> = {
+    name: `Ad set — ${new Date().toISOString().slice(0, 16)}`,
+    campaign_id: input.campaignId,
+    optimization_goal: input.optimizationGoal,
+    billing_event: input.billingEvent,
+    daily_budget: String(input.dailyBudgetMinor),
+    start_time: input.startTime,
+    end_time: input.endTime,
+    targeting: JSON.stringify(input.targeting),
+    status: 'PAUSED',
+  };
+  if (input.promotedObject) {
+    fields.promoted_object = JSON.stringify(input.promotedObject);
+  }
   const json = await graphPost<{ id: string }>(
     `/${actId(adAccountId)}/adsets`,
     accessToken,
-    {
-      name: `Ad set — ${new Date().toISOString().slice(0, 16)}`,
-      campaign_id: input.campaignId,
-      optimization_goal: input.optimizationGoal,
-      billing_event: input.billingEvent,
-      daily_budget: String(input.dailyBudgetMinor),
-      start_time: input.startTime,
-      end_time: input.endTime,
-      targeting: JSON.stringify(input.targeting),
-      status: 'PAUSED',
-    },
+    fields,
   );
   return json.id;
 }
