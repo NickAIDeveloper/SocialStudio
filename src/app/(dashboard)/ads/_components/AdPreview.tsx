@@ -11,12 +11,24 @@ export function AdPreview(props: { draft: AdDraft | null }) {
       <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900">
         <div className="px-3 py-2 text-xs text-zinc-300">Your Page · Sponsored</div>
         {d?.primaryText && <div className="px-3 pb-2 text-sm text-zinc-200 whitespace-pre-wrap">{d.primaryText}</div>}
-        {d?.imageUrl
-          ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={d.imageUrl} alt="Ad" className="aspect-[1.91/1] w-full object-cover" />
-          )
-          : <div className="flex aspect-[1.91/1] w-full items-center justify-center bg-zinc-800 text-xs text-zinc-500">No image</div>}
+        {d?.mediaType === 'video'
+          ? (d?.thumbnailUrl
+            ? (
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={d.thumbnailUrl} alt="Ad" className="aspect-[1.91/1] w-full object-cover" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-sm text-white">▶</span>
+                </div>
+              </div>
+            )
+            : <div className="flex aspect-[1.91/1] w-full items-center justify-center bg-zinc-800 text-xs text-zinc-500">No image</div>)
+          : (d?.imageUrl
+            ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={d.imageUrl} alt="Ad" className="aspect-[1.91/1] w-full object-cover" />
+            )
+            : <div className="flex aspect-[1.91/1] w-full items-center justify-center bg-zinc-800 text-xs text-zinc-500">No image</div>)}
         <div className="flex items-center justify-between gap-2 border-t border-zinc-800 px-3 py-2">
           <div className="min-w-0">
             <div className="truncate text-xs text-zinc-500">{d?.destinationUrl || 'yoursite.com'}</div>
