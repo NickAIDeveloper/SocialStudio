@@ -25,6 +25,8 @@ export default function AdsPage() {
   const [objective, setObjective] = useState<AdObjective>('TRAFFIC');
   const [destinationUrl, setDestinationUrl] = useState('');
   const [draft, setDraft] = useState<AdDraft | null>(null);
+  const [imageCandidates, setImageCandidates] = useState<string[]>([]);
+  const [imageMissing, setImageMissing] = useState(false);
   const [targeting, setTargeting] = useState<AdTargeting>({
     countries: ['GB'], ageMin: 18, ageMax: 65, gender: 'all', interests: [],
     dailyBudgetMinor: 500, startDate: '', endDate: '',
@@ -89,11 +91,11 @@ export default function AdsPage() {
               brands={brands} brandId={brandId} setBrandId={setBrandId}
               objective={objective} setObjective={setObjective}
               destinationUrl={destinationUrl} setDestinationUrl={setDestinationUrl}
-              onDraft={(d) => { setDraft(d); setStep(1); }}
+              onDraft={(d, cands, missing) => { setDraft(d); setImageCandidates(cands); setImageMissing(missing); setStep(1); }}
             />
           )}
           {step === 1 && draft && (
-            <StepCreative draft={draft} setDraft={setDraft} onBack={() => setStep(0)} onNext={() => setStep(2)} />
+            <StepCreative draft={draft} setDraft={setDraft} onBack={() => setStep(0)} onNext={() => setStep(2)} candidates={imageCandidates} imageMissing={imageMissing} />
           )}
           {step === 2 && (
             <StepAudience
