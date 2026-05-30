@@ -85,4 +85,35 @@ describe('generateAdCopy', () => {
     chatMock.mockResolvedValue('I cannot help with that. No JSON here at all.');
     await expect(generateAdCopy(baseInput)).rejects.toThrow();
   });
+
+  it('throws a diagnostic empty-output error when content is blank', async () => {
+    // Reasoning model can burn the whole token budget and return HTTP 200 with
+    // empty content. The error must say so (and report 0 chars) for debuggability.
+    chatMock.mockResolvedValue('');
+    await expect(generateAdCopy(baseInput)).rejects.toThrow(/empty output \(0 chars\)/);
+  });
+
+  it('throws a diagnostic unparseable error when JSON is truncated mid-object', async () => {
+    // A too-small max_tokens truncates the completion → invalid JSON. The error
+    // must flag it as unparseable + likely truncated and include the char count.
+    chatMock.mockResolvedValue(
+      '{"primaryText":"Hook line.\\n\\nBody copy that runs long and gets cut off because the token budget ran ou',
+    );
+    await expect(generateAdCopy(baseInput)).rejects.toThrow(/unparseable output \(\d+ chars, likely truncated\)/);
+  });
+
+  it('requests a generous token budget for the reasoning model', async () => {
+    chatMock.mockResolvedValue(
+      JSON.stringify({
+        primaryText: 'A.\n\nB.',
+        hook: 'Hook',
+        headline: 'Head',
+        hashtags: '#a #b #c #d #e',
+      }),
+    );
+    await generateAdCopy(baseInput);
+    const opts = chatMock.mock.calls[0][1] as { maxTokens?: number; responseFormat?: string };
+    expect(opts.maxTokens).toBe(2400);
+    expect(opts.responseFormat).toBe('json');
+  });
 });

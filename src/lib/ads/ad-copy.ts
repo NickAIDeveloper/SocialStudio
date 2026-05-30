@@ -139,17 +139,31 @@ OUTPUT — return ONLY this JSON object:
 }
 
 export async function generateAdCopy(input: GenerateAdCopyInput): Promise<AdCopy> {
+  // gpt-oss-120b is a reasoning model: reasoning tokens are billed against
+  // max_tokens (see cerebras.ts). The previous 900-token budget was too tight
+  // for this prompt — low-effort reasoning overhead plus the multi-paragraph
+  // JSON body (primaryText 2-4 paragraphs + hook + headline + 5 hashtags)
+  // truncated the completion into invalid JSON or left content empty, surfacing
+  // as "unparseable or empty output". 2400 leaves comfortable headroom for both.
   const content = await cerebrasChatCompletion(
     [
       { role: 'system', content: buildSystemPrompt() },
       { role: 'user', content: buildUserPrompt(input) },
     ],
-    { temperature: 0.9, maxTokens: 900, responseFormat: 'json' },
+    { temperature: 0.9, maxTokens: 2400, responseFormat: 'json' },
   );
 
+  const len = (content ?? '').length;
   const parsed = parseModelJson(content);
-  if (!parsed || typeof parsed.primaryText !== 'string' || parsed.primaryText.trim().length === 0) {
-    throw new Error('ad-copy: model returned unparseable or empty output');
+  if (!parsed) {
+    throw new Error(
+      len === 0
+        ? 'ad-copy: model returned empty output (0 chars)'
+        : `ad-copy: model returned unparseable output (${len} chars, likely truncated)`,
+    );
+  }
+  if (typeof parsed.primaryText !== 'string' || parsed.primaryText.trim().length === 0) {
+    throw new Error(`ad-copy: model output parsed but primaryText was empty (${len} chars)`);
   }
 
   const primaryText = sanitizeCaption(String(parsed.primaryText ?? ''));
