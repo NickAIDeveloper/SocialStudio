@@ -63,10 +63,16 @@ vi.mock('@/lib/meta/ads', () => ({
   createAd: vi.fn().mockResolvedValue('ad_1'),
   searchAdInterests: vi.fn().mockResolvedValue(null),
   buildAdsManagerUrl: vi.fn().mockReturnValue('https://adsmanager/x'),
+  uploadAdVideo: vi.fn().mockResolvedValue('vid_1'),
+  waitForVideoReady: vi.fn().mockResolvedValue(undefined),
+  createVideoCreative: vi.fn().mockResolvedValue('vcreative_1'),
 }));
 
 import { POST } from '../route';
-import { createCampaign, createAdSet, createAd, createAdCreative } from '@/lib/meta/ads';
+import {
+  createCampaign, createAdSet, createAd, createAdCreative,
+  uploadAdVideo, waitForVideoReady, createVideoCreative,
+} from '@/lib/meta/ads';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -272,5 +278,72 @@ describe('POST /api/ads/publish', () => {
     const creativeInput = creativeCall[2]; // (token, acctId, input)
     expect(creativeInput.link).toBe('https://apps.apple.com/app/my-app/id123456789');
     expect(creativeInput.cta).toBe('INSTALL_MOBILE_APP');
+  });
+
+  // ── Video path ────────────────────────────────────────────────────────────
+
+  const validVideoDraft = {
+    objective: 'TRAFFIC',
+    destinationUrl: 'https://x.com',
+    primaryText: 'Watch this',
+    hook: 'h',
+    headline: 'Big Video Ad',
+    hashtags: [],
+    cta: 'LEARN_MORE',
+    imageUrl: '', // not used in video path
+    interestSuggestions: [],
+    mediaType: 'video' as const,
+    videoUrl: 'https://blob/clip.mp4',
+    thumbnailUrl: 'https://blob/thumb.jpg',
+  };
+
+  it('video happy path: returns 200 PAUSED, calls uploadAdVideo + waitForVideoReady + createVideoCreative', async () => {
+    const res = await POST(makeReq({ ...validBody, draft: validVideoDraft }));
+    const json = await res.json();
+    expect(res.status).toBe(200);
+    expect(json.campaignId).toBe('camp_1');
+    expect(json.adId).toBe('ad_1');
+
+    expect(vi.mocked(uploadAdVideo)).toHaveBeenCalledOnce();
+    expect(vi.mocked(waitForVideoReady)).toHaveBeenCalledOnce();
+    expect(vi.mocked(createVideoCreative)).toHaveBeenCalledOnce();
+    // Image path must NOT be called.
+    expect(vi.mocked(createAdCreative)).not.toHaveBeenCalled();
+
+    // createVideoCreative should have received the thumbnailUrl.
+    const videoCreativeInput = vi.mocked(createVideoCreative).mock.calls[0][2];
+    expect(videoCreativeInput.thumbnailUrl).toBe('https://blob/thumb.jpg');
+    expect(videoCreativeInput.videoId).toBe('vid_1');
+
+    // Row should be persisted with PAUSED status.
+    expect(insertValues).toHaveBeenCalledTimes(1);
+    const inserted = insertValues.mock.calls[0][0] as Record<string, unknown>;
+    expect(inserted.status).toBe('PAUSED');
+  });
+
+  it('returns 400 video_incomplete when mediaType is video but videoUrl is missing', async () => {
+    const res = await POST(makeReq({
+      ...validBody,
+      draft: { ...validVideoDraft, videoUrl: undefined },
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('video_incomplete');
+  });
+
+  it('returns 400 video_incomplete when mediaType is video but thumbnailUrl is missing', async () => {
+    const res = await POST(makeReq({
+      ...validBody,
+      draft: { ...validVideoDraft, thumbnailUrl: undefined },
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('video_incomplete');
+  });
+
+  it('image path is unchanged when mediaType is absent', async () => {
+    const res = await POST(makeReq(validBody)); // validBody has no mediaType
+    expect(res.status).toBe(200);
+    expect(vi.mocked(uploadAdVideo)).not.toHaveBeenCalled();
+    expect(vi.mocked(createVideoCreative)).not.toHaveBeenCalled();
+    expect(vi.mocked(createAdCreative)).toHaveBeenCalledOnce();
   });
 });

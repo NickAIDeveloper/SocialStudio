@@ -78,6 +78,13 @@ export interface AdDraft {
   // string) required in promoted_object for OUTCOME_APP_PROMOTION delivery.
   appStoreUrl?: string;
   applicationId?: string;
+  // Video creative fields. When mediaType is 'video', videoUrl is the uploaded
+  // video file URL and thumbnailUrl is the poster/thumbnail image URL (required
+  // by Meta for video creatives). Absent mediaType is treated as 'image' for
+  // full backward compatibility.
+  mediaType?: 'image' | 'video';
+  videoUrl?: string;
+  thumbnailUrl?: string;
 }
 
 // The audience/budget the user sets in Step 3, sent to /api/ads/publish.

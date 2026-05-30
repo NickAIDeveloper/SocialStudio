@@ -7,6 +7,7 @@ import { getUserId } from '@/lib/auth-helpers';
 import { decrypt } from '@/lib/encryption';
 import {
   uploadAdImage, createCampaign, createAdSet, createAdCreative, createAd,
+  uploadAdVideo, waitForVideoReady, createVideoCreative,
   searchAdInterests, buildAdsManagerUrl,
 } from '@/lib/meta/ads';
 import {
@@ -138,7 +139,13 @@ export async function POST(request: NextRequest) {
     const creativeLink = draft.objective === 'APP' ? draft.appStoreUrl! : draft.destinationUrl;
 
     // Ordered write sequence — all PAUSED.
-    const imageHash = await uploadAdImage(accessToken, adAccountId, draft.imageUrl);
+    // Validate video-specific fields before any write.
+    if (draft.mediaType === 'video') {
+      if (!draft.videoUrl || !draft.thumbnailUrl) {
+        return NextResponse.json({ error: 'video_incomplete', message: 'videoUrl and thumbnailUrl are required for video ads.' }, { status: 400 });
+      }
+    }
+
     createdCampaign = await createCampaign(accessToken, adAccountId, cfg.metaObjective);
     createdAdset = await createAdSet(accessToken, adAccountId, {
       campaignId: createdCampaign,
@@ -151,10 +158,24 @@ export async function POST(request: NextRequest) {
       promotedObject,
     });
     const message = [draft.primaryText, draft.hashtags.join(' ')].filter(Boolean).join('\n\n');
-    createdCreative = await createAdCreative(accessToken, adAccountId, {
-      pageId, igAccountId,
-      imageHash, message, headline: draft.headline, link: creativeLink, cta: draft.cta,
-    });
+
+    if (draft.mediaType === 'video') {
+      // Video path: upload to advideos, poll until ready, then build a video_data creative.
+      const videoId = await uploadAdVideo(accessToken, adAccountId, draft.videoUrl!);
+      await waitForVideoReady(accessToken, videoId);
+      createdCreative = await createVideoCreative(accessToken, adAccountId, {
+        pageId, igAccountId,
+        videoId, thumbnailUrl: draft.thumbnailUrl!, message, headline: draft.headline,
+        link: creativeLink, cta: draft.cta,
+      });
+    } else {
+      // Image path (default — mediaType absent or 'image').
+      const imageHash = await uploadAdImage(accessToken, adAccountId, draft.imageUrl);
+      createdCreative = await createAdCreative(accessToken, adAccountId, {
+        pageId, igAccountId,
+        imageHash, message, headline: draft.headline, link: creativeLink, cta: draft.cta,
+      });
+    }
     const adId = await createAd(accessToken, adAccountId, {
       adsetId: createdAdset, creativeId: createdCreative, name: `Ad — ${draft.headline}`,
     });

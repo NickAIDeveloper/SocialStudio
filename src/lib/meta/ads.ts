@@ -175,6 +175,98 @@ export async function createAd(
   return json.id;
 }
 
+// 4b. Upload a video to the ad account's video library via the advideos edge.
+// Meta recommends supplying a publicly accessible file_url rather than
+// uploading raw bytes for large video files. Returns the video id.
+// Reference: https://developers.facebook.com/docs/marketing-api/reference/adaccount/advideos/
+export async function uploadAdVideo(
+  accessToken: string,
+  adAccountId: string,
+  videoUrl: string,
+): Promise<string> {
+  const json = await graphPost<{ id: string }>(
+    `/${actId(adAccountId)}/advideos`,
+    accessToken,
+    { file_url: videoUrl },
+  );
+  return json.id;
+}
+
+// 4c. Poll the video's status until it is ready for use in a creative.
+// Meta encodes uploaded videos asynchronously; the creative will be rejected
+// if the video is still 'processing'. Default: up to 20 tries with 3 s gaps.
+// Pass { tries, delayMs } in opts to override (useful in tests: delayMs: 0).
+export async function waitForVideoReady(
+  accessToken: string,
+  videoId: string,
+  opts?: { tries?: number; delayMs?: number },
+): Promise<void> {
+  const tries = opts?.tries ?? 20;
+  const delayMs = opts?.delayMs ?? 3000;
+
+  for (let i = 0; i < tries; i++) {
+    const url = `${GRAPH_BASE}/${videoId}?fields=status&access_token=${encodeURIComponent(accessToken)}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Meta video status error ${res.status} for ${videoId}: ${text}`);
+    }
+    const json = (await res.json()) as { status?: { video_status?: string } };
+    const videoStatus = json.status?.video_status;
+    if (videoStatus === 'ready') return;
+    if (videoStatus === 'error') throw new Error(`Meta video processing failed for ${videoId}`);
+    if (i < tries - 1) {
+      await new Promise<void>((r) => setTimeout(r, delayMs));
+    }
+  }
+  throw new Error(`Meta video ${videoId} did not become ready within ${tries} polls`);
+}
+
+export interface VideoCreativeInput {
+  pageId: string;
+  igAccountId?: string;
+  videoId: string;
+  thumbnailUrl: string; // poster/thumbnail image URL — required by Meta
+  message: string; // primary text
+  headline: string;
+  link: string;
+  cta: string; // e.g. LEARN_MORE
+}
+
+// 4d. Ad creative using video_data (NOT link_data). Meta requires a thumbnail
+// (image_url) alongside the video_id in the video_data spec.
+// Reference: https://developers.facebook.com/docs/marketing-api/reference/video-creative/
+export async function createVideoCreative(
+  accessToken: string,
+  adAccountId: string,
+  input: VideoCreativeInput,
+): Promise<string> {
+  const videoData: Record<string, unknown> = {
+    video_id: input.videoId,
+    image_url: input.thumbnailUrl,
+    message: input.message,
+    title: input.headline,
+    call_to_action: { type: input.cta, value: { link: input.link } },
+    link_description: '',
+  };
+
+  const objectStorySpec: Record<string, unknown> = {
+    page_id: input.pageId,
+    video_data: videoData,
+  };
+  if (input.igAccountId) objectStorySpec.instagram_actor_id = input.igAccountId;
+
+  const json = await graphPost<{ id: string }>(
+    `/${actId(adAccountId)}/adcreatives`,
+    accessToken,
+    {
+      name: `Video Creative — ${new Date().toISOString().slice(0, 16)}`,
+      object_story_spec: JSON.stringify(objectStorySpec),
+    },
+  );
+  return json.id;
+}
+
 // Resolve free-text interest names → Meta interest IDs via the Targeting
 // Search API. Names that resolve to nothing are dropped (broad targeting).
 export async function searchAdInterests(
