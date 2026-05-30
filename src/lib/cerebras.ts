@@ -66,9 +66,16 @@ export async function cerebrasChatCompletion(
     max_tokens: options?.maxTokens ?? 1500,
   };
   if (options?.responseFormat === 'json') {
-    // Cerebras supports OpenAI-compatible JSON mode on llama-3.1-8b.
     // The model is forced to emit a syntactically valid JSON object.
     body.response_format = { type: 'json_object' };
+  }
+  // gpt-oss-120b is a REASONING model. Without a low reasoning budget it can
+  // spend the entire max_tokens on internal reasoning and return EMPTY content
+  // (observed: 588 reasoning tokens of 600, 5-char content). That silently broke
+  // all generation (captions/ads came back blank at HTTP 200). Cap reasoning so
+  // the token budget goes to the actual output. Only gpt-oss accepts this param.
+  if (CEREBRAS_MODEL.includes('gpt-oss')) {
+    body.reasoning_effort = 'low';
   }
 
   const serialized = JSON.stringify(body);
