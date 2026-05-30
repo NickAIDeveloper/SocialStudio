@@ -32,7 +32,7 @@ function setFetch(...responses: Array<{ ok: boolean; json: () => Promise<unknown
 
 const capOk = { ok: true, json: async () => ({ caption: 'Body copy here.', hashtags: '#a #b', hookText: 'Stop scrolling now' }) };
 const pickOk = { ok: true, json: async () => ({ searchTerm: 'people running', alternatives: ['people running'] }) };
-const pixabayOk = { ok: true, json: async () => ({ hits: [{ webformatURL: 'https://img/x.jpg', tags: 'running, people' }] }) };
+const pixabayOk = { ok: true, json: async () => ({ hits: [{ webformatURL: 'https://img/1.jpg', tags: 'running, people' }, { webformatURL: 'https://img/2.jpg', tags: 'running, outdoor' }] }) };
 
 describe('POST /api/ads/generate', () => {
   beforeEach(() => {
@@ -76,16 +76,18 @@ describe('POST /api/ads/generate', () => {
     const json = await res.json();
     expect(res.status).toBe(200);
     expect(json.imageMissing).toBe(true);
+    expect(json.imageCandidates.length).toBe(0);
   });
 
-  it('returns an editable draft with mapped fields', async () => {
+  it('returns an editable draft with mapped fields and image candidates', async () => {
     const res = await POST(makeReq({ brandId: 'b1', objective: 'TRAFFIC', destinationUrl: 'https://x.com' }));
     const json = await res.json();
     expect(res.status).toBe(200);
     expect(json.draft.primaryText).toBe('Body copy here.');
     expect(json.draft.hook).toBe('Stop scrolling now');
     expect(json.draft.cta).toBe('LEARN_MORE');
-    expect(json.draft.imageUrl).toBe('https://img/x.jpg');
+    expect(json.draft.imageUrl).toBe('https://img/1.jpg');
     expect(json.imageMissing).toBe(false);
+    expect(json.imageCandidates.length).toBeGreaterThanOrEqual(2);
   });
 });

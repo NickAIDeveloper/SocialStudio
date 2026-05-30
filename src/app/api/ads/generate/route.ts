@@ -13,11 +13,11 @@ function isObjective(v: unknown): v is AdObjective {
   return v === 'TRAFFIC' || v === 'ENGAGEMENT' || v === 'LEADS';
 }
 
-// Derive a query and fetch one on-topic image URL using the existing pipeline.
-async function pickImageUrl(args: {
+// Derive a query and fetch on-topic image URLs using the existing pipeline.
+async function pickImages(args: {
   origin: string; cookie: string; brandName: string; brandDescription: string;
   caption: string; hookText: string; contentType: string;
-}): Promise<string | null> {
+}): Promise<{ chosen: string | null; candidates: string[] }> {
   const pickRes = await fetch(`${args.origin}/api/images/pick`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', cookie: args.cookie },
@@ -26,16 +26,21 @@ async function pickImageUrl(args: {
       brand: args.brandName, brandDescription: args.brandDescription,
     }),
   });
-  if (!pickRes.ok) return null;
+  if (!pickRes.ok) return { chosen: null, candidates: [] };
   const { searchTerm } = (await pickRes.json()) as { searchTerm?: string };
-  if (!searchTerm) return null;
+  if (!searchTerm) return { chosen: null, candidates: [] };
 
   const pxRes = await fetch(`${args.origin}/api/pixabay?q=${encodeURIComponent(searchTerm)}&orientation=horizontal`, {
     headers: { cookie: args.cookie },
   });
-  if (!pxRes.ok) return null;
+  if (!pxRes.ok) return { chosen: null, candidates: [] };
   const { hits } = (await pxRes.json()) as { hits?: Array<{ webformatURL?: string }> };
-  return hits?.[0]?.webformatURL ?? null;
+  const candidates = (hits ?? [])
+    .map((h) => h.webformatURL)
+    .filter((url): url is string => Boolean(url))
+    .slice(0, 8);
+  const chosen = candidates[0] ?? null;
+  return { chosen, candidates };
 }
 
 export async function POST(request: NextRequest) {
@@ -87,7 +92,7 @@ export async function POST(request: NextRequest) {
     }
     const caption = (await capRes.json()) as { caption: string; hashtags: string; hookText: string };
 
-    const imageUrl = await pickImageUrl({
+    const { chosen, candidates } = await pickImages({
       origin, cookie,
       brandName: brand.name ?? brand.slug,
       brandDescription: brand.description ?? '',
@@ -105,11 +110,11 @@ export async function POST(request: NextRequest) {
       objective: body.objective,
       destinationUrl: body.destinationUrl,
       caption,
-      imageUrl: imageUrl ?? '',
+      imageUrl: chosen ?? '',
       interestSuggestions,
     });
 
-    return NextResponse.json({ draft, imageMissing: !imageUrl });
+    return NextResponse.json({ draft, imageMissing: !chosen, imageCandidates: candidates });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
