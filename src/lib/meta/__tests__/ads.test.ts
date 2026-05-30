@@ -8,6 +8,13 @@ import {
   buildAdsManagerUrl,
 } from '../ads';
 
+// The SSRF-guarded image fetch is unit-tested in safe-image-fetch.test.ts.
+// Here we mock it so uploadAdImage's own logic (upload + hash parsing) is
+// exercised without real DNS/network.
+vi.mock('../safe-image-fetch', () => ({
+  fetchImageBytes: vi.fn().mockResolvedValue(Buffer.from('img-bytes')),
+}));
+
 function mockFetchOnce(json: unknown, ok = true, status = 200) {
   return vi.fn().mockResolvedValueOnce({
     ok,
@@ -21,16 +28,17 @@ describe('meta/ads write client', () => {
   beforeEach(() => { vi.restoreAllMocks(); });
   afterEach(() => { vi.restoreAllMocks(); });
 
-  it('uploadAdImage posts bytes and returns the image hash', async () => {
+  it('uploadAdImage uploads bytes (from the guarded fetch) and returns the image hash', async () => {
     const g = global as unknown as { fetch: typeof fetch };
-    // image fetch (bytes) then adimages upload
-    g.fetch = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(4), headers: { get: () => 'image/jpeg' } })
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ images: { bytes: { hash: 'abc123' } } }), text: async () => '' }) as unknown as typeof fetch;
+    // Only the adimages upload hits global.fetch now; the image bytes come from
+    // the mocked fetchImageBytes.
+    const fetchMock = mockFetchOnce({ images: { bytes: { hash: 'abc123' } } });
+    g.fetch = fetchMock as unknown as typeof fetch;
 
-    const hash = await uploadAdImage('TOKEN', 'act_1', 'https://img/x.jpg');
+    const hash = await uploadAdImage('TOKEN', 'act_1', 'https://cdn.pixabay.com/x.jpg');
     expect(hash).toBe('abc123');
+    const body = String(fetchMock.mock.calls[0][1].body);
+    expect(body).toContain('bytes=');
   });
 
   it('createCampaign sends PAUSED status and the mapped objective', async () => {

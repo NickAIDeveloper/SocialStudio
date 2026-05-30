@@ -2,6 +2,7 @@
 // Write-side Meta Marketing API client. Mirrors the read-only client.ts:
 // stateless, takes a plaintext access token. Every create call sends
 // status=PAUSED so nothing can spend until the user activates it manually.
+import { fetchImageBytes } from './safe-image-fetch';
 
 const META_API_VERSION = process.env.META_API_VERSION ?? 'v21.0';
 const GRAPH_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
@@ -30,15 +31,16 @@ async function graphPost<T>(
 
 // 1. Upload the image to the ad account's library → image_hash.
 // Meta will not reference an arbitrary external URL in a creative, so we fetch
-// the bytes and upload them as a base64 `bytes` field.
+// the bytes and upload them as a base64 `bytes` field. The URL is user-editable
+// (StepCreative), so fetchImageBytes applies SSRF protections: https-only,
+// blocks private/loopback/metadata IPs, manual redirect re-validation, and an
+// image/* content-type + size cap.
 export async function uploadAdImage(
   accessToken: string,
   adAccountId: string,
   imageUrl: string,
 ): Promise<string> {
-  const imgRes = await fetch(imageUrl);
-  if (!imgRes.ok) throw new Error(`Failed to fetch ad image (${imgRes.status})`);
-  const bytes = Buffer.from(await imgRes.arrayBuffer()).toString('base64');
+  const bytes = (await fetchImageBytes(imageUrl)).toString('base64');
 
   const json = await graphPost<{ images: Record<string, { hash: string }> }>(
     `/${actId(adAccountId)}/adimages`,
