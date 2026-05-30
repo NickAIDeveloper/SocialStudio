@@ -74,14 +74,22 @@ export default function AdsPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6 flex items-center gap-2">
-        {STEPS.map((s, i) => (
-          <div key={s} className="flex items-center gap-2">
-            <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${i <= step ? 'bg-teal-500 text-white' : 'bg-zinc-800 text-zinc-400'}`}>{i + 1}</span>
-            <span className={`text-sm ${i === step ? 'text-zinc-100' : 'text-zinc-500'}`}>{s}</span>
-            {i < STEPS.length - 1 && <span className="mx-1 h-px w-8 bg-zinc-700" />}
-          </div>
-        ))}
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          {STEPS.map((s, i) => (
+            <div key={s} className="flex items-center gap-2">
+              <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${i <= step ? 'bg-teal-500 text-white' : 'bg-zinc-800 text-zinc-400'}`}>{i + 1}</span>
+              <span className={`text-sm ${i === step ? 'text-zinc-100' : 'text-zinc-500'}`}>{s}</span>
+              {i < STEPS.length - 1 && <span className="mx-1 h-px w-8 bg-zinc-700" />}
+            </div>
+          ))}
+        </div>
+        <a
+          href="/ads/queue"
+          className="shrink-0 text-sm font-medium text-teal-400 transition-colors hover:text-teal-300"
+        >
+          Queued ads →
+        </a>
       </div>
 
       <div className="grid gap-8 md:grid-cols-[1fr_360px]">
