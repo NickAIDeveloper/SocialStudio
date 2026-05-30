@@ -12,6 +12,11 @@ declare module 'next-auth' {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Derive the base URL from the forwarded host/proto on Vercel so auth
+  // redirects use https even if AUTH_URL/NEXTAUTH_URL is misconfigured. The
+  // canonical fix is setting NEXTAUTH_URL=https://www.goviraleza.com, but this
+  // prevents the http:// redirect that drops the __Secure- session cookie.
+  trustHost: true,
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/login',
