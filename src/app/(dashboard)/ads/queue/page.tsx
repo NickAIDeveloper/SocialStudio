@@ -23,11 +23,13 @@ interface AdsListResponse {
   ads: QueuedAd[];
 }
 
+// metaAds.objective stores Meta's ODAX objective string (cfg.metaObjective),
+// not our short AdObjective key — so map the OUTCOME_* values.
 const OBJECTIVE_LABELS: Record<string, string> = {
-  TRAFFIC: 'Traffic',
-  ENGAGEMENT: 'Engagement',
-  LEADS: 'Leads',
-  APP: 'App installs',
+  OUTCOME_TRAFFIC: 'Traffic',
+  OUTCOME_ENGAGEMENT: 'Engagement',
+  OUTCOME_LEADS: 'Leads',
+  OUTCOME_APP_PROMOTION: 'App installs',
 };
 
 function objectiveLabel(objective: string): string {
