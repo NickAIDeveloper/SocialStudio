@@ -10,7 +10,7 @@ interface HealthScoreProps {
 const COLOR_MAP = {
   red: '#ef4444',
   amber: '#f59e0b',
-  green: '#10b981',
+  green: '#5FD07F',
 } as const;
 
 export default function HealthScore({ score, summary }: HealthScoreProps) {
@@ -25,7 +25,7 @@ export default function HealthScore({ score, summary }: HealthScoreProps) {
   const size = (radius + strokeWidth) * 2;
 
   return (
-    <div className="glass-card border border-zinc-800/50 p-5 flex items-center gap-5">
+    <div className="glass-card border border-(--line) p-5 flex items-center gap-5">
       <div className="shrink-0">
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           {/* Background track */}
@@ -34,7 +34,7 @@ export default function HealthScore({ score, summary }: HealthScoreProps) {
             cy={size / 2}
             r={radius}
             fill="none"
-            stroke="#27272a"
+            stroke="#2A2D30"
             strokeWidth={strokeWidth}
           />
           {/* Score arc */}
@@ -69,7 +69,7 @@ export default function HealthScore({ score, summary }: HealthScoreProps) {
         <p className="text-sm font-semibold" style={{ color }}>
           {verdict.label}
         </p>
-        <p className="text-sm text-white leading-relaxed">{summary}</p>
+        <p className="text-sm text-(--muted) leading-relaxed">{summary}</p>
       </div>
     </div>
   );

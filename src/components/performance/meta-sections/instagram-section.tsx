@@ -73,11 +73,11 @@ function buildPostSummary(m: IgMediaItem): PostSummary {
 }
 
 const BAND_CLASS: Record<DeltaBand, string> = {
-  'strong-positive': 'text-emerald-300 bg-emerald-500/10',
-  'positive': 'text-emerald-300/90',
+  'strong-positive': 'text-(--cyan) bg-(--cyan)/10',
+  'positive': 'text-(--cyan)/90',
   'neutral': 'text-white/80',
-  'negative': 'text-rose-300/90',
-  'strong-negative': 'text-rose-300 bg-rose-500/10',
+  'negative': 'text-(--pink)/90',
+  'strong-negative': 'text-(--pink) bg-(--pink)/10',
 };
 
 function BenchmarkCell({ value, base }: { value: number | null; base: number | null }) {
@@ -107,7 +107,7 @@ function Sparkline({ data, label }: { data: number[]; label?: string }) {
     .join(' ');
   return (
     <div className="hidden sm:flex flex-col items-end">
-      <svg width={60} height={16} className="text-emerald-400">
+      <svg width={60} height={16} className="text-(--cyan)">
         <polyline fill="none" stroke="currentColor" strokeWidth={1.5} points={points} />
       </svg>
       {label && <span className="text-[10px] text-white/40 mt-0.5">{label}</span>}
@@ -176,10 +176,10 @@ function ApplyAllLearningsCta({
   const href = `/smart-posts?${params.toString()}`;
 
   return (
-    <div className="rounded-xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-sky-500/10 p-5 space-y-4">
+    <div className="rounded-2xl border border-(--violet-24) bg-gradient-to-br from-(--violet-12) via-(--violet-08) to-(--violet-12) p-5 space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-emerald-300/80">
+          <div className="text-[11px] uppercase tracking-wider text-(--violet-bright)/80">
             One-click apply
           </div>
           <h4 className="text-base font-semibold text-white mt-0.5">
@@ -192,7 +192,7 @@ function ApplyAllLearningsCta({
         </div>
         <a
           href={href}
-          className="shrink-0 rounded-lg bg-gradient-to-r from-emerald-500 to-sky-500 px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+          className="shrink-0 rounded-lg bg-gradient-to-r from-(--violet) to-(--violet-deep) px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
         >
           Apply →
         </a>
@@ -347,7 +347,7 @@ function IgInsightsPanel({
                         href={m.permalink}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sky-400 hover:underline line-clamp-1"
+                        className="text-(--violet-bright) hover:underline line-clamp-1"
                       >
                         {m.caption?.slice(0, 60) || '(no caption)'}
                       </a>
@@ -507,7 +507,7 @@ export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps
         <div
           className={
             igMessage.type === 'success'
-              ? 'rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300'
+              ? 'rounded-lg border border-(--success)/20 bg-(--success)/10 px-3 py-2 text-sm text-(--success)'
               : 'rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400'
           }
         >
@@ -528,7 +528,7 @@ export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps
               key={a.igUserId}
               className={`flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer ${
                 selectedIg === a.igUserId
-                  ? 'border-fuchsia-400/40 bg-fuchsia-400/10'
+                  ? 'border-(--violet)/40 bg-(--violet-12)'
                   : 'border-white/5 bg-black/20 hover:border-white/15'
               }`}
               onClick={() => setSelectedIg(a.igUserId)}

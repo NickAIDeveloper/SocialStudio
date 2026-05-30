@@ -146,7 +146,7 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
   if (loadingAccounts) {
     return (
       <div className="flex items-center gap-2 text-sm text-white">
-        <div className="h-4 w-4 border-2 border-zinc-600 border-t-teal-400 rounded-full animate-spin" />
+        <div className="h-4 w-4 border-2 border-(--line-strong) border-t-(--violet-bright) rounded-full animate-spin" />
         Loading image sources...
       </div>
     );
@@ -156,7 +156,7 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
     return (
       <div className="text-sm text-white">
         No image sources connected.{' '}
-        <a href="/settings" className="text-teal-400 hover:underline">
+        <a href="/settings" className="text-(--violet-bright) hover:underline">
           Connect an image source in Settings
         </a>
       </div>
@@ -179,10 +179,10 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
         value={selectedSource}
         onValueChange={(val) => setSelectedSource(val as SourceValue)}
       >
-        <SelectTrigger className="bg-zinc-800/60 border-zinc-700/50 text-white h-9 text-sm w-full">
+        <SelectTrigger className="bg-(--surface-2)/60 border-(--line-strong)/50 text-white h-9 text-sm w-full">
           <SelectValue placeholder="Select image source" />
         </SelectTrigger>
-        <SelectContent className="bg-zinc-800 border-zinc-700">
+        <SelectContent className="bg-(--surface-2) border-(--line-strong)">
           {sourceOptions.map((opt) => (
             <SelectItem key={opt.value} value={opt.value} className="text-white">
               {opt.label}
@@ -197,13 +197,13 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
             placeholder={`Describe the image to generate for ${brand}...`}
-            className="bg-zinc-800/60 border-zinc-700/50 text-white text-sm min-h-[72px] resize-none"
+            className="bg-(--surface-2)/60 border-(--line-strong)/50 text-white text-sm min-h-[72px] resize-none"
           />
           <Button
             onClick={handleGenerate}
             disabled={isLoading || !aiPrompt.trim()}
             size="sm"
-            className="bg-teal-600 hover:bg-teal-700 text-white h-9 px-4 text-sm"
+            className="bg-(--violet) hover:bg-(--violet-deep) text-white h-9 px-4 text-sm"
           >
             {isLoading ? 'Generating...' : 'Generate'}
           </Button>
@@ -217,13 +217,13 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
               if (e.key === 'Enter') handleSearch();
             }}
             placeholder="Search for images..."
-            className="bg-zinc-800/60 border-zinc-700/50 text-white h-9 text-sm"
+            className="bg-(--surface-2)/60 border-(--line-strong)/50 text-white h-9 text-sm"
           />
           <Button
             onClick={() => handleSearch()}
             disabled={isLoading || !searchQuery.trim()}
             size="sm"
-            className="bg-teal-600 hover:bg-teal-700 text-white h-9 px-4 shrink-0 text-sm"
+            className="bg-(--violet) hover:bg-(--violet-deep) text-white h-9 px-4 shrink-0 text-sm"
           >
             {isLoading ? 'Searching...' : 'Search'}
           </Button>
@@ -232,7 +232,7 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
 
       {connectedProviders.length < 2 && (
         <p className="text-xs text-white">
-          <a href="/settings" className="text-teal-400 hover:underline">
+          <a href="/settings" className="text-(--violet-bright) hover:underline">
             Connect more sources in Settings
           </a>
         </p>

@@ -18,9 +18,9 @@ interface GradeReport {
 }
 
 function scoreClasses(score: number): string {
-  if (score >= 8) return 'text-emerald-700 bg-emerald-50 border-emerald-200';
-  if (score >= 6) return 'text-amber-700 bg-amber-50 border-amber-200';
-  return 'text-red-700 bg-red-50 border-red-200';
+  if (score >= 8) return 'text-(--success) bg-(--success)/10 border-(--success)/30';
+  if (score >= 6) return 'text-amber-400 bg-amber-500/10 border-amber-500/30';
+  return 'text-red-400 bg-red-500/10 border-red-500/30';
 }
 
 export function BrainGradeButton({ brandId, caption, hookText, disabled }: Props) {
@@ -59,7 +59,7 @@ export function BrainGradeButton({ brandId, caption, hookText, disabled }: Props
         type="button"
         onClick={grade}
         disabled={disabled || (!caption && !hookText)}
-        className="text-xs px-3 py-1.5 rounded border border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-50"
+        className="text-xs px-3 py-1.5 rounded border border-(--line-strong) bg-(--surface) text-(--txt) hover:bg-(--surface-2) disabled:opacity-50"
         title="Score this draft against your brand brain"
       >
         🧠 Check vs Brain
@@ -70,21 +70,21 @@ export function BrainGradeButton({ brandId, caption, hookText, disabled }: Props
           onClick={() => setOpen(false)}
         >
           <div
-            className="bg-white rounded-lg max-w-lg w-full max-h-[85vh] overflow-auto p-6"
+            className="bg-(--surface) border border-(--line) rounded-2xl max-w-lg w-full max-h-[85vh] overflow-auto p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="font-medium text-zinc-900">Brain grade</div>
+              <div className="font-medium text-(--txt)">Brain grade</div>
               <button
                 onClick={() => setOpen(false)}
-                className="text-zinc-400 hover:text-zinc-600"
+                className="text-(--muted-2) hover:text-(--txt)"
                 aria-label="Close"
               >
                 ✕
               </button>
             </div>
-            {loading && <div className="text-sm text-zinc-500">Grading…</div>}
-            {error && <div className="text-sm text-red-600">{error}</div>}
+            {loading && <div className="text-sm text-(--muted-2)">Grading…</div>}
+            {error && <div className="text-sm text-red-400">{error}</div>}
             {report && (
               <div className="space-y-4">
                 <div
@@ -95,33 +95,33 @@ export function BrainGradeButton({ brandId, caption, hookText, disabled }: Props
                   Score: {report.score.toFixed(1)} / 10
                 </div>
                 {!report.brainAvailable && (
-                  <div className="text-xs text-zinc-500 italic">
+                  <div className="text-xs text-(--muted-2) italic">
                     No brand brain yet — graded against general best practices.
                   </div>
                 )}
                 {report.rationale && (
-                  <div className="text-sm text-zinc-700 italic">{report.rationale}</div>
+                  <div className="text-sm text-(--muted) italic">{report.rationale}</div>
                 )}
                 {report.strengths.length > 0 && (
                   <div>
-                    <div className="text-xs font-semibold text-emerald-700 mb-1">Strengths</div>
-                    <ul className="text-sm text-zinc-800 list-disc pl-5 space-y-1">
+                    <div className="text-xs font-semibold text-(--success) mb-1">Strengths</div>
+                    <ul className="text-sm text-(--txt) list-disc pl-5 space-y-1">
                       {report.strengths.map((s, i) => <li key={i}>{s}</li>)}
                     </ul>
                   </div>
                 )}
                 {report.weaknesses.length > 0 && (
                   <div>
-                    <div className="text-xs font-semibold text-red-700 mb-1">Weaknesses</div>
-                    <ul className="text-sm text-zinc-800 list-disc pl-5 space-y-1">
+                    <div className="text-xs font-semibold text-red-400 mb-1">Weaknesses</div>
+                    <ul className="text-sm text-(--txt) list-disc pl-5 space-y-1">
                       {report.weaknesses.map((s, i) => <li key={i}>{s}</li>)}
                     </ul>
                   </div>
                 )}
                 {report.suggestions.length > 0 && (
                   <div>
-                    <div className="text-xs font-semibold text-zinc-700 mb-1">Suggestions</div>
-                    <ul className="text-sm text-zinc-800 list-disc pl-5 space-y-1">
+                    <div className="text-xs font-semibold text-(--muted) mb-1">Suggestions</div>
+                    <ul className="text-sm text-(--txt) list-disc pl-5 space-y-1">
                       {report.suggestions.map((s, i) => <li key={i}>{s}</li>)}
                     </ul>
                   </div>

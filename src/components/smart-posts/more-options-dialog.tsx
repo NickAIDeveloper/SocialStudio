@@ -78,7 +78,7 @@ export function MoreOptionsDialog({
                     type="button"
                     onClick={() => void pick(url)}
                     disabled={pendingUrl !== null}
-                    className="relative aspect-square overflow-hidden rounded-lg border border-zinc-700 hover:border-teal-400 disabled:opacity-60"
+                    className="relative aspect-square overflow-hidden rounded-lg border border-(--line-strong) hover:border-(--violet-bright) disabled:opacity-60"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={img.previewURL} alt="" className="h-full w-full object-cover" />

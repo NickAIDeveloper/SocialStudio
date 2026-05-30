@@ -73,12 +73,12 @@ export function WhyThisWorks({ rationale, contributions, deepProfile }: WhyThisW
   if (!hasAnything) return null;
 
   return (
-    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs text-white">
-      <p className="mb-2 inline-flex items-center gap-1.5 font-semibold text-emerald-300">
+    <div className="rounded-2xl border border-(--violet-24) bg-(--violet-08) p-3 text-xs text-(--txt)">
+      <p className="mb-2 inline-flex items-center gap-1.5 font-semibold text-(--violet-bright)">
         <Sparkles className="h-3.5 w-3.5" />
         Why this works
       </p>
-      <ul className="list-disc space-y-1.5 pl-4 text-white/90">
+      <ul className="list-disc space-y-1.5 pl-4 text-(--muted)">
         {rationaleBullets.map((sentence, i) => (
           <li key={`r-${i}`}>{sentence}</li>
         ))}
@@ -86,7 +86,7 @@ export function WhyThisWorks({ rationale, contributions, deepProfile }: WhyThisW
           <li key={type}>{text}</li>
         ))}
         {deepCallouts.map((text, i) => (
-          <li key={`d-${i}`} className="text-emerald-200/90">
+          <li key={`d-${i}`} className="text-(--violet-bright)">
             {text}
           </li>
         ))}

@@ -36,11 +36,11 @@ export function IgAccountPicker({ value, onChange }: IgAccountPickerProps) {
 
   if (!loading && accounts.length === 0) {
     return (
-      <div className="flex items-center gap-2 text-sm text-zinc-400">
+      <div className="flex items-center gap-2 text-sm text-(--muted)">
         <span>No Instagram accounts connected.</span>
         <a
           href="/settings"
-          className="text-teal-400 hover:text-teal-300 underline underline-offset-2"
+          className="text-(--violet-bright) hover:text-(--violet) underline underline-offset-2"
         >
           Connect in Settings
         </a>
@@ -50,12 +50,12 @@ export function IgAccountPicker({ value, onChange }: IgAccountPickerProps) {
 
   return (
     <div className="flex items-center gap-2">
-      <label className="text-sm text-zinc-400 whitespace-nowrap">IG account</label>
+      <label className="text-sm text-(--muted) whitespace-nowrap">IG account</label>
       <select
         disabled={loading}
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value || null)}
-        className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-white focus:border-teal-500 focus:outline-none disabled:opacity-50"
+        className="rounded-lg border border-(--line) bg-(--bg) px-3 py-1.5 text-sm text-(--txt) focus:border-(--violet) focus:outline-none disabled:opacity-50"
       >
         <option value="">{loading ? 'Loading...' : 'All accounts'}</option>
         {accounts.map((a) => (

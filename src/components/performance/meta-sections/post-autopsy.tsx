@@ -45,13 +45,13 @@ export function PostAutopsy({
 
   const verdictColor =
     result?.verdict === 'positive'
-      ? 'text-emerald-300'
+      ? 'text-(--success)'
       : result?.verdict === 'negative'
-        ? 'text-rose-300'
+        ? 'text-(--pink)'
         : 'text-amber-300';
 
   return (
-    <div className="rounded-xl border border-white/5 bg-black/20 p-4 space-y-3">
+    <div className="rounded-2xl border border-white/5 bg-black/20 p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h4 className="text-sm font-semibold text-white">Post autopsy</h4>
@@ -78,12 +78,12 @@ export function PostAutopsy({
         <button
           onClick={analyze}
           disabled={loading || !selectedId}
-          className="shrink-0 rounded-lg bg-sky-500/20 border border-sky-400/30 text-sky-200 px-3 py-1.5 text-xs font-medium hover:bg-sky-500/30 disabled:opacity-50"
+          className="shrink-0 rounded-lg bg-(--violet-12) border border-(--violet-24) text-(--violet-bright) px-3 py-1.5 text-xs font-medium hover:bg-(--violet-24) disabled:opacity-50"
         >
           {loading ? 'Autopsy…' : 'Analyze'}
         </button>
       </div>
-      {error && <div className="text-xs text-rose-300/80">{error}</div>}
+      {error && <div className="text-xs text-(--pink)/80">{error}</div>}
       {result && (
         <div className="rounded-lg border border-white/10 bg-black/20 p-3 space-y-2">
           {result.verdict && (

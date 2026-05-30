@@ -28,7 +28,7 @@ function getFreshness(lastScrapedAt: string | null): {
   label: string;
 } {
   if (!lastScrapedAt) {
-    return { dotColor: 'bg-zinc-500', label: 'Not yet scraped' };
+    return { dotColor: 'bg-(--muted-2)', label: 'Not yet scraped' };
   }
 
   const scrapedDate = new Date(lastScrapedAt);
@@ -36,7 +36,7 @@ function getFreshness(lastScrapedAt: string | null): {
   const diffMs = now.getTime() - scrapedDate.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  const dotColor = diffDays <= 7 ? 'bg-green-500' : 'bg-amber-500';
+  const dotColor = diffDays <= 7 ? 'bg-(--success)' : 'bg-amber-500';
 
   let label: string;
   if (diffDays === 0) {
@@ -64,21 +64,21 @@ export default function CompetitorCard({
   const { dotColor, label } = getFreshness(lastScrapedAt);
 
   return (
-    <div className="bg-zinc-900/80 border border-zinc-800/50 rounded-xl p-4 flex items-start justify-between gap-3">
+    <div className="bg-(--surface)/80 border border-(--line) rounded-2xl p-4 flex items-start justify-between gap-3">
       <div className="min-w-0 space-y-1">
-        <p className="text-white font-medium truncate">@{handle}</p>
-        <p className="text-sm text-white">
+        <p className="text-(--txt) font-medium truncate">@{handle}</p>
+        <p className="text-sm text-(--muted)">
           {formatFollowers(followerCount)} followers
         </p>
         <div className="flex items-center gap-1.5">
           <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
-          <span className="text-xs text-white">{label}</span>
+          <span className="text-xs text-(--muted)">{label}</span>
         </div>
       </div>
       <button
         type="button"
         onClick={() => onRemove(id)}
-        className="text-zinc-600 hover:text-red-400 transition-colors shrink-0 mt-0.5"
+        className="text-(--muted-2) hover:text-red-400 transition-colors shrink-0 mt-0.5"
         aria-label={`Remove @${handle}`}
       >
         <X className="w-4 h-4" />

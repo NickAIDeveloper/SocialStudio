@@ -44,9 +44,9 @@ interface StatusBadge {
 }
 
 const BADGE_TONES: Record<BadgeTone, string> = {
-  zinc: 'border-zinc-700 bg-zinc-800/60 text-zinc-300',
+  zinc: 'border-(--line-strong) bg-(--surface-2)/60 text-(--muted)',
   amber: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
-  teal: 'border-teal-500/40 bg-teal-500/10 text-teal-300',
+  teal: 'border-(--violet-24) bg-(--violet-08) text-(--violet-bright)',
   red: 'border-red-500/40 bg-red-500/10 text-red-300',
 };
 
@@ -108,11 +108,11 @@ function AdCard({ ad }: { ad: QueuedAd }) {
   const isFailed = ad.liveStatus == null && ad.status === 'FAILED';
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+    <div className="rounded-2xl border border-(--line) bg-(--bg) p-4">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+            <span className="text-xs font-medium uppercase tracking-wider text-(--muted-2)">
               {objectiveLabel(ad.objective)}
             </span>
             <span
@@ -120,23 +120,23 @@ function AdCard({ ad }: { ad: QueuedAd }) {
             >
               {badge.label}
             </span>
-            <span className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[11px] text-zinc-400">
+            <span className="rounded-md border border-(--line) bg-(--surface) px-2 py-0.5 text-[11px] text-(--muted)">
               {mediaChip(ad.mediaType)}
             </span>
           </div>
 
-          <h3 className="mt-2 truncate text-sm font-semibold text-zinc-100">
+          <h3 className="mt-2 truncate text-sm font-semibold text-(--txt)">
             {ad.headline ?? 'Untitled ad'}
           </h3>
           {ad.primaryText && (
-            <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{ad.primaryText}</p>
+            <p className="mt-1 line-clamp-2 text-sm text-(--muted)">{ad.primaryText}</p>
           )}
 
           {isFailed && ad.lastError && (
             <p className="mt-2 text-xs text-red-400">{ad.lastError}</p>
           )}
 
-          <p className="mt-2 text-[11px] text-zinc-600">{formatDate(ad.createdAt)}</p>
+          <p className="mt-2 text-[11px] text-(--muted-2)">{formatDate(ad.createdAt)}</p>
         </div>
 
         {ad.adsManagerUrl && (
@@ -144,7 +144,7 @@ function AdCard({ ad }: { ad: QueuedAd }) {
             href={ad.adsManagerUrl}
             target="_blank"
             rel="noreferrer"
-            className="shrink-0 self-center rounded-lg bg-teal-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-400"
+            className="shrink-0 self-center rounded-2xl bg-(--violet) px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-(--violet-bright)"
           >
             Review in Ads Manager →
           </a>
@@ -185,14 +185,14 @@ export default function QueuedAdsPage() {
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">Queued ads</h1>
-          <p className="mt-1 max-w-xl text-sm text-zinc-400">
+          <p className="mt-1 max-w-xl text-sm text-(--muted)">
             Ads you&apos;ve created in Meta. Each is PAUSED and waiting for your review —
             open it in Ads Manager to approve and turn it live.
           </p>
         </div>
         <a
           href="/ads"
-          className="shrink-0 text-sm font-medium text-teal-400 transition-colors hover:text-teal-300"
+          className="shrink-0 text-sm font-medium text-(--violet-bright) transition-colors hover:text-(--violet)"
         >
           ← Back to ad builder
         </a>
@@ -205,15 +205,15 @@ export default function QueuedAdsPage() {
       )}
 
       {!error && ads === null && (
-        <div className="py-16 text-center text-sm text-zinc-400">Loading…</div>
+        <div className="py-16 text-center text-sm text-(--muted)">Loading…</div>
       )}
 
       {!error && ads !== null && ads.length === 0 && (
-        <div className="mx-auto max-w-md rounded-xl border border-zinc-800 bg-zinc-950 p-8 text-center">
-          <p className="text-sm text-zinc-300">No ads queued yet.</p>
+        <div className="mx-auto max-w-md rounded-2xl border border-(--line) bg-(--bg) p-8 text-center">
+          <p className="text-sm text-(--muted)">No ads queued yet.</p>
           <a
             href="/ads"
-            className="mt-4 inline-block rounded-lg bg-teal-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-400"
+            className="mt-4 inline-block rounded-2xl bg-(--violet) px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-(--violet-bright)"
           >
             Create an ad
           </a>

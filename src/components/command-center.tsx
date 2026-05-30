@@ -41,13 +41,13 @@ function getBrand(post: BufferPost): string {
 
 function Skeleton({ className }: { className?: string }) {
   return (
-    <div className={cn('animate-pulse rounded-md bg-zinc-800/60', className)} />
+    <div className={cn('animate-pulse rounded-md bg-(--surface-2)/60', className)} />
   );
 }
 
 function BrandBadge({ brand }: { brand: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider bg-teal-500/10 text-teal-400">
+    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider bg-(--violet-12) text-(--violet-bright)">
       {brand}
     </span>
   );
@@ -55,17 +55,17 @@ function BrandBadge({ brand }: { brand: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    sent: 'bg-emerald-500/10 text-emerald-400',
+    sent: 'bg-(--success)/10 text-(--success)',
     pending: 'bg-amber-500/10 text-amber-400',
-    draft: 'bg-zinc-500/10 text-white',
-    scheduled: 'bg-blue-500/10 text-blue-400',
+    draft: 'bg-(--surface-2)/50 text-(--muted)',
+    scheduled: 'bg-(--violet-12) text-(--violet-bright)',
   };
 
   return (
     <span
       className={cn(
         'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider',
-        styles[status] ?? 'bg-zinc-500/10 text-white'
+        styles[status] ?? 'bg-(--surface-2)/50 text-(--muted)'
       )}
     >
       {status}
@@ -147,30 +147,30 @@ export function CommandCenter() {
       {/* Metric Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Posts This Week */}
-        <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-white mb-1">
+        <div className="rounded-2xl border border-(--line) bg-(--surface)/50 p-5">
+          <p className="text-xs font-medium uppercase tracking-wider text-(--muted) mb-1">
             Posts This Week
           </p>
           {loading ? (
             <Skeleton className="h-8 w-12 mt-1" />
           ) : (
-            <p className="text-2xl font-semibold text-white font-mono">
+            <p className="text-2xl font-semibold text-(--txt) font-mono">
               {posts.length > 0 ? postsThisWeek.length : '\u2014'}
             </p>
           )}
-          <p className="text-xs text-white mt-1">Sent in last 7 days</p>
+          <p className="text-xs text-(--muted) mt-1">Sent in last 7 days</p>
         </div>
 
         {/* Next Scheduled */}
-        <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-white mb-1">
+        <div className="rounded-2xl border border-(--line) bg-(--surface)/50 p-5">
+          <p className="text-xs font-medium uppercase tracking-wider text-(--muted) mb-1">
             Next Scheduled
           </p>
           {loading ? (
             <Skeleton className="h-8 w-24 mt-1" />
           ) : nextScheduled ? (
             <>
-              <p className="text-2xl font-semibold text-white font-mono">
+              <p className="text-2xl font-semibold text-(--txt) font-mono">
                 {new Date(nextScheduled.dueAt!).toLocaleTimeString([], {
                   hour: '2-digit',
                   minute: '2-digit',
@@ -178,7 +178,7 @@ export function CommandCenter() {
               </p>
               <div className="flex items-center gap-2 mt-1">
                 <BrandBadge brand={getBrand(nextScheduled)} />
-                <span className="text-xs text-white">
+                <span className="text-xs text-(--muted)">
                   {new Date(nextScheduled.dueAt!).toLocaleDateString([], {
                     month: 'short',
                     day: 'numeric',
@@ -188,10 +188,10 @@ export function CommandCenter() {
             </>
           ) : (
             <>
-              <p className="text-lg font-medium text-white">None scheduled</p>
+              <p className="text-lg font-medium text-(--txt)">None scheduled</p>
               <Link
                 href="/generate"
-                className="text-xs text-teal-400 hover:text-teal-300 mt-1 inline-block"
+                className="text-xs text-(--violet-bright) hover:text-(--violet) mt-1 inline-block"
               >
                 Create a post &rarr;
               </Link>
@@ -200,69 +200,69 @@ export function CommandCenter() {
         </div>
 
         {/* Peak Posting Time */}
-        <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-white mb-1">
+        <div className="rounded-2xl border border-(--line) bg-(--surface)/50 p-5">
+          <p className="text-xs font-medium uppercase tracking-wider text-(--muted) mb-1">
             Peak Time
           </p>
-          <p className="text-2xl font-semibold text-white font-mono">{loading ? '\u2014' : mostCommonTime}</p>
-          <p className="text-xs text-white mt-1">Most common posting time</p>
+          <p className="text-2xl font-semibold text-(--txt) font-mono">{loading ? '\u2014' : mostCommonTime}</p>
+          <p className="text-xs text-(--muted) mt-1">Most common posting time</p>
         </div>
 
         {/* Most Active Day */}
-        <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-white mb-1">
+        <div className="rounded-2xl border border-(--line) bg-(--surface)/50 p-5">
+          <p className="text-xs font-medium uppercase tracking-wider text-(--muted) mb-1">
             Most Active Day
           </p>
-          <p className="text-2xl font-semibold text-white font-mono">{loading ? '\u2014' : mostCommonDay}</p>
-          <p className="text-xs text-white mt-1">Most posts sent on this day</p>
+          <p className="text-2xl font-semibold text-(--txt) font-mono">{loading ? '\u2014' : mostCommonDay}</p>
+          <p className="text-xs text-(--muted) mt-1">Most posts sent on this day</p>
         </div>
       </div>
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-sm font-medium uppercase tracking-wider text-white mb-3">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-(--muted) mb-3">
           Quick Actions
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Link
             href="/generate"
-            className="group rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-6 transition-colors hover:bg-zinc-800/60"
+            className="group rounded-2xl border border-(--line) bg-(--surface)/50 p-6 transition-colors hover:bg-(--surface-2)/60"
           >
-            <PenSquare className="h-6 w-6 text-teal-400 mb-3" />
-            <p className="text-base font-semibold text-white">Create Post</p>
-            <p className="text-sm text-white mt-1">
+            <PenSquare className="h-6 w-6 text-(--violet-bright) mb-3" />
+            <p className="text-base font-semibold text-(--txt)">Create Post</p>
+            <p className="text-sm text-(--muted) mt-1">
               Generate captions, find images, schedule
             </p>
           </Link>
 
           <Link
             href="/batch"
-            className="group rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-6 transition-colors hover:bg-zinc-800/60"
+            className="group rounded-2xl border border-(--line) bg-(--surface)/50 p-6 transition-colors hover:bg-(--surface-2)/60"
           >
-            <Grid3x3 className="h-6 w-6 text-blue-400 mb-3" />
-            <p className="text-base font-semibold text-white">Generate Batch</p>
-            <p className="text-sm text-white mt-1">Create 20 posts at once</p>
+            <Grid3x3 className="h-6 w-6 text-(--cyan) mb-3" />
+            <p className="text-base font-semibold text-(--txt)">Generate Batch</p>
+            <p className="text-sm text-(--muted) mt-1">Create 20 posts at once</p>
           </Link>
 
           <Link
             href="/analytics"
-            className="group rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-6 transition-colors hover:bg-zinc-800/60"
+            className="group rounded-2xl border border-(--line) bg-(--surface)/50 p-6 transition-colors hover:bg-(--surface-2)/60"
           >
             <BarChart3 className="h-6 w-6 text-amber-400 mb-3" />
-            <p className="text-base font-semibold text-white">View Analytics</p>
-            <p className="text-sm text-white mt-1">See what&apos;s performing</p>
+            <p className="text-base font-semibold text-(--txt)">View Analytics</p>
+            <p className="text-sm text-(--muted) mt-1">See what&apos;s performing</p>
           </Link>
         </div>
       </div>
 
       {/* Recent Activity */}
       <div>
-        <h2 className="text-sm font-medium uppercase tracking-wider text-white mb-3">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-(--muted) mb-3">
           Recent Activity
         </h2>
-        <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50">
+        <div className="rounded-2xl border border-(--line) bg-(--surface)/50">
           {loading ? (
-            <div className="divide-y divide-zinc-800/60">
+            <div className="divide-y divide-(--line)">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4 p-4">
                   <Skeleton className="h-4 w-4 rounded-full shrink-0" />
@@ -274,7 +274,7 @@ export function CommandCenter() {
               ))}
             </div>
           ) : recentPosts.length > 0 ? (
-            <div className="divide-y divide-zinc-800/60">
+            <div className="divide-y divide-(--line)">
               {recentPosts.map((post) => {
                 const brand = getBrand(post);
                 const snippet =
@@ -288,11 +288,11 @@ export function CommandCenter() {
                     className="flex items-start justify-between gap-4 p-4"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm text-zinc-200 truncate">{snippet}</p>
+                      <p className="text-sm text-(--txt) truncate">{snippet}</p>
                       <div className="flex items-center gap-2 mt-1.5">
                         <BrandBadge brand={brand} />
                         <StatusBadge status={post.status} />
-                        <span className="text-xs text-white">
+                        <span className="text-xs text-(--muted)">
                           {relativeTime(post.createdAt)}
                         </span>
                       </div>
@@ -303,13 +303,13 @@ export function CommandCenter() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-              <Zap className="h-8 w-8 text-zinc-600 mb-3" />
-              <p className="text-sm text-white">
+              <Zap className="h-8 w-8 text-(--muted-2) mb-3" />
+              <p className="text-sm text-(--muted)">
                 No posts yet. Create your first post to get started!
               </p>
               <Link
                 href="/generate"
-                className="mt-3 text-sm font-medium text-teal-400 hover:text-teal-300"
+                className="mt-3 text-sm font-medium text-(--violet-bright) hover:text-(--violet)"
               >
                 Create a post &rarr;
               </Link>

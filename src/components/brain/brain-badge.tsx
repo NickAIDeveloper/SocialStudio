@@ -32,7 +32,7 @@ export function BrainBadge({ brandId }: Props) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="text-xs px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200"
+        className="text-xs px-2 py-1 rounded bg-(--violet-12) text-(--violet-bright) border border-(--violet-24)"
         title="Click to view brand brain"
       >
         🧠 Brain v{data.brain.briefVersion} · {rel(data.brain.generatedAt)}

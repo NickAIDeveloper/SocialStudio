@@ -50,21 +50,21 @@ export default function AdsPage() {
   }, []);
 
   if (metaConnected === null) {
-    return <div className="mx-auto max-w-2xl px-4 py-16 text-center text-sm text-zinc-400">Loading…</div>;
+    return <div className="mx-auto max-w-2xl px-4 py-16 text-center text-sm text-(--muted)">Loading…</div>;
   }
 
   if (metaConnected === false) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="text-xl font-semibold text-zinc-100">Connect your Meta ad account</h1>
-        <p className="mt-2 text-sm text-zinc-400">
+        <h1 className="text-xl font-semibold text-(--txt)">Connect your Meta ad account</h1>
+        <p className="mt-2 text-sm text-(--muted)">
           The ad builder needs your Facebook/Meta ad-account connection — the one that
           carries your ad accounts and Pages. This is separate from the Instagram
           connection used for analytics, so it&apos;s a one-time extra step here.
         </p>
         <a
           href="/api/meta/oauth/start"
-          className="mt-4 inline-block rounded-lg bg-teal-500 px-4 py-2 text-sm font-medium text-white"
+          className="mt-4 inline-block rounded-2xl bg-(--violet) px-4 py-2 text-sm font-medium text-white"
         >
           Connect Meta ad account
         </a>
@@ -78,15 +78,15 @@ export default function AdsPage() {
         <div className="flex items-center gap-2">
           {STEPS.map((s, i) => (
             <div key={s} className="flex items-center gap-2">
-              <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${i <= step ? 'bg-teal-500 text-white' : 'bg-zinc-800 text-zinc-400'}`}>{i + 1}</span>
-              <span className={`text-sm ${i === step ? 'text-zinc-100' : 'text-zinc-500'}`}>{s}</span>
-              {i < STEPS.length - 1 && <span className="mx-1 h-px w-8 bg-zinc-700" />}
+              <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${i <= step ? 'bg-(--violet) text-white' : 'bg-(--surface-2) text-(--muted)'}`}>{i + 1}</span>
+              <span className={`text-sm ${i === step ? 'text-(--txt)' : 'text-(--muted-2)'}`}>{s}</span>
+              {i < STEPS.length - 1 && <span className="mx-1 h-px w-8 bg-(--line-strong)" />}
             </div>
           ))}
         </div>
         <a
           href="/ads/queue"
-          className="shrink-0 text-sm font-medium text-teal-400 transition-colors hover:text-teal-300"
+          className="shrink-0 text-sm font-medium text-(--violet-bright) transition-colors hover:text-(--violet)"
         >
           Queued ads →
         </a>

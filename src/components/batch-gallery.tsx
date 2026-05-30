@@ -737,7 +737,7 @@ export function BatchGallery() {
             value={batchContentType}
             onChange={(e) => { setBatchContentType(e.target.value as ContentType | 'mixed'); batchContentTypeRef.current = e.target.value as ContentType | 'mixed'; }}
             disabled={isGenerating}
-            className="h-9 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm px-3 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
+            className="h-9 rounded-lg bg-(--surface-2) border border-(--line) text-(--txt) text-sm px-3 focus:outline-none focus:ring-1 focus:ring-(--violet) disabled:opacity-50"
           >
             <option value="mixed">Mixed Content</option>
             <option value="promo">Promo</option>
@@ -751,7 +751,7 @@ export function BatchGallery() {
             value={batchEffect}
             onChange={(e) => { setBatchEffect(e.target.value as ImageEffect | 'random'); batchEffectRef.current = e.target.value as ImageEffect | 'random'; }}
             disabled={isGenerating}
-            className="h-9 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm px-3 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
+            className="h-9 rounded-lg bg-(--surface-2) border border-(--line) text-(--txt) text-sm px-3 focus:outline-none focus:ring-1 focus:ring-(--violet) disabled:opacity-50"
           >
             <option value="random">Random Effects</option>
             <option value="none">Original</option>
@@ -762,13 +762,13 @@ export function BatchGallery() {
           </select>
 
           {incomingLearnings.length > 0 && (
-            <div className="rounded-lg border border-teal-500/40 bg-teal-500/10 px-3 py-1.5 text-xs text-teal-200">
+            <div className="rounded-lg border border-(--violet-24) bg-(--violet-12) px-3 py-1.5 text-xs text-(--violet-bright)">
               {incomingLearnings.length} learning{incomingLearnings.length === 1 ? '' : 's'} from Analyze will guide this batch
             </div>
           )}
 
           {/* Post count radio buttons */}
-          <div className="flex items-center gap-1 bg-zinc-800/60 rounded-lg p-1 border border-zinc-700/50">
+          <div className="flex items-center gap-1 bg-(--surface-2) rounded-lg p-1 border border-(--line)">
             {[1, 5, 15, 20, 30].map(n => (
               <button
                 key={n}
@@ -776,8 +776,8 @@ export function BatchGallery() {
                 disabled={isGenerating}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                   batchCount === n
-                    ? 'bg-teal-600 text-white'
-                    : 'text-zinc-400 hover:text-white hover:bg-zinc-700'
+                    ? 'bg-(--violet) text-white'
+                    : 'text-(--muted) hover:text-(--txt) hover:bg-white/[0.04]'
                 } disabled:opacity-50`}
               >
                 {n}
@@ -789,7 +789,7 @@ export function BatchGallery() {
           <button
             onClick={() => void generateBatch()}
             disabled={isGenerating}
-            className="px-5 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white shadow-lg transition-all disabled:opacity-60 flex items-center gap-2"
+            className="px-5 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-(--violet) to-(--violet-deep) hover:from-(--violet-bright) hover:to-(--violet) text-white shadow-lg transition-all disabled:opacity-60 flex items-center gap-2"
           >
             {isGenerating ? (
               <>
@@ -804,14 +804,14 @@ export function BatchGallery() {
 
         {posts.length > 0 && (
           <>
-            <Separator orientation="vertical" className="h-6 bg-zinc-700" />
+            <Separator orientation="vertical" className="h-6 bg-(--line)" />
             <div className="flex gap-1">
               <button
                 onClick={() => setFilter('all')}
                 className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                   filter === 'all'
-                    ? 'bg-zinc-700 text-white'
-                    : 'text-white hover:text-white hover:bg-zinc-800/50'
+                    ? 'bg-(--surface-2) text-(--txt)'
+                    : 'text-(--muted) hover:text-(--txt) hover:bg-white/[0.04]'
                 }`}
               >
                 All
@@ -822,8 +822,8 @@ export function BatchGallery() {
                   onClick={() => setFilter(b.slug)}
                   className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                     filter === b.slug
-                      ? 'bg-zinc-700 text-white'
-                      : 'text-white hover:text-white hover:bg-zinc-800/50'
+                      ? 'bg-(--surface-2) text-(--txt)'
+                      : 'text-(--muted) hover:text-(--txt) hover:bg-white/[0.04]'
                   }`}
                 >
                   {b.name}
@@ -835,7 +835,7 @@ export function BatchGallery() {
                 onClick={scheduleAll}
                 disabled={isSchedulingAll || isGenerating}
                 size="sm"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium"
+                className="cta-violet text-xs font-medium"
               >
                 {isSchedulingAll ? (
                   <span className="flex items-center gap-2">
@@ -845,10 +845,10 @@ export function BatchGallery() {
                 ) : `Schedule All (${readyCount})`}
               </Button>
             )}
-            <Separator orientation="vertical" className="h-6 bg-zinc-700" />
-            <div className="flex gap-3 text-xs text-white">
+            <Separator orientation="vertical" className="h-6 bg-(--line)" />
+            <div className="flex gap-3 text-xs text-(--muted)">
               <span>{readyCount} ready</span>
-              <span className="text-emerald-400">{scheduledCount} scheduled</span>
+              <span className="text-(--success)">{scheduledCount} scheduled</span>
             </div>
           </>
         )}
@@ -857,11 +857,11 @@ export function BatchGallery() {
       {/* Post grid */}
       {posts.length === 0 && !isGenerating && (
         <div className="text-center py-20">
-          <div className="w-16 h-16 rounded-2xl bg-zinc-800/60 flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 rounded-2xl bg-(--surface-2) flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">📋</span>
           </div>
-          <h3 className="text-lg font-medium text-white mb-1">Batch Gallery</h3>
-          <p className="text-sm text-white max-w-md mx-auto">
+          <h3 className="text-lg font-medium text-(--txt) mb-1">Batch Gallery</h3>
+          <p className="text-sm text-(--muted) max-w-md mx-auto">
             Generate pre-made posts for all your brands with images, captions, and hooks.
             Preview each one, then schedule the ones you like with a single click.
           </p>
@@ -872,12 +872,12 @@ export function BatchGallery() {
         {filteredPosts.map(post => (
           <Card
             key={post.id}
-            className={`bg-zinc-900/80 border-zinc-800/60 overflow-hidden transition-all ${
-              post.status === 'scheduled' ? 'opacity-60 border-emerald-800/40' : ''
-            } ${expandedId === post.id ? 'ring-1 ring-teal-500/40' : ''}`}
+            className={`bg-(--surface) border-(--line) overflow-hidden transition-all ${
+              post.status === 'scheduled' ? 'opacity-60 border-(--success)/40' : ''
+            } ${expandedId === post.id ? 'ring-1 ring-(--violet-24)' : ''}`}
           >
             {/* Image preview */}
-            <div className="relative aspect-square bg-zinc-800/40">
+            <div className="relative aspect-square bg-(--surface-2)">
               {(post.processedImageUrl || post.imageUrl) ? (
                 <>
                   <Image
@@ -896,31 +896,31 @@ export function BatchGallery() {
                            style={{ fontSize: '20px' }}>
                           {post.hookText}
                         </p>
-                        <div className="w-16 h-0.5 bg-teal-400 rounded-full mt-3" />
+                        <div className="w-16 h-0.5 bg-(--violet-bright) rounded-full mt-3" />
                       </div>
                     </>
                   )}
                 </>
               ) : isGenerating ? (
                 <div className="flex items-center justify-center h-full">
-                  <span className="w-6 h-6 border-2 border-zinc-600 border-t-zinc-400 rounded-full animate-spin" />
+                  <span className="w-6 h-6 border-2 border-(--line) border-t-(--violet) rounded-full animate-spin" />
                 </div>
               ) : (
-                <div className="flex items-center justify-center h-full text-zinc-600 text-xs">
+                <div className="flex items-center justify-center h-full text-(--muted-2) text-xs">
                   No image
                 </div>
               )}
               {/* Brand badge */}
               <Badge
-                className="absolute top-2 left-2 text-[10px] bg-teal-500/80 text-white border-0"
+                className="absolute top-2 left-2 text-[10px] bg-(--violet) text-white border-0"
               >
                 {apiBrands.find(b => b.slug === post.brand)?.name || post.brand}
               </Badge>
-              <Badge className="absolute top-2 right-2 bg-zinc-900/70 text-white border-0 text-[10px]">
+              <Badge className="absolute top-2 right-2 bg-(--surface)/70 text-(--txt) border-0 text-[10px]">
                 {post.contentType}
               </Badge>
               {post.status === 'scheduled' && (
-                <div className="absolute inset-0 bg-emerald-900/30 flex items-center justify-center">
+                <div className="absolute inset-0 bg-(--success)/20 flex items-center justify-center">
                   <span className="text-3xl">✓</span>
                 </div>
               )}
@@ -929,19 +929,19 @@ export function BatchGallery() {
             <CardContent className="p-3 space-y-2">
               {/* Hook preview */}
               {post.hookText && (
-                <p className="text-xs text-teal-300 font-semibold leading-snug line-clamp-1">
+                <p className="text-xs text-(--violet-bright) font-semibold leading-snug line-clamp-1">
                   &ldquo;{post.hookText}&rdquo;
                 </p>
               )}
 
               {/* Caption preview (truncated, cleaned) */}
-              <p className="text-[11px] text-white leading-snug line-clamp-4">
+              <p className="text-[11px] text-(--muted) leading-snug line-clamp-4">
                 {post.caption.replace(/^(caption\s*:\s*)/i, '').replace(/,\s*hashtags:[\s\S]*/i, '').trim()}
               </p>
 
               {/* Scheduled time */}
               {post.scheduledLabel && (
-                <p className="text-[10px] text-teal-400/70 flex items-center gap-1">
+                <p className="text-[10px] text-(--violet-bright) flex items-center gap-1">
                   <span>🕐</span> {post.scheduledLabel}
                 </p>
               )}
@@ -953,7 +953,7 @@ export function BatchGallery() {
                     <Button
                       size="sm"
                       onClick={() => schedulePost(post.id)}
-                      className="flex-1 h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className="cta-violet flex-1 h-7 text-xs"
                     >
                       Schedule
                     </Button>
@@ -961,20 +961,20 @@ export function BatchGallery() {
                       size="sm"
                       variant="outline"
                       onClick={() => setExpandedId(expandedId === post.id ? null : post.id)}
-                      className="h-7 text-xs bg-zinc-800 border-zinc-600 text-zinc-200 hover:bg-zinc-700 hover:text-white"
+                      className="h-7 text-xs bg-(--surface-2) border-(--line) text-(--muted) hover:bg-white/[0.04] hover:text-(--txt)"
                     >
                       Preview
                     </Button>
                   </>
                 )}
                 {post.status === 'scheduling' && (
-                  <div className="flex items-center gap-2 text-xs text-white">
-                    <span className="w-3 h-3 border-2 border-zinc-600 border-t-teal-400 rounded-full animate-spin" />
+                  <div className="flex items-center gap-2 text-xs text-(--muted)">
+                    <span className="w-3 h-3 border-2 border-(--line) border-t-(--violet) rounded-full animate-spin" />
                     Scheduling...
                   </div>
                 )}
                 {post.status === 'scheduled' && (
-                  <span className="text-xs text-emerald-400 font-medium">Scheduled</span>
+                  <span className="text-xs text-(--success) font-medium">Scheduled</span>
                 )}
                 {post.status === 'error' && (
                   <div className="space-y-1 w-full">
@@ -986,7 +986,7 @@ export function BatchGallery() {
                           p.id === post.id ? { ...p, status: 'ready', error: undefined } : p
                         ));
                       }}
-                      className="h-6 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-white"
+                      className="h-6 text-[10px] bg-(--surface-2) hover:bg-white/[0.04] text-(--txt)"
                     >
                       Retry
                     </Button>
@@ -997,24 +997,24 @@ export function BatchGallery() {
 
             {/* Expanded preview panel */}
             {expandedId === post.id && (
-              <div className="border-t border-zinc-800/60 p-3 space-y-3 bg-zinc-950/50">
+              <div className="border-t border-(--line) p-3 space-y-3 bg-(--bg)">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-white uppercase tracking-wider font-medium">Caption</label>
+                  <label className="text-[10px] text-(--muted) uppercase tracking-wider font-medium">Caption</label>
                   <Textarea
                     value={post.caption}
                     onChange={(e) => updateCaption(post.id, e.target.value)}
-                    className="bg-zinc-800/60 border-zinc-700/50 text-white text-xs min-h-[120px] resize-none"
+                    className="bg-(--surface-2) border-(--line) text-(--txt) text-xs min-h-[120px] resize-none"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-white uppercase tracking-wider font-medium">Hook Text</label>
-                  <p className="text-xs text-teal-400 bg-zinc-800/40 rounded px-2 py-1.5">
+                  <label className="text-[10px] text-(--muted) uppercase tracking-wider font-medium">Hook Text</label>
+                  <p className="text-xs text-(--violet-bright) bg-(--surface-2) rounded px-2 py-1.5">
                     {post.hookText || '(auto-generated from caption)'}
                   </p>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-white uppercase tracking-wider font-medium">Hashtags</label>
-                  <p className="text-[11px] text-blue-400 bg-zinc-800/40 rounded px-2 py-1.5">
+                  <label className="text-[10px] text-(--muted) uppercase tracking-wider font-medium">Hashtags</label>
+                  <p className="text-[11px] text-(--violet-bright) bg-(--surface-2) rounded px-2 py-1.5">
                     {post.hashtags}
                   </p>
                 </div>
@@ -1022,7 +1022,7 @@ export function BatchGallery() {
                   size="sm"
                   onClick={() => schedulePost(post.id)}
                   disabled={post.status !== 'ready'}
-                  className="w-full h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className="cta-violet w-full h-8 text-xs"
                 >
                   Schedule This Post
                 </Button>

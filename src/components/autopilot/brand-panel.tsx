@@ -97,10 +97,10 @@ function formatHour(h: number): string {
 }
 
 const STATUS_META = {
-  on_track: { label: 'Hitting your goal', dot: 'bg-emerald-400', text: 'text-emerald-300', ring: 'ring-emerald-500/30', icon: Check },
+  on_track: { label: 'Hitting your goal', dot: 'bg-(--success)', text: 'text-(--success)', ring: 'ring-(--success)/30', icon: Check },
   close: { label: 'Almost there', dot: 'bg-amber-400', text: 'text-amber-300', ring: 'ring-amber-500/30', icon: Minus },
-  behind: { label: 'Falling behind', dot: 'bg-rose-400', text: 'text-rose-300', ring: 'ring-rose-500/30', icon: AlertTriangle },
-  paused: { label: 'Paused', dot: 'bg-zinc-500', text: 'text-zinc-400', ring: 'ring-zinc-700/30', icon: PauseCircle },
+  behind: { label: 'Falling behind', dot: 'bg-(--pink)', text: 'text-(--pink)', ring: 'ring-(--pink)/30', icon: AlertTriangle },
+  paused: { label: 'Paused', dot: 'bg-(--muted-2)', text: 'text-(--muted)', ring: 'ring-(--line-strong)/30', icon: PauseCircle },
 } as const;
 
 function Sparkline({ data, color }: { data: { day: string; count: number }[]; color: string }) {
@@ -126,7 +126,7 @@ function DeltaBadge({ thisWeek, lastWeek }: { thisWeek: number; lastWeek: number
   const delta = thisWeek - lastWeek;
   if (delta === 0) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-zinc-500">
+      <span className="inline-flex items-center gap-1 text-xs text-(--muted-2)">
         <Minus className="h-3 w-3" />
         same as last week
       </span>
@@ -134,13 +134,13 @@ function DeltaBadge({ thisWeek, lastWeek }: { thisWeek: number; lastWeek: number
   }
   if (delta > 0) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+      <span className="inline-flex items-center gap-1 text-xs text-(--cyan)">
         <TrendingUp className="h-3 w-3" />+{delta} vs last week
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-rose-400">
+    <span className="inline-flex items-center gap-1 text-xs text-(--pink)">
       <TrendingDown className="h-3 w-3" />
       {delta} vs last week
     </span>
@@ -149,11 +149,11 @@ function DeltaBadge({ thisWeek, lastWeek }: { thisWeek: number; lastWeek: number
 
 function Chip({ children, variant }: { children: React.ReactNode; variant: 'lean' | 'drop' | 'neutral' | 'good' | 'bad' }) {
   const styles = {
-    lean: 'bg-teal-950/40 text-teal-300 border-teal-900/50',
-    drop: 'bg-zinc-900 text-zinc-500 border-zinc-800 line-through',
-    neutral: 'bg-zinc-900 text-zinc-300 border-zinc-800',
-    good: 'bg-emerald-950/40 text-emerald-300 border-emerald-900/50',
-    bad: 'bg-rose-950/30 text-rose-300 border-rose-900/40',
+    lean: 'bg-(--violet-12) text-(--violet-bright) border-(--violet)/50',
+    drop: 'bg-(--surface) text-(--muted-2) border-(--line) line-through',
+    neutral: 'bg-(--surface) text-(--muted) border-(--line)',
+    good: 'bg-(--success)/10 text-(--success) border-(--success)/30',
+    bad: 'bg-(--pink)/10 text-(--pink) border-(--pink)/30',
   }[variant];
   return <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${styles}`}>{children}</span>;
 }
@@ -227,7 +227,7 @@ function BrainTab({ data }: { data: InsightsData }) {
 
   if (!hasBrain) {
     return (
-      <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/30 p-4 text-sm text-zinc-400">
+      <div className="rounded-2xl border border-(--line) bg-(--surface)/30 p-4 text-sm text-(--muted)">
         <span className="text-amber-300">Brain hasn't run yet.</span> Daily cron fires at 03:00 UTC — discoveries land here once it has data.
       </div>
     );
@@ -253,21 +253,21 @@ function BrainTab({ data }: { data: InsightsData }) {
   return (
     <div className="space-y-4">
       {decision && (
-        <div className="rounded-xl border border-teal-900/40 bg-gradient-to-br from-teal-950/30 to-zinc-950 p-4">
-          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-teal-300">
+        <div className="rounded-2xl border border-(--violet)/40 bg-gradient-to-br from-(--violet-12) to-(--bg) p-4">
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-(--violet-bright)">
             The brain's decision
           </div>
-          <p className="text-sm leading-relaxed text-white">{decision}</p>
+          <p className="text-sm leading-relaxed text-(--txt)">{decision}</p>
         </div>
       )}
 
       {data.formula && (
-        <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+        <div className="rounded-2xl border border-(--line) bg-(--surface)/30 p-4">
+          <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-(--muted)">
             <Sparkles className="h-3 w-3" />
             <span>What the next post will look like</span>
           </div>
-          <p className="mb-3 text-xs text-zinc-500">Picked from what worked on your account.</p>
+          <p className="mb-3 text-xs text-(--muted-2)">Picked from what worked on your account.</p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="Type" value={humanFormat(data.formula.format)} />
             <Stat label="When it'll post" value={`${data.formula.bestSlot.day} ${formatHour(data.formula.bestSlot.hour)}`} />
@@ -281,7 +281,7 @@ function BrainTab({ data }: { data: InsightsData }) {
         <button
           type="button"
           onClick={() => setShowDetails((v) => !v)}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-800/60 bg-zinc-900/30 px-3 py-2 text-xs font-medium text-zinc-400 transition-colors hover:bg-zinc-900/60 hover:text-zinc-200"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-(--line) bg-(--surface)/30 px-3 py-2 text-xs font-medium text-(--muted) transition-colors hover:bg-(--surface)/60 hover:text-(--txt)"
         >
           {showDetails ? 'Hide full breakdown' : 'Show full breakdown'}
           <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
@@ -291,12 +291,12 @@ function BrainTab({ data }: { data: InsightsData }) {
       {showDetails && (winChips.length > 0 || loseChips.length > 0) && (
         <div className="grid gap-3 sm:grid-cols-2">
           {winChips.length > 0 && (
-            <PillBlock title="What's working for you" hint="Patterns the brain noticed in your top posts" icon={<Check className="h-3 w-3 text-emerald-400" />}>
+            <PillBlock title="What's working for you" hint="Patterns the brain noticed in your top posts" icon={<Check className="h-3 w-3 text-(--success)" />}>
               {winChips.map((c) => <Chip key={c} variant="good">{c}</Chip>)}
             </PillBlock>
           )}
           {loseChips.length > 0 && (
-            <PillBlock title="What's falling flat" hint="Things the brain wants to fix on your next post" icon={<AlertTriangle className="h-3 w-3 text-rose-400" />}>
+            <PillBlock title="What's falling flat" hint="Things the brain wants to fix on your next post" icon={<AlertTriangle className="h-3 w-3 text-(--pink)" />}>
               {loseChips.map((c) => <Chip key={c} variant="bad">{c}</Chip>)}
             </PillBlock>
           )}
@@ -306,12 +306,12 @@ function BrainTab({ data }: { data: InsightsData }) {
       {showDetails && (leanChips.length > 0 || dropChips.length > 0) && (
         <div className="grid gap-3 sm:grid-cols-2">
           {leanChips.length > 0 && (
-            <PillBlock title="More of this" hint="Topics the brain will write about more often" icon={<TrendingUp className="h-3 w-3 text-teal-400" />}>
+            <PillBlock title="More of this" hint="Topics the brain will write about more often" icon={<TrendingUp className="h-3 w-3 text-(--violet-bright)" />}>
               {leanChips.map((c) => <Chip key={c} variant="lean">{c}</Chip>)}
             </PillBlock>
           )}
           {dropChips.length > 0 && (
-            <PillBlock title="Less of this" hint="Topics it'll quietly stop posting" icon={<TrendingDown className="h-3 w-3 text-zinc-500" />}>
+            <PillBlock title="Less of this" hint="Topics it'll quietly stop posting" icon={<TrendingDown className="h-3 w-3 text-(--muted-2)" />}>
               {dropChips.map((c) => <Chip key={c} variant="drop">{c}</Chip>)}
             </PillBlock>
           )}
@@ -319,15 +319,15 @@ function BrainTab({ data }: { data: InsightsData }) {
       )}
 
       {showDetails && ci && ci.sampleSize > 0 && (
-        <div className="rounded-xl border border-amber-900/30 bg-gradient-to-br from-amber-950/15 to-zinc-950 p-4">
+        <div className="rounded-2xl border border-amber-900/30 bg-gradient-to-br from-amber-950/15 to-(--bg) p-4">
           <div className="mb-1 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-300">
               <Target className="h-3 w-3" />
               <span>Borrowing from competitors</span>
             </div>
-            <span className="text-[10px] text-zinc-500">Based on {ci.sampleSize} of their posts · {ci.competitorCount} accounts</span>
+            <span className="text-[10px] text-(--muted-2)">Based on {ci.sampleSize} of their posts · {ci.competitorCount} accounts</span>
           </div>
-          <p className="mb-3 text-xs text-zinc-400">Where they're beating you. The brain will try these on your next post.</p>
+          <p className="mb-3 text-xs text-(--muted)">Where they're beating you. The brain will try these on your next post.</p>
 
           <div className="grid gap-4 sm:grid-cols-3">
             {compHook && (
@@ -357,14 +357,14 @@ function BrainTab({ data }: { data: InsightsData }) {
           </div>
 
           {ci.topHashtags.length > 0 && (
-            <div className="mt-4 border-t border-zinc-800/60 pt-3">
-              <div className="mb-1.5 text-[10px] uppercase tracking-wider text-zinc-500">
-                Hashtags worth borrowing <span className="normal-case tracking-normal text-zinc-600">(number = avg likes per post that used it)</span>
+            <div className="mt-4 border-t border-(--line) pt-3">
+              <div className="mb-1.5 text-[10px] uppercase tracking-wider text-(--muted-2)">
+                Hashtags worth borrowing <span className="normal-case tracking-normal text-(--muted-2)">(number = avg likes per post that used it)</span>
               </div>
               <div className="flex flex-wrap gap-1">
                 {ci.topHashtags.slice(0, 5).map((h) => (
                   <Chip key={h.tag} variant="neutral">
-                    {h.tag} <span className="text-zinc-500">·{h.avgEngagement.toLocaleString()}</span>
+                    {h.tag} <span className="text-(--muted-2)">·{h.avgEngagement.toLocaleString()}</span>
                   </Chip>
                 ))}
               </div>
@@ -378,12 +378,12 @@ function BrainTab({ data }: { data: InsightsData }) {
 
 function PillBlock({ title, hint, icon, children }: { title: string; hint?: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4">
-      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+    <div className="rounded-2xl border border-(--line) bg-(--surface)/30 p-4">
+      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-(--muted)">
         {icon}
         <span>{title}</span>
       </div>
-      {hint && <p className="mb-2.5 text-[11px] text-zinc-500">{hint}</p>}
+      {hint && <p className="mb-2.5 text-[11px] text-(--muted-2)">{hint}</p>}
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   );
@@ -392,25 +392,25 @@ function PillBlock({ title, hint, icon, children }: { title: string; hint?: stri
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wider text-zinc-500">{label}</div>
-      <div className="mt-0.5 text-sm font-semibold text-white">{value}</div>
+      <div className="text-[10px] uppercase tracking-wider text-(--muted-2)">{label}</div>
+      <div className="mt-0.5 text-sm font-semibold text-(--txt)">{value}</div>
     </div>
   );
 }
 
 function VsStat({ label, you, them, themDetail }: { label: string; you: string; them: string; themDetail: string }) {
   return (
-    <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/40 p-3">
-      <div className="mb-2 text-[10px] uppercase tracking-wider text-zinc-500">{label}</div>
+    <div className="rounded-lg border border-(--line) bg-(--bg)/40 p-3">
+      <div className="mb-2 text-[10px] uppercase tracking-wider text-(--muted-2)">{label}</div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <div className="text-[9px] uppercase text-zinc-500">You</div>
-          <div className="truncate text-sm font-medium text-zinc-300">{you}</div>
+          <div className="text-[9px] uppercase text-(--muted-2)">You</div>
+          <div className="truncate text-sm font-medium text-(--muted)">{you}</div>
         </div>
-        <div className="border-l border-zinc-800 pl-2">
+        <div className="border-l border-(--line) pl-2">
           <div className="text-[9px] uppercase text-amber-400/80">Them</div>
           <div className="truncate text-sm font-semibold text-amber-200">{them}</div>
-          <div className="text-[10px] text-zinc-500">{themDetail}</div>
+          <div className="text-[10px] text-(--muted-2)">{themDetail}</div>
         </div>
       </div>
     </div>
@@ -449,11 +449,11 @@ function RecentTab({ brandId, refreshKey }: { brandId: string; refreshKey: numbe
   }, [brandId, refreshKey]);
 
   if (err) return <div className="text-xs text-rose-300">Failed to load: {err}</div>;
-  if (!items) return <div className="text-xs text-zinc-500">Loading recent posts…</div>;
+  if (!items) return <div className="text-xs text-(--muted-2)">Loading recent posts…</div>;
   if (items.length === 0) {
     return (
-      <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/30 p-6 text-center text-sm text-zinc-400">
-        No autopilot posts yet. Hit <span className="text-teal-300">Run now</span> above to generate the first one.
+      <div className="rounded-2xl border border-(--line) bg-(--surface)/30 p-6 text-center text-sm text-(--muted)">
+        No autopilot posts yet. Hit <span className="text-(--violet-bright)">Run now</span> above to generate the first one.
       </div>
     );
   }
@@ -463,19 +463,19 @@ function RecentTab({ brandId, refreshKey }: { brandId: string; refreshKey: numbe
       {items.slice(0, 8).map((p) => {
         const img = p.processedImageUrl ?? p.sourceImageUrl;
         return (
-          <div key={p.id} className="flex gap-3 overflow-hidden rounded-lg border border-zinc-800/60 bg-zinc-900/30 p-3">
+          <div key={p.id} className="flex gap-3 overflow-hidden rounded-lg border border-(--line) bg-(--surface)/30 p-3">
             {img && (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img src={img} alt="" className="h-16 w-16 shrink-0 rounded object-cover" />
             )}
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-white">{p.hookText ?? '(no hook)'}</div>
-              <div className="mt-0.5 line-clamp-2 text-xs text-zinc-500">{p.caption ?? ''}</div>
+              <div className="truncate text-sm font-medium text-(--txt)">{p.hookText ?? '(no hook)'}</div>
+              <div className="mt-0.5 line-clamp-2 text-xs text-(--muted-2)">{p.caption ?? ''}</div>
               <div className="mt-1.5 flex items-center gap-2 text-[10px]">
-                <span className={`rounded-full px-1.5 py-0.5 ${p.status === 'scheduled' ? 'bg-emerald-950/40 text-emerald-300' : 'bg-zinc-800 text-zinc-400'}`}>
+                <span className={`rounded-full px-1.5 py-0.5 ${p.status === 'scheduled' ? 'bg-(--success)/10 text-(--success)' : 'bg-(--surface-2) text-(--muted)'}`}>
                   {p.status}
                 </span>
-                <span className="text-zinc-500">
+                <span className="text-(--muted-2)">
                   {p.scheduledAt ? `for ${new Date(p.scheduledAt).toLocaleString()}` : p.createdAt ? `made ${timeAgo(p.createdAt)}` : ''}
                 </span>
               </div>
@@ -513,62 +513,62 @@ export function BrandPanel({ brandId, brandName }: { brandId: string; brandName:
   }
   if (!data) {
     return (
-      <div className="animate-pulse rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-5">
-        <div className="h-4 w-32 rounded bg-zinc-800" />
-        <div className="mt-3 h-3 w-48 rounded bg-zinc-800/60" />
+      <div className="animate-pulse rounded-2xl border border-(--line) bg-(--surface)/40 p-5">
+        <div className="h-4 w-32 rounded bg-(--surface-2)" />
+        <div className="mt-3 h-3 w-48 rounded bg-(--surface-2)/60" />
       </div>
     );
   }
 
   const status = STATUS_META[data.weekly.status];
   const StatusIcon = status.icon;
-  const sparkColor = data.weekly.status === 'on_track' ? '#14b8a6' : data.weekly.status === 'close' ? '#f59e0b' : data.weekly.status === 'behind' ? '#f43f5e' : '#71717a';
+  const sparkColor = data.weekly.status === 'on_track' ? '#8B5CF6' : data.weekly.status === 'close' ? '#f59e0b' : data.weekly.status === 'behind' ? '#FF4D8D' : '#8A8F98';
   const nextRun = data.autopilot?.nextRunAt ? timeUntil(data.autopilot.nextRunAt) : null;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-800/60 bg-zinc-900/40">
+    <div className="overflow-hidden rounded-2xl border border-(--line) bg-(--surface)/40">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="grid w-full grid-cols-[1fr_auto] items-center gap-4 p-5 text-left transition-colors hover:bg-zinc-900/70"
+        className="grid w-full grid-cols-[1fr_auto] items-center gap-4 p-5 text-left transition-colors hover:bg-(--surface)/70"
       >
         <div className="grid items-center gap-4 sm:grid-cols-[200px_1fr_auto]">
           <div className="flex items-center gap-3">
             <span className={`flex h-2.5 w-2.5 rounded-full ${status.dot} ring-4 ${status.ring}`} />
             <div>
-              <div className="text-base font-semibold text-white">{brandName}</div>
+              <div className="text-base font-semibold text-(--txt)">{brandName}</div>
               <div className={`text-xs ${status.text} flex items-center gap-1`}>
                 <StatusIcon className="h-3 w-3" />
                 {status.label}
-                {nextRun && data.autopilot?.enabled && <span className="text-zinc-500"> · next {nextRun}</span>}
+                {nextRun && data.autopilot?.enabled && <span className="text-(--muted-2)"> · next {nextRun}</span>}
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Posts shipped this week</div>
+              <div className="text-[10px] uppercase tracking-wider text-(--muted-2)">Posts shipped this week</div>
               <div className="mt-0.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-bold text-white">{data.weekly.postsThisWeek}</span>
-                <span className="text-xs text-zinc-500">of {data.weekly.weeklyGoal} planned</span>
+                <span className="text-2xl font-bold text-(--txt)">{data.weekly.postsThisWeek}</span>
+                <span className="text-xs text-(--muted-2)">of {data.weekly.weeklyGoal} planned</span>
               </div>
               <DeltaBadge thisWeek={data.weekly.postsThisWeek} lastWeek={data.weekly.postsLastWeek} />
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Posting rhythm · last 14 days</div>
+              <div className="text-[10px] uppercase tracking-wider text-(--muted-2)">Posting rhythm · last 14 days</div>
               <Sparkline data={data.weekly.last14dDaily} color={sparkColor} />
-              <div className="text-[10px] text-zinc-500">{data.autopilot?.totalGenerated ?? 0} total posts shipped all time</div>
+              <div className="text-[10px] text-(--muted-2)">{data.autopilot?.totalGenerated ?? 0} total posts shipped all time</div>
             </div>
           </div>
         </div>
 
-        <ChevronDown className={`h-5 w-5 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-5 w-5 text-(--muted-2) transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="border-t border-zinc-800/60 bg-zinc-950/40">
+        <div className="border-t border-(--line) bg-(--bg)/40">
           <LearningLedger data={data} />
-          <div className="flex gap-1 border-b border-zinc-800/60 px-4">
+          <div className="flex gap-1 border-b border-(--line) px-4">
             <TabButton active={tab === 'brain'} onClick={() => setTab('brain')} icon={<Brain className="h-3.5 w-3.5" />}>
               What it learned
             </TabButton>
@@ -607,7 +607,7 @@ function fmtAnalyzedAt(iso: string | undefined | null): string {
 function LearningLedger({ data }: { data: InsightsData }) {
   if (!data.brain) {
     return (
-      <div className="border-b border-zinc-800/60 bg-zinc-900/30 px-5 py-3 text-xs text-zinc-400">
+      <div className="border-b border-(--line) bg-(--surface)/30 px-5 py-3 text-xs text-(--muted)">
         <span className="text-amber-300">Brain hasn't analyzed yet.</span> Next analysis runs nightly at 03:00 UTC.
       </div>
     );
@@ -616,38 +616,38 @@ function LearningLedger({ data }: { data: InsightsData }) {
   const reviewedComp = data.competitorIntel?.sampleSize ?? 0;
   const compCount = data.competitorIntel?.competitorCount ?? 0;
   return (
-    <div className="border-b border-zinc-800/60 bg-gradient-to-r from-teal-950/20 to-zinc-950/40 px-5 py-3">
+    <div className="border-b border-(--line) bg-gradient-to-r from-(--violet-08) to-(--bg)/40 px-5 py-3">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-        <span className="inline-flex items-center gap-1.5 font-medium text-teal-300">
+        <span className="inline-flex items-center gap-1.5 font-medium text-(--violet-bright)">
           <Brain className="h-3.5 w-3.5" />
           Last analyzed {fmtAnalyzedAt(data.brain.generatedAt)} ({timeAgo(data.brain.generatedAt)})
         </span>
-        <span className="text-zinc-500">
-          Reviewed <span className="text-zinc-200">{reviewedOwn}</span> of your posts
-          {reviewedComp > 0 && <> + <span className="text-zinc-200">{reviewedComp}</span> competitor posts across <span className="text-zinc-200">{compCount}</span> accounts</>}
+        <span className="text-(--muted-2)">
+          Reviewed <span className="text-(--muted)">{reviewedOwn}</span> of your posts
+          {reviewedComp > 0 && <> + <span className="text-(--muted)">{reviewedComp}</span> competitor posts across <span className="text-(--muted)">{compCount}</span> accounts</>}
         </span>
-        <span className="text-zinc-500">Brain v{data.brain.briefVersion}</span>
+        <span className="text-(--muted-2)">Brain v{data.brain.briefVersion}</span>
       </div>
 
       {data.narrative ? (
-        <div className="mt-2.5 rounded-lg border border-teal-900/40 bg-zinc-950/60 p-3">
-          <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-teal-300">
+        <div className="mt-2.5 rounded-lg border border-(--violet)/40 bg-(--bg)/60 p-3">
+          <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-(--violet-bright)">
             <Sparkles className="h-3 w-3" />
             <span>What changed this run</span>
           </div>
-          <p className="text-xs leading-relaxed text-zinc-200">{data.narrative.narrative}</p>
+          <p className="text-xs leading-relaxed text-(--muted)">{data.narrative.narrative}</p>
           {data.narrative.bullets.length > 0 && (
             <ul className="mt-2 space-y-0.5">
               {data.narrative.bullets.map((b, i) => (
-                <li key={i} className="text-[11px] text-zinc-400">
-                  <span className="text-teal-400">→</span> {b}
+                <li key={i} className="text-[11px] text-(--muted)">
+                  <span className="text-(--violet-bright)">→</span> {b}
                 </li>
               ))}
             </ul>
           )}
         </div>
       ) : (
-        <p className="mt-1 text-[11px] text-zinc-500">
+        <p className="mt-1 text-[11px] text-(--muted-2)">
           Each new post is designed from these findings — what got the most likes, comments, and reach on your account and on theirs.
         </p>
       )}
@@ -661,7 +661,7 @@ function TabButton({ active, onClick, icon, children }: { active: boolean; onCli
       type="button"
       onClick={onClick}
       className={`flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
-        active ? 'border-teal-400 text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'
+        active ? 'border-(--violet) text-(--txt)' : 'border-transparent text-(--muted) hover:text-(--txt)'
       }`}
     >
       {icon}

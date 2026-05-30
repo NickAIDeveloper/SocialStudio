@@ -95,7 +95,7 @@ export function TopPerformersStrip({ igUserId }: { igUserId: string }) {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4 text-xs text-white/60">
+      <div className="flex items-center gap-2 rounded-2xl border border-(--line) bg-(--surface) p-4 text-xs text-(--muted)">
         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading top performers…
       </div>
     );
@@ -113,12 +113,12 @@ export function TopPerformersStrip({ igUserId }: { igUserId: string }) {
 
   return (
     <section className="space-y-3">
-      <h3 className="px-1 text-sm font-semibold text-white">Top performers</h3>
+      <h3 className="px-1 text-sm font-semibold text-(--txt)">Top performers</h3>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {performers.map((p) => (
           <article
             key={p.id}
-            className="flex flex-col overflow-hidden rounded-xl border border-zinc-800/60 bg-zinc-900/50"
+            className="flex flex-col overflow-hidden rounded-2xl border border-(--line) bg-(--surface)"
           >
             {p.thumb ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -128,20 +128,20 @@ export function TopPerformersStrip({ igUserId }: { igUserId: string }) {
                 className="h-32 w-full object-cover"
               />
             ) : (
-              <div className="flex h-32 w-full items-center justify-center bg-zinc-950 text-xs text-white/40">
+              <div className="flex h-32 w-full items-center justify-center bg-(--bg) text-xs text-(--muted-2)">
                 No thumbnail
               </div>
             )}
             <div className="flex flex-1 flex-col gap-2 p-3">
-              <p className="line-clamp-2 text-xs text-white/80">
+              <p className="line-clamp-2 text-xs text-(--muted)">
                 {p.caption.slice(0, 140) || '(no caption)'}
               </p>
-              <p className="text-[11px] uppercase tracking-wider text-emerald-300">
+              <p className="text-[11px] uppercase tracking-wider text-(--cyan)">
                 Reach {formatReach(p.reach)}
               </p>
               <Link
                 href={`/smart-posts?source=meta&ig=${encodeURIComponent(igUserId)}&likeOf=${encodeURIComponent(p.id)}`}
-                className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-500"
+                className="cta-violet mt-auto inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Generate one like this

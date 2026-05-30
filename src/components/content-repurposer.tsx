@@ -86,14 +86,14 @@ export function ContentRepurposer() {
   };
 
   return (
-    <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-5 space-y-5">
+    <div className="rounded-2xl border border-(--line) bg-(--surface) p-5 space-y-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-500/10">
-          <Recycle className="h-4 w-4 text-teal-400" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-(--violet-12)">
+          <Recycle className="h-4 w-4 text-(--violet-bright)" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-white">Content Repurposer</h3>
-          <p className="text-sm text-white">
+          <h3 className="text-lg font-semibold text-(--txt)">Content Repurposer</h3>
+          <p className="text-sm text-(--muted)">
             Paste a blog URL and generate 5 Instagram posts from it
           </p>
         </div>
@@ -107,14 +107,14 @@ export function ContentRepurposer() {
           onKeyDown={(e) => { if (e.key === 'Enter') void handleRepurpose(); }}
           placeholder="https://example.com/blog/your-article"
           disabled={loading}
-          className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 disabled:opacity-50"
+          className="flex-1 rounded-lg border border-(--line) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) placeholder:text-(--muted-2) focus:outline-none focus:ring-2 focus:ring-(--violet) disabled:opacity-50"
         />
         {brands.length > 0 && (
           <select
             value={selectedBrandSlug}
             onChange={(e) => setSelectedBrandSlug(e.target.value)}
             disabled={loading}
-            className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-teal-500/50 disabled:opacity-50"
+            className="rounded-lg border border-(--line) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) focus:outline-none focus:ring-2 focus:ring-(--violet) disabled:opacity-50"
           >
             {brands.map((b) => (
               <option key={b.id} value={b.slug}>
@@ -126,7 +126,7 @@ export function ContentRepurposer() {
         <button
           onClick={() => void handleRepurpose()}
           disabled={loading || !url.trim()}
-          className="flex items-center gap-2 rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          className="cta-violet flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
         >
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -148,13 +148,13 @@ export function ContentRepurposer() {
           {posts.map((post, i) => (
             <div
               key={i}
-              className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-4 space-y-3 flex flex-col"
+              className="surface-card p-4 space-y-3 flex flex-col"
             >
               <div className="flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/20 text-xs font-bold text-teal-400">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-(--violet-12) text-xs font-bold text-(--violet-bright)">
                   {i + 1}
                 </span>
-                <span className="text-xs font-medium text-white uppercase tracking-wider">
+                <span className="text-xs font-medium text-(--txt) uppercase tracking-wider">
                   Post {i + 1}
                 </span>
               </div>
@@ -166,14 +166,14 @@ export function ContentRepurposer() {
                 </div>
               )}
 
-              <p className="text-sm text-white leading-relaxed line-clamp-6 flex-1">
+              <p className="text-sm text-(--muted) leading-relaxed line-clamp-6 flex-1">
                 {post.caption}
               </p>
 
               {post.hashtags && (
                 <div className="flex items-start gap-2">
-                  <Hash className="h-3.5 w-3.5 text-teal-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-teal-300 leading-relaxed line-clamp-2">
+                  <Hash className="h-3.5 w-3.5 text-(--violet-bright) mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-(--violet-bright) leading-relaxed line-clamp-2">
                     {post.hashtags}
                   </p>
                 </div>
@@ -181,7 +181,7 @@ export function ContentRepurposer() {
 
               <button
                 onClick={() => handleUsePost(post)}
-                className="flex items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-teal-500 mt-auto"
+                className="cta-violet flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition mt-auto"
               >
                 Use This
                 <ArrowRight className="h-3.5 w-3.5" />

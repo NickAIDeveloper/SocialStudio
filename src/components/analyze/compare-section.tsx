@@ -133,7 +133,7 @@ export function CompareSection() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-10 text-center text-sm text-white">
+      <div className="rounded-2xl border border-(--line) bg-(--surface) p-10 text-center text-sm text-(--txt)">
         Loading competitors…
       </div>
     );
@@ -141,7 +141,7 @@ export function CompareSection() {
 
   if (competitors.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-10 text-center text-sm text-white">
+      <div className="rounded-2xl border border-(--line) bg-(--surface) p-10 text-center text-sm text-(--txt)">
         Add a competitor on the Competitors tab to compare side by side.
       </div>
     );
@@ -149,13 +149,13 @@ export function CompareSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-4">
-        <label htmlFor="compare-competitor" className="text-sm text-white">Compare with</label>
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-(--line) bg-(--surface) p-4">
+        <label htmlFor="compare-competitor" className="text-sm text-(--txt)">Compare with</label>
         <select
           id="compare-competitor"
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-white focus:border-teal-500 focus:outline-none"
+          className="rounded-lg border border-(--line) bg-(--bg) px-3 py-1.5 text-sm text-(--txt) focus:border-(--violet) focus:outline-none"
         >
           {competitors.map((c) => (
             <option key={c.id} value={c.id}>@{c.handle}</option>
@@ -181,19 +181,19 @@ export function CompareSection() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-zinc-800/60 bg-zinc-900/30">
-        <div className="grid grid-cols-3 gap-4 border-b border-zinc-800/60 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+      <div className="overflow-hidden rounded-2xl border border-(--line) bg-(--surface)">
+        <div className="grid grid-cols-3 gap-4 border-b border-(--line) px-4 py-3 text-xs font-semibold uppercase tracking-wider text-(--muted)">
           <span>Metric</span>
           <span>{stats?.youHandle ? `@${stats.youHandle}` : 'Your account'}</span>
           <span>{selectedComp ? `@${selectedComp.handle}` : 'Competitor'}</span>
         </div>
         {rows.map((row) => (
-          <div key={row.label} className="grid grid-cols-3 gap-4 border-b border-zinc-800/40 px-4 py-4 text-sm last:border-0">
-            <span className="font-medium text-white">{row.label}</span>
-            <span className={row.you ? 'text-white' : 'text-zinc-500 italic'}>
+          <div key={row.label} className="grid grid-cols-3 gap-4 border-b border-(--line) px-4 py-4 text-sm last:border-0">
+            <span className="font-medium text-(--txt)">{row.label}</span>
+            <span className={row.you ? 'text-(--txt)' : 'text-(--muted-2) italic'}>
               {row.you ?? '— no data'}
             </span>
-            <span className={row.competitor ? 'text-white' : 'text-zinc-500 italic'}>
+            <span className={row.competitor ? 'text-(--txt)' : 'text-(--muted-2) italic'}>
               {row.competitor ?? '— no data'}
             </span>
           </div>

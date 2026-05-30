@@ -25,22 +25,22 @@ export function LearningsCtaDock(props: LearningsCtaDockProps) {
   const count = props.selectedIds.size;
   if (count === 0) return null;
   return (
-    <div className="sticky bottom-3 z-10 mt-2 flex items-center justify-between gap-3 rounded-2xl border border-teal-500/30 bg-zinc-900/90 p-3 backdrop-blur">
-      <p className="text-sm text-zinc-200">
-        <span className="font-semibold text-teal-300">{count}</span>{' '}
+    <div className="sticky bottom-3 z-10 mt-2 flex items-center justify-between gap-3 rounded-2xl border border-(--violet-24) bg-(--surface)/90 p-3 backdrop-blur">
+      <p className="text-sm text-(--muted)">
+        <span className="font-semibold text-(--violet-bright)">{count}</span>{' '}
         {count === 1 ? 'learning selected' : 'learnings selected'}
       </p>
       <div className="flex items-center gap-2">
         <Link
           href={buildHref('/smart-posts', props)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-500"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-(--violet) px-3 py-1.5 text-xs font-semibold text-white hover:bg-(--violet-bright)"
         >
           <Sparkles className="h-3.5 w-3.5" />
           Make 1 Perfect Post
         </Link>
         <Link
           href={buildHref('/create', { ...props })}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-teal-500/40 bg-teal-500/10 px-3 py-1.5 text-xs font-semibold text-teal-200 hover:bg-teal-500/20"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-(--violet-24) bg-(--violet-12) px-3 py-1.5 text-xs font-semibold text-(--violet-bright) hover:bg-(--violet-24)"
         >
           <Layers className="h-3.5 w-3.5" />
           Make a 5-pack

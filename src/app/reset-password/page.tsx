@@ -38,10 +38,10 @@ function ResetForm() {
   if (done) {
     return (
       <div className="space-y-4 text-center">
-        <div className="rounded-lg bg-teal-500/10 border border-teal-500/20 px-4 py-3 text-sm text-teal-300">
+        <div className="rounded-lg bg-(--violet-12) border border-(--violet-24) px-4 py-3 text-sm text-(--violet-bright)">
           Password reset successfully.
         </div>
-        <Link href="/login" className="text-sm text-teal-400 hover:text-teal-300 inline-block">
+        <Link href="/login" className="text-sm text-(--violet-bright) hover:text-(--violet) inline-block">
           Sign in with your new password
         </Link>
       </div>
@@ -52,17 +52,17 @@ function ResetForm() {
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-300">{error}</div>}
       <div>
-        <label className="block text-sm font-medium text-white mb-1">New Password</label>
+        <label className="block text-sm font-medium text-(--txt) mb-1">New Password</label>
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="At least 8 characters"
-          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-teal-500/50" />
+          className="w-full rounded-lg border border-(--line) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) placeholder-(--muted-2) focus:outline-none focus:border-(--violet) focus:ring-2 focus:ring-(--violet-24)" />
       </div>
       <div>
-        <label className="block text-sm font-medium text-white mb-1">Confirm Password</label>
+        <label className="block text-sm font-medium text-(--txt) mb-1">Confirm Password</label>
         <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required
-          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-teal-500/50" />
+          className="w-full rounded-lg border border-(--line) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) placeholder-(--muted-2) focus:outline-none focus:border-(--violet) focus:ring-2 focus:ring-(--violet-24)" />
       </div>
       <button type="submit" disabled={loading}
-        className="w-full rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50 transition">
+        className="w-full rounded-lg bg-(--violet) px-4 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition">
         {loading ? 'Resetting...' : 'Reset Password'}
       </button>
     </form>
@@ -71,13 +71,13 @@ function ResetForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-(--bg) px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Image src="/logo-goviraleza.png" alt="GoViraleza" width={52} height={36} className="mx-auto mb-2 rounded-lg" />
-          <h1 className="text-2xl font-bold text-zinc-100">Set new password</h1>
+          <h1 className="text-2xl font-bold text-(--txt)">Set new password</h1>
         </div>
-        <Suspense fallback={<p className="text-sm text-zinc-400">Loading...</p>}>
+        <Suspense fallback={<p className="text-sm text-(--muted)">Loading...</p>}>
           <ResetForm />
         </Suspense>
       </div>

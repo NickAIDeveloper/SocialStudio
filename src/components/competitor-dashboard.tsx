@@ -56,31 +56,31 @@ function CompetitorRow({ comp, rank, color, onRemove }: {
   const ratio = following > 0 ? (followers / following).toFixed(1) : '—';
 
   return (
-    <div className="flex items-center gap-4 py-3 px-4 rounded-lg bg-zinc-800/30 hover:bg-zinc-800/50 transition group">
+    <div className="flex items-center gap-4 py-3 px-4 rounded-lg bg-(--surface-2)/30 hover:bg-(--surface-2)/50 transition group">
       <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ backgroundColor: color }}>
         {rank}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white">@{comp.handle}</p>
+        <p className="text-sm font-semibold text-(--txt)">@{comp.handle}</p>
         {comp.lastScrapedAt && (
-          <p className="text-[10px] text-zinc-500">Scraped {new Date(comp.lastScrapedAt).toLocaleDateString()}</p>
+          <p className="text-[10px] text-(--muted-2)">Scraped {new Date(comp.lastScrapedAt).toLocaleDateString()}</p>
         )}
       </div>
       <div className="text-right">
-        <p className="text-sm font-bold text-white">{followers > 0 ? formatNum(followers) : '—'}</p>
-        <p className="text-[10px] text-zinc-400">followers</p>
+        <p className="text-sm font-bold text-(--txt)">{followers > 0 ? formatNum(followers) : '—'}</p>
+        <p className="text-[10px] text-(--muted)">followers</p>
       </div>
       <div className="text-right hidden sm:block">
-        <p className="text-sm font-bold text-white">{posts > 0 ? formatNum(posts) : '—'}</p>
-        <p className="text-[10px] text-zinc-400">posts</p>
+        <p className="text-sm font-bold text-(--txt)">{posts > 0 ? formatNum(posts) : '—'}</p>
+        <p className="text-[10px] text-(--muted)">posts</p>
       </div>
       <div className="text-right hidden md:block">
-        <p className="text-sm font-bold text-white">{ratio}</p>
-        <p className="text-[10px] text-zinc-400">F/F ratio</p>
+        <p className="text-sm font-bold text-(--txt)">{ratio}</p>
+        <p className="text-[10px] text-(--muted)">F/F ratio</p>
       </div>
       <button
         onClick={() => onRemove(comp.id)}
-        className="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity text-lg"
+        className="text-(--muted-2) hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity text-lg"
       >
         &times;
       </button>
@@ -398,11 +398,11 @@ export function CompetitorDashboard() {
               onClick={() => setSelectedBrandId(b.id)}
               className={`flex items-center gap-3 px-5 py-3 rounded-xl text-sm font-medium transition-all ${
                 selectedBrandId === b.id
-                  ? 'bg-teal-600 text-white shadow-lg shadow-teal-500/20'
-                  : 'bg-zinc-800/80 text-white border border-zinc-700 hover:bg-zinc-700'
+                  ? 'bg-(--violet) text-white shadow-lg shadow-(--violet-24)'
+                  : 'bg-(--surface-2)/80 text-(--txt) border border-(--line-strong) hover:bg-(--surface-2)'
               }`}
             >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-blue-500 flex items-center justify-center text-xs font-bold">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-(--violet) to-(--violet-deep) flex items-center justify-center text-xs font-bold">
                 {b.name.charAt(0)}
               </div>
               <div className="text-left">
@@ -419,7 +419,7 @@ export function CompetitorDashboard() {
         <button
           onClick={() => void handleAutoFind()}
           disabled={scanning}
-          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-500 hover:to-teal-400 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2 shadow-lg transition-all"
+          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-(--violet-deep) to-(--violet) hover:from-(--violet) hover:to-(--violet-bright) text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2 shadow-lg transition-all"
         >
           {scanning ? (
             <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {scanMessage || 'Scanning...'}</>
@@ -429,16 +429,16 @@ export function CompetitorDashboard() {
 
       {/* Status message */}
       {scanMessage && (
-        <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-2.5 text-sm text-blue-300 flex items-center justify-between">
+        <div className="rounded-lg bg-(--violet-12) border border-(--violet-24) px-4 py-2.5 text-sm text-(--violet-bright) flex items-center justify-between">
           <span>{scanMessage}</span>
-          <button onClick={() => setScanMessage(null)} className="text-blue-400 hover:text-white ml-2">&times;</button>
+          <button onClick={() => setScanMessage(null)} className="text-(--violet-bright) hover:text-white ml-2">&times;</button>
         </div>
       )}
 
       {/* AI Competitive Insights */}
-      <div className="rounded-xl border border-purple-500/20 bg-zinc-900/60 p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-purple-500" />
+      <div className="rounded-2xl border border-(--violet-24) bg-(--surface)/60 p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-(--txt) uppercase tracking-wider flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-(--violet)" />
           AI Competitive Intelligence
         </h3>
 
@@ -449,7 +449,7 @@ export function CompetitorDashboard() {
         )}
 
         {aiInsights.length === 0 && !aiLoading && !aiError && (
-          <p className="text-sm text-zinc-400">Hit &ldquo;Scan &amp; Analyze&rdquo; to generate AI-powered competitive insights.</p>
+          <p className="text-sm text-(--muted)">Hit &ldquo;Scan &amp; Analyze&rdquo; to generate AI-powered competitive insights.</p>
         )}
 
         {aiInsights.length > 0 && (
@@ -458,14 +458,14 @@ export function CompetitorDashboard() {
               const borderColor = insight.type === 'positive' ? 'border-green-500/30' : insight.type === 'warning' ? 'border-red-500/30' : 'border-amber-500/30';
               const dotColor = insight.type === 'positive' ? 'bg-green-500' : insight.type === 'warning' ? 'bg-red-500' : 'bg-amber-500';
               return (
-                <div key={i} className={`rounded-lg border ${borderColor} bg-zinc-800/30 p-4 space-y-2`}>
+                <div key={i} className={`rounded-lg border ${borderColor} bg-(--surface-2)/30 p-4 space-y-2`}>
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${dotColor}`} />
-                    <h4 className="text-sm font-semibold text-white">{insight.title}</h4>
+                    <h4 className="text-sm font-semibold text-(--txt)">{insight.title}</h4>
                   </div>
-                  <p className="text-xs text-zinc-300 leading-relaxed">{insight.insight}</p>
-                  <div className="rounded bg-teal-500/10 border border-teal-500/20 px-2.5 py-1.5">
-                    <p className="text-[11px] text-teal-300">{insight.action}</p>
+                  <p className="text-xs text-(--muted) leading-relaxed">{insight.insight}</p>
+                  <div className="rounded bg-(--violet-12) border border-(--violet-24) px-2.5 py-1.5">
+                    <p className="text-[11px] text-(--violet-bright)">{insight.action}</p>
                   </div>
                 </div>
               );
@@ -479,26 +479,26 @@ export function CompetitorDashboard() {
 
       {/* Suggestions */}
       {suggestions.length > 0 && (
-        <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/40 p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-white">Suggested for {selectedBrand?.name}</h3>
+        <div className="rounded-2xl border border-(--line) bg-(--surface)/40 p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-(--txt)">Suggested for {selectedBrand?.name}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {suggestions.map(s => (
               <label key={s.handle} className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition ${
-                selectedSuggestions.has(s.handle) ? 'border-teal-500/30 bg-teal-500/5' : 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-700'
+                selectedSuggestions.has(s.handle) ? 'border-(--violet-24) bg-(--violet-08)' : 'border-(--line) bg-(--surface)/40 hover:border-(--line-strong)'
               }`}>
-                <input type="checkbox" checked={selectedSuggestions.has(s.handle)} onChange={() => toggleSuggestion(s.handle)} className="mt-0.5 accent-teal-500" />
+                <input type="checkbox" checked={selectedSuggestions.has(s.handle)} onChange={() => toggleSuggestion(s.handle)} className="mt-0.5 accent-(--violet)" />
                 <div>
-                  <p className="text-sm text-white font-medium">@{s.handle}</p>
-                  <p className="text-xs text-zinc-400">{s.reason}</p>
+                  <p className="text-sm text-(--txt) font-medium">@{s.handle}</p>
+                  <p className="text-xs text-(--muted)">{s.reason}</p>
                 </div>
               </label>
             ))}
           </div>
           <div className="flex gap-2">
-            <button onClick={() => void handleTrackSelected()} disabled={selectedSuggestions.size === 0 || trackingSelected} className="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-medium disabled:opacity-50">
+            <button onClick={() => void handleTrackSelected()} disabled={selectedSuggestions.size === 0 || trackingSelected} className="px-4 py-2 rounded-lg bg-(--violet) hover:bg-(--violet-bright) text-white text-sm font-medium disabled:opacity-50">
               {trackingSelected ? 'Tracking...' : `Track Selected (${selectedSuggestions.size})`}
             </button>
-            <button onClick={() => setSuggestions([])} className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium border border-zinc-700">Cancel</button>
+            <button onClick={() => setSuggestions([])} className="px-4 py-2 rounded-lg bg-(--surface-2) hover:bg-(--surface) text-(--txt) text-sm font-medium border border-(--line-strong)">Cancel</button>
           </div>
         </div>
       )}
@@ -510,14 +510,14 @@ export function CompetitorDashboard() {
         if (!youVsThem) return null;
         const { you, competitors: comps } = youVsThem.data;
         return (
-          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-5 overflow-x-auto">
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-teal-500" />
+          <div className="rounded-2xl border border-(--line) bg-(--surface)/60 p-5 overflow-x-auto">
+            <h3 className="text-sm font-semibold text-(--txt) uppercase tracking-wider mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-(--violet)" />
               You vs Competitors
             </h3>
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-[10px] text-zinc-400 uppercase tracking-wider">
+                <tr className="text-[10px] text-(--muted) uppercase tracking-wider">
                   <th className="text-left pb-3 pr-4">Account</th>
                   <th className="text-right pb-3 px-2">Followers</th>
                   <th className="text-right pb-3 px-2">Eng Rate</th>
@@ -527,23 +527,23 @@ export function CompetitorDashboard() {
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-t border-teal-500/30 bg-teal-500/5">
-                  <td className="py-2.5 pr-4 font-semibold text-teal-400">@{you.handle} (You)</td>
-                  <td className="py-2.5 px-2 text-right text-white font-medium">{formatNum(you.followers)}</td>
-                  <td className="py-2.5 px-2 text-right font-bold text-teal-400">{you.engRate}%</td>
-                  <td className="py-2.5 px-2 text-right text-white">{you.postsPerWeek}</td>
-                  <td className="py-2.5 px-2 text-right text-white hidden sm:table-cell">{you.avgLikes}</td>
-                  <td className="py-2.5 pl-2 text-right text-white hidden md:table-cell">{you.avgComments}</td>
+                <tr className="border-t border-(--violet-24) bg-(--violet-08)">
+                  <td className="py-2.5 pr-4 font-semibold text-(--violet-bright)">@{you.handle} (You)</td>
+                  <td className="py-2.5 px-2 text-right text-(--txt) font-medium">{formatNum(you.followers)}</td>
+                  <td className="py-2.5 px-2 text-right font-bold text-(--violet-bright)">{you.engRate}%</td>
+                  <td className="py-2.5 px-2 text-right text-(--txt)">{you.postsPerWeek}</td>
+                  <td className="py-2.5 px-2 text-right text-(--txt) hidden sm:table-cell">{you.avgLikes}</td>
+                  <td className="py-2.5 pl-2 text-right text-(--txt) hidden md:table-cell">{you.avgComments}</td>
                 </tr>
                 {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {(comps as any[]).map((comp: {handle: string; followers: number; engRate: number; postsPerWeek: number; avgLikes: number; avgComments: number}) => (
-                  <tr key={comp.handle} className="border-t border-zinc-800/50 hover:bg-zinc-800/20 transition">
-                    <td className="py-2.5 pr-4 text-white">@{comp.handle}</td>
-                    <td className="py-2.5 px-2 text-right text-zinc-300">{formatNum(comp.followers)}</td>
-                    <td className="py-2.5 px-2 text-right font-medium" style={{ color: comp.engRate > you.engRate ? '#ef4444' : '#10b981' }}>{comp.engRate}%</td>
-                    <td className="py-2.5 px-2 text-right text-zinc-300">{comp.postsPerWeek}</td>
-                    <td className="py-2.5 px-2 text-right text-zinc-300 hidden sm:table-cell">{comp.avgLikes}</td>
-                    <td className="py-2.5 pl-2 text-right text-zinc-300 hidden md:table-cell">{comp.avgComments}</td>
+                  <tr key={comp.handle} className="border-t border-(--line) hover:bg-(--surface-2)/20 transition">
+                    <td className="py-2.5 pr-4 text-(--txt)">@{comp.handle}</td>
+                    <td className="py-2.5 px-2 text-right text-(--muted)">{formatNum(comp.followers)}</td>
+                    <td className="py-2.5 px-2 text-right font-medium" style={{ color: comp.engRate > you.engRate ? '#FF4D8D' : '#5FD07F' }}>{comp.engRate}%</td>
+                    <td className="py-2.5 px-2 text-right text-(--muted)">{comp.postsPerWeek}</td>
+                    <td className="py-2.5 px-2 text-right text-(--muted) hidden sm:table-cell">{comp.avgLikes}</td>
+                    <td className="py-2.5 pl-2 text-right text-(--muted) hidden md:table-cell">{comp.avgComments}</td>
                   </tr>
                 ))}
               </tbody>
@@ -558,25 +558,25 @@ export function CompetitorDashboard() {
         const scorecard = computedInsights.find((i: any) => i.type === 'competitive-scorecard');
         if (!scorecard) return null;
         const cards = scorecard.data.scorecards as Array<{handle: string; grade: string; score: number; engagement: number; postsPerWeek: number; followers: number; hasData?: boolean}>;
-        const gradeColors: Record<string, string> = { 'A+': '#10b981', 'A': '#10b981', 'B+': '#3b82f6', 'B': '#3b82f6', 'C+': '#f59e0b', 'C': '#f59e0b', 'D': '#ef4444', 'F': '#ef4444', 'N/A': '#52525b' };
+        const gradeColors: Record<string, string> = { 'A+': '#5FD07F', 'A': '#5FD07F', 'B+': '#8B5CF6', 'B': '#8B5CF6', 'C+': '#f59e0b', 'C': '#f59e0b', 'D': '#FF4D8D', 'F': '#FF4D8D', 'N/A': '#6B7178' };
         return (
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-(--txt) uppercase tracking-wider flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-amber-500" />
               Competitive Scorecards
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               {cards.map(card => (
-                <div key={card.handle} className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-4 text-center hover:border-zinc-700 transition">
-                  <div className="text-3xl font-black mb-1" style={{ color: gradeColors[card.grade] ?? '#a1a1aa' }}>{card.grade}</div>
-                  <p className="text-xs font-semibold text-white truncate">@{card.handle}</p>
+                <div key={card.handle} className="rounded-2xl border border-(--line) bg-(--surface)/60 p-4 text-center hover:border-(--line-strong) transition">
+                  <div className="text-3xl font-black mb-1" style={{ color: gradeColors[card.grade] ?? '#8A8F98' }}>{card.grade}</div>
+                  <p className="text-xs font-semibold text-(--txt) truncate">@{card.handle}</p>
                   {card.hasData === false ? (
-                    <p className="text-[10px] text-zinc-500 mt-1">Scan to get data</p>
+                    <p className="text-[10px] text-(--muted-2) mt-1">Scan to get data</p>
                   ) : (
                     <>
-                      <p className="text-[10px] text-zinc-400 mt-1">{card.engagement}% eng</p>
-                      <p className="text-[10px] text-zinc-400">{card.postsPerWeek}/week</p>
-                      <p className="text-[10px] text-zinc-500">{formatNum(card.followers)} followers</p>
+                      <p className="text-[10px] text-(--muted) mt-1">{card.engagement}% eng</p>
+                      <p className="text-[10px] text-(--muted)">{card.postsPerWeek}/week</p>
+                      <p className="text-[10px] text-(--muted-2)">{formatNum(card.followers)} followers</p>
                     </>
                   )}
                 </div>
@@ -593,24 +593,24 @@ export function CompetitorDashboard() {
         if (!mining) return null;
         const tags = mining.data.tags as Array<{tag: string; avgEng: number; usedBy: string[]; uses: number}>;
         return (
-          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-5">
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-500" />
+          <div className="rounded-2xl border border-(--line) bg-(--surface)/60 p-5">
+            <h3 className="text-sm font-semibold text-(--txt) uppercase tracking-wider mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-(--violet)" />
               Hashtags to Steal
             </h3>
-            <p className="text-xs text-zinc-400 mb-4">Competitor hashtags you&apos;re not using, ranked by their engagement</p>
+            <p className="text-xs text-(--muted) mb-4">Competitor hashtags you&apos;re not using, ranked by their engagement</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {tags.slice(0, 8).map(t => (
-                <div key={t.tag} className="flex items-center gap-3 rounded-lg bg-teal-500/5 border border-teal-500/10 px-3 py-2">
-                  <span className="text-sm font-semibold text-teal-400 min-w-0 truncate">#{t.tag}</span>
+                <div key={t.tag} className="flex items-center gap-3 rounded-lg bg-(--violet-08) border border-(--violet-12) px-3 py-2">
+                  <span className="text-sm font-semibold text-(--violet-bright) min-w-0 truncate">#{t.tag}</span>
                   <span className="flex-1" />
-                  <span className="text-[10px] text-zinc-400 shrink-0">{t.avgEng} avg eng</span>
-                  <span className="text-[10px] text-zinc-500 shrink-0">{t.usedBy.length} comps</span>
+                  <span className="text-[10px] text-(--muted) shrink-0">{t.avgEng} avg eng</span>
+                  <span className="text-[10px] text-(--muted-2) shrink-0">{t.usedBy.length} comps</span>
                 </div>
               ))}
             </div>
-            <div className="rounded-md bg-teal-500/10 border border-teal-500/20 px-3 py-2 mt-3">
-              <p className="text-xs text-teal-300">{mining.action}</p>
+            <div className="rounded-md bg-(--violet-12) border border-(--violet-24) px-3 py-2 mt-3">
+              <p className="text-xs text-(--violet-bright)">{mining.action}</p>
             </div>
           </div>
         );
@@ -618,16 +618,16 @@ export function CompetitorDashboard() {
 
       {/* Follower comparison chart */}
       {chartData.length > 0 && (
-        <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-5">
-          <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Follower Comparison</h3>
+        <div className="rounded-2xl border border-(--line) bg-(--surface)/60 p-5">
+          <h3 className="text-sm font-semibold text-(--txt) uppercase tracking-wider mb-4">Follower Comparison</h3>
           <div style={{ height: Math.max(200, chartData.length * 45) }}>
             <ResponsiveContainer>
               <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 30 }}>
-                <XAxis type="number" tickFormatter={formatNum} tick={{ fill: '#a1a1aa', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" tick={{ fill: '#fff', fontSize: 12 }} width={160} axisLine={false} tickLine={false} />
+                <XAxis type="number" tickFormatter={formatNum} tick={{ fill: '#8A8F98', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" tick={{ fill: '#F7F7F8', fontSize: 12 }} width={160} axisLine={false} tickLine={false} />
                 <Tooltip
                   formatter={(value) => [formatNum(Number(value ?? 0)), 'Followers']}
-                  contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, color: '#fff' }}
+                  contentStyle={{ backgroundColor: '#1C1E20', border: '1px solid #2A2D30', borderRadius: 8, color: '#F7F7F8' }}
                 />
                 <Bar dataKey="followers" radius={[0, 6, 6, 0]} barSize={24}>
                   {chartData.map((entry, i) => (
@@ -641,18 +641,18 @@ export function CompetitorDashboard() {
       )}
 
       {/* Competitor list */}
-      <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-5 space-y-3">
-        <h3 className="text-sm font-semibold text-white uppercase tracking-wider">
+      <div className="rounded-2xl border border-(--line) bg-(--surface)/60 p-5 space-y-3">
+        <h3 className="text-sm font-semibold text-(--txt) uppercase tracking-wider">
           Tracked Competitors ({competitors.length})
         </h3>
         {loading ? (
           <div className="space-y-2">
-            {[1, 2, 3].map(i => <div key={i} className="h-16 rounded-lg bg-zinc-800/60 animate-pulse" />)}
+            {[1, 2, 3].map(i => <div key={i} className="h-16 rounded-lg bg-(--surface-2)/60 animate-pulse" />)}
           </div>
         ) : competitors.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-white mb-2">No competitors tracked yet</p>
-            <p className="text-sm text-zinc-400">Click &ldquo;Find &amp; Analyze Competitors&rdquo; to auto-discover competitors for {selectedBrand?.name ?? 'your brand'}</p>
+            <p className="text-(--txt) mb-2">No competitors tracked yet</p>
+            <p className="text-sm text-(--muted)">Click &ldquo;Find &amp; Analyze Competitors&rdquo; to auto-discover competitors for {selectedBrand?.name ?? 'your brand'}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -668,35 +668,35 @@ export function CompetitorDashboard() {
       {/* Quick insights based on available data */}
       {sortedByFollowers.length >= 2 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-4">
-            <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Market Position</h3>
+          <div className="rounded-2xl border border-(--line) bg-(--surface)/60 p-4">
+            <h3 className="text-[10px] font-semibold text-(--muted) uppercase tracking-wider mb-2">Market Position</h3>
             <p className="text-3xl font-bold text-amber-400">
               #{sortedByFollowers.length + 1}
             </p>
-            <p className="text-xs text-zinc-500 mt-1">
+            <p className="text-xs text-(--muted-2) mt-1">
               Leader: @{sortedByFollowers[0].handle}
             </p>
           </div>
 
-          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-4">
-            <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Avg Competitor Size</h3>
-            <p className="text-3xl font-bold text-blue-400">
+          <div className="rounded-2xl border border-(--line) bg-(--surface)/60 p-4">
+            <h3 className="text-[10px] font-semibold text-(--muted) uppercase tracking-wider mb-2">Avg Competitor Size</h3>
+            <p className="text-3xl font-bold text-(--violet-bright)">
               {formatNum(Math.round(sortedByFollowers.reduce((s, c) => s + (c.followerCount ?? 0), 0) / sortedByFollowers.length))}
             </p>
-            <p className="text-xs text-zinc-500 mt-1">
+            <p className="text-xs text-(--muted-2) mt-1">
               {formatNum(sortedByFollowers[sortedByFollowers.length - 1].followerCount ?? 0)} — {formatNum(sortedByFollowers[0].followerCount ?? 0)}
             </p>
           </div>
 
-          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-4">
-            <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Avg Posts</h3>
+          <div className="rounded-2xl border border-(--line) bg-(--surface)/60 p-4">
+            <h3 className="text-[10px] font-semibold text-(--muted) uppercase tracking-wider mb-2">Avg Posts</h3>
             {(() => {
               const withPosts = competitors.filter(c => c.postCount && c.postCount > 0);
               const avg = withPosts.length > 0 ? Math.round(withPosts.reduce((s, c) => s + (c.postCount ?? 0), 0) / withPosts.length) : 0;
               return (
                 <>
-                  <p className="text-3xl font-bold text-teal-400">{avg > 0 ? avg : '—'}</p>
-                  <p className="text-xs text-zinc-500 mt-1">
+                  <p className="text-3xl font-bold text-(--violet-bright)">{avg > 0 ? avg : '—'}</p>
+                  <p className="text-xs text-(--muted-2) mt-1">
                     {withPosts.length}/{competitors.length} have data
                   </p>
                 </>
@@ -704,8 +704,8 @@ export function CompetitorDashboard() {
             })()}
           </div>
 
-          <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-4">
-            <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Best F/F Ratio</h3>
+          <div className="rounded-2xl border border-(--line) bg-(--surface)/60 p-4">
+            <h3 className="text-[10px] font-semibold text-(--muted) uppercase tracking-wider mb-2">Best F/F Ratio</h3>
             {(() => {
               const withRatio = competitors
                 .filter(c => (c.followerCount ?? 0) > 0 && (c.followingCount ?? 0) > 0)
@@ -714,11 +714,11 @@ export function CompetitorDashboard() {
               const best = withRatio[0];
               return best ? (
                 <>
-                  <p className="text-3xl font-bold text-green-400">{best.ratio.toFixed(1)}</p>
-                  <p className="text-xs text-zinc-500 mt-1">@{best.handle}</p>
+                  <p className="text-3xl font-bold text-(--success)">{best.ratio.toFixed(1)}</p>
+                  <p className="text-xs text-(--muted-2) mt-1">@{best.handle}</p>
                 </>
               ) : (
-                <p className="text-3xl font-bold text-zinc-600">—</p>
+                <p className="text-3xl font-bold text-(--muted-2)">—</p>
               );
             })()}
           </div>
@@ -728,73 +728,73 @@ export function CompetitorDashboard() {
       {/* Deep scan analysis cards */}
       {Object.keys(analyses).length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Competitor Intelligence</h3>
+          <h3 className="text-sm font-semibold text-(--txt) uppercase tracking-wider">Competitor Intelligence</h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {Object.entries(analyses).map(([handle, data]) => {
               const a = data.analysis;
               if (!a) return null;
               return (
-                <div key={handle} className="rounded-xl border border-zinc-800/50 bg-zinc-900/60 p-5 space-y-4">
+                <div key={handle} className="rounded-2xl border border-(--line) bg-(--surface)/60 p-5 space-y-4">
                   {/* Header */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center text-white font-bold text-sm">
+                      <div className="w-9 h-9 rounded-full bg-(--surface-2) flex items-center justify-center text-(--txt) font-bold text-sm">
                         {handle.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <h4 className="text-sm font-semibold text-white">@{handle}</h4>
-                        <p className="text-xs text-zinc-400">{formatNum(data.profile?.followers ?? 0)} followers</p>
+                        <h4 className="text-sm font-semibold text-(--txt)">@{handle}</h4>
+                        <p className="text-xs text-(--muted)">{formatNum(data.profile?.followers ?? 0)} followers</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-teal-400">{a.engagementRate}%</p>
-                      <p className="text-[10px] text-zinc-400">Eng. Rate</p>
+                      <p className="text-lg font-bold text-(--violet-bright)">{a.engagementRate}%</p>
+                      <p className="text-[10px] text-(--muted)">Eng. Rate</p>
                     </div>
                   </div>
 
                   {/* Stats grid */}
                   <div className="grid grid-cols-4 gap-2 text-center">
-                    <div className="rounded-lg bg-zinc-800/40 py-2">
-                      <p className="text-base font-bold text-white">{a.avgLikes}</p>
-                      <p className="text-[9px] text-zinc-400">Avg Likes</p>
+                    <div className="rounded-lg bg-(--surface-2)/40 py-2">
+                      <p className="text-base font-bold text-(--txt)">{a.avgLikes}</p>
+                      <p className="text-[9px] text-(--muted)">Avg Likes</p>
                     </div>
-                    <div className="rounded-lg bg-zinc-800/40 py-2">
-                      <p className="text-base font-bold text-white">{a.avgComments}</p>
-                      <p className="text-[9px] text-zinc-400">Avg Comments</p>
+                    <div className="rounded-lg bg-(--surface-2)/40 py-2">
+                      <p className="text-base font-bold text-(--txt)">{a.avgComments}</p>
+                      <p className="text-[9px] text-(--muted)">Avg Comments</p>
                     </div>
-                    <div className="rounded-lg bg-zinc-800/40 py-2">
-                      <p className="text-base font-bold text-white">{a.postsPerWeek}</p>
-                      <p className="text-[9px] text-zinc-400">Posts/Week</p>
+                    <div className="rounded-lg bg-(--surface-2)/40 py-2">
+                      <p className="text-base font-bold text-(--txt)">{a.postsPerWeek}</p>
+                      <p className="text-[9px] text-(--muted)">Posts/Week</p>
                     </div>
-                    <div className="rounded-lg bg-zinc-800/40 py-2">
-                      <p className="text-base font-bold text-white">{data.postsScraped ?? 0}</p>
-                      <p className="text-[9px] text-zinc-400">Scraped</p>
+                    <div className="rounded-lg bg-(--surface-2)/40 py-2">
+                      <p className="text-base font-bold text-(--txt)">{data.postsScraped ?? 0}</p>
+                      <p className="text-[9px] text-(--muted)">Scraped</p>
                     </div>
                   </div>
 
                   {/* Best day/time + content mix */}
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-lg bg-zinc-800/30 px-3 py-2">
-                      <p className="text-[9px] text-zinc-400 uppercase">Best Day</p>
-                      <p className="text-xs font-semibold text-white">{a.bestDay}</p>
+                    <div className="rounded-lg bg-(--surface-2)/30 px-3 py-2">
+                      <p className="text-[9px] text-(--muted) uppercase">Best Day</p>
+                      <p className="text-xs font-semibold text-(--txt)">{a.bestDay}</p>
                     </div>
-                    <div className="rounded-lg bg-zinc-800/30 px-3 py-2">
-                      <p className="text-[9px] text-zinc-400 uppercase">Best Time</p>
-                      <p className="text-xs font-semibold text-white">{a.bestTime}</p>
+                    <div className="rounded-lg bg-(--surface-2)/30 px-3 py-2">
+                      <p className="text-[9px] text-(--muted) uppercase">Best Time</p>
+                      <p className="text-xs font-semibold text-(--txt)">{a.bestTime}</p>
                     </div>
-                    <div className="rounded-lg bg-zinc-800/30 px-3 py-2">
-                      <p className="text-[9px] text-zinc-400 uppercase">Content</p>
-                      <p className="text-xs font-semibold text-white">{a.contentMix?.imagePct}% img / {a.contentMix?.reelPct}% reel</p>
+                    <div className="rounded-lg bg-(--surface-2)/30 px-3 py-2">
+                      <p className="text-[9px] text-(--muted) uppercase">Content</p>
+                      <p className="text-xs font-semibold text-(--txt)">{a.contentMix?.imagePct}% img / {a.contentMix?.reelPct}% reel</p>
                     </div>
                   </div>
 
                   {/* Top hashtags */}
                   {a.topHashtags?.length > 0 && (
                     <div>
-                      <p className="text-[9px] text-zinc-400 uppercase tracking-wider mb-1.5">Top Hashtags</p>
+                      <p className="text-[9px] text-(--muted) uppercase tracking-wider mb-1.5">Top Hashtags</p>
                       <div className="flex flex-wrap gap-1">
                         {a.topHashtags.slice(0, 8).map((tag: string) => (
-                          <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                          <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-(--violet-12) text-(--violet-bright) border border-(--violet-24)">
                             {tag}
                           </span>
                         ))}
@@ -805,22 +805,22 @@ export function CompetitorDashboard() {
                   {/* Top & worst post */}
                   <div className="grid grid-cols-2 gap-2">
                     {a.topPost && (
-                      <div className="rounded-lg bg-green-500/5 border border-green-500/20 p-2.5">
-                        <p className="text-[9px] text-green-400 uppercase font-bold">Best Post</p>
-                        <p className="text-base font-bold text-white">{(a.topPost.likes + a.topPost.comments).toLocaleString()}</p>
-                        <p className="text-[9px] text-zinc-400">{a.topPost.likes} likes, {a.topPost.comments} comments</p>
+                      <div className="rounded-lg bg-(--success)/5 border border-(--success)/20 p-2.5">
+                        <p className="text-[9px] text-(--success) uppercase font-bold">Best Post</p>
+                        <p className="text-base font-bold text-(--txt)">{(a.topPost.likes + a.topPost.comments).toLocaleString()}</p>
+                        <p className="text-[9px] text-(--muted)">{a.topPost.likes} likes, {a.topPost.comments} comments</p>
                         {a.topPost.caption && (
-                          <p className="text-[10px] text-zinc-300 line-clamp-2 mt-1 italic">&ldquo;{a.topPost.caption.slice(0, 100)}&rdquo;</p>
+                          <p className="text-[10px] text-(--muted) line-clamp-2 mt-1 italic">&ldquo;{a.topPost.caption.slice(0, 100)}&rdquo;</p>
                         )}
                       </div>
                     )}
                     {a.worstPost && (
                       <div className="rounded-lg bg-red-500/5 border border-red-500/20 p-2.5">
                         <p className="text-[9px] text-red-400 uppercase font-bold">Worst Post</p>
-                        <p className="text-base font-bold text-white">{(a.worstPost.likes + a.worstPost.comments).toLocaleString()}</p>
-                        <p className="text-[9px] text-zinc-400">{a.worstPost.likes} likes, {a.worstPost.comments} comments</p>
+                        <p className="text-base font-bold text-(--txt)">{(a.worstPost.likes + a.worstPost.comments).toLocaleString()}</p>
+                        <p className="text-[9px] text-(--muted)">{a.worstPost.likes} likes, {a.worstPost.comments} comments</p>
                         {a.worstPost.caption && (
-                          <p className="text-[10px] text-zinc-300 line-clamp-2 mt-1 italic">&ldquo;{a.worstPost.caption.slice(0, 100)}&rdquo;</p>
+                          <p className="text-[10px] text-(--muted) line-clamp-2 mt-1 italic">&ldquo;{a.worstPost.caption.slice(0, 100)}&rdquo;</p>
                         )}
                       </div>
                     )}

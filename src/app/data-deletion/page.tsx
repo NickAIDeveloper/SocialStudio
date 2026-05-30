@@ -2,12 +2,12 @@ export const metadata = { title: 'Data Deletion | GoViraleza' };
 
 export default function DataDeletionPage() {
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-300">
+    <div className="min-h-screen bg-(--bg) text-(--muted)">
       <div className="mx-auto max-w-3xl px-6 py-20">
-        <h1 className="text-3xl font-bold text-white mb-2">Data Deletion Instructions</h1>
-        <p className="text-sm text-zinc-500 mb-12">Last updated: April 16, 2026</p>
+        <h1 className="text-3xl font-bold text-(--txt) mb-2">Data Deletion Instructions</h1>
+        <p className="text-sm text-(--muted-2) mb-12">Last updated: April 16, 2026</p>
 
-        <div className="prose prose-invert prose-sm prose-zinc max-w-none space-y-8 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-white [&_h2]:mt-10 [&_h2]:mb-4 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-zinc-200 [&_p]:leading-relaxed [&_ul]:space-y-2 [&_li]:text-zinc-400">
+        <div className="prose prose-invert prose-sm prose-zinc max-w-none space-y-8 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-(--txt) [&_h2]:mt-10 [&_h2]:mb-4 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-(--txt) [&_p]:leading-relaxed [&_ul]:space-y-2 [&_li]:text-(--muted)">
 
           <p>
             This page explains how to delete the data GoViraleza stores that was obtained through your Facebook / Meta connection, and how to delete your GoViraleza account entirely.
@@ -18,9 +18,9 @@ export default function DataDeletionPage() {
             To remove only the data we store through your Facebook / Instagram connection (your Meta access token, the cached list of ad accounts and Pages, and any cached ads insights), follow these steps:
           </p>
           <ul>
-            <li>Log in to GoViraleza at <strong className="text-white">https://goviraleza.com</strong>.</li>
-            <li>Open the <strong className="text-zinc-200">Meta</strong> page from the sidebar.</li>
-            <li>Click <strong className="text-zinc-200">Disconnect</strong> on the connected-account card.</li>
+            <li>Log in to GoViraleza at <strong className="text-(--txt)">https://goviraleza.com</strong>.</li>
+            <li>Open the <strong className="text-(--txt)">Meta</strong> page from the sidebar.</li>
+            <li>Click <strong className="text-(--txt)">Disconnect</strong> on the connected-account card.</li>
             <li>Confirm the prompt.</li>
           </ul>
           <p>
@@ -38,9 +38,9 @@ export default function DataDeletionPage() {
             In addition to disconnecting on our side, you can revoke GoViraleza&apos;s access directly from your Facebook account:
           </p>
           <ul>
-            <li>Go to <strong className="text-white">https://www.facebook.com/settings?tab=business_tools</strong>.</li>
-            <li>Find <strong className="text-zinc-200">GoViraleza</strong> in the list.</li>
-            <li>Click <strong className="text-zinc-200">Remove</strong>.</li>
+            <li>Go to <strong className="text-(--txt)">https://www.facebook.com/settings?tab=business_tools</strong>.</li>
+            <li>Find <strong className="text-(--txt)">GoViraleza</strong> in the list.</li>
+            <li>Click <strong className="text-(--txt)">Remove</strong>.</li>
           </ul>
           <p>
             This invalidates the access token Meta previously issued to us. We will no longer be able to read any data from your Facebook or Instagram accounts.
@@ -52,8 +52,8 @@ export default function DataDeletionPage() {
           </p>
           <ul>
             <li>Log in to GoViraleza.</li>
-            <li>Go to <strong className="text-zinc-200">Settings</strong>.</li>
-            <li>Click <strong className="text-zinc-200">Delete Account</strong> and confirm.</li>
+            <li>Go to <strong className="text-(--txt)">Settings</strong>.</li>
+            <li>Click <strong className="text-(--txt)">Delete Account</strong> and confirm.</li>
           </ul>
           <p>
             We will permanently delete your account and all associated personal data within 30 days of the request, except where retention is required by law.
@@ -64,7 +64,7 @@ export default function DataDeletionPage() {
             If you cannot log in, or if you would prefer to request deletion in writing, email us from the address associated with your account at:
           </p>
           <p>
-            <strong className="text-white">privacy@goviraleza.com</strong>
+            <strong className="text-(--txt)">privacy@goviraleza.com</strong>
           </p>
           <p>
             Include the subject line <em>&quot;Data Deletion Request&quot;</em> and we will respond within 7 days and complete deletion within 30 days.
@@ -82,7 +82,7 @@ export default function DataDeletionPage() {
 
           <h2>6. Contact</h2>
           <p>
-            For any data deletion question, contact <strong className="text-white">privacy@goviraleza.com</strong>.
+            For any data deletion question, contact <strong className="text-(--txt)">privacy@goviraleza.com</strong>.
           </p>
         </div>
       </div>

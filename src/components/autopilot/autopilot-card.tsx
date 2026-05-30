@@ -51,7 +51,7 @@ function BufferChannelPicker({ brandId, brandHint }: { brandId: string; brandHin
     }
   }
 
-  if (!data) return <div className="text-xs text-zinc-500 mt-3">Loading Buffer channels…</div>;
+  if (!data) return <div className="text-xs text-(--muted-2) mt-3">Loading Buffer channels…</div>;
 
   if (!data.connected) {
     return (
@@ -72,7 +72,7 @@ function BufferChannelPicker({ brandId, brandHint }: { brandId: string; brandHin
 
   if (data.channels.length === 0) {
     return (
-      <div className="mt-3 text-xs text-zinc-400">
+      <div className="mt-3 text-xs text-(--muted)">
         Buffer is connected but has no channels yet. Add one in Buffer first.
       </div>
     );
@@ -80,7 +80,7 @@ function BufferChannelPicker({ brandId, brandHint }: { brandId: string; brandHin
 
   return (
     <div className="mt-3">
-      <label className="text-xs text-zinc-400 mb-1 block">
+      <label className="text-xs text-(--muted) mb-1 block">
         Buffer channel for {brandHint} (auto-publish target)
       </label>
       <select
@@ -90,7 +90,7 @@ function BufferChannelPicker({ brandId, brandHint }: { brandId: string; brandHin
           const c = data.channels.find((x) => x.id === e.target.value);
           if (c) pick({ id: c.id, name: `${c.organizationName} · ${c.name} (${c.service})`, organizationId: c.organizationId });
         }}
-        className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-white focus:border-teal-500 focus:outline-none disabled:opacity-50"
+        className="w-full rounded-lg border border-(--line) bg-(--bg) px-3 py-1.5 text-sm text-(--txt) focus:border-(--violet) focus:outline-none disabled:opacity-50"
       >
         <option value="" disabled>— pick a channel —</option>
         {data.channels.map((c) => (
@@ -100,7 +100,7 @@ function BufferChannelPicker({ brandId, brandHint }: { brandId: string; brandHin
         ))}
       </select>
       {data.selected && (
-        <div className="text-xs text-emerald-400 mt-1">
+        <div className="text-xs text-(--success) mt-1">
           ✓ Posts will publish to {data.selected.channelName ?? data.selected.channelId}
         </div>
       )}
@@ -207,18 +207,18 @@ export function AutopilotCard({ brandId, brandName }: Props) {
 
   if (!s) {
     return (
-      <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5">
-        <div className="text-sm text-zinc-400">Loading autopilot…</div>
+      <div className="rounded-2xl border border-(--line) bg-(--surface)/50 p-5">
+        <div className="text-sm text-(--muted)">Loading autopilot…</div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 p-5">
+    <div className="rounded-2xl border border-(--line) bg-(--surface)/50 p-5">
       <div className="flex items-center justify-between mb-3 gap-3">
         <div className="min-w-0">
-          <div className="font-medium text-white">🧠 Autopilot · {brandName}</div>
-          <div className="text-xs text-zinc-500 mt-0.5">
+          <div className="font-medium text-(--txt)">🧠 Autopilot · {brandName}</div>
+          <div className="text-xs text-(--muted-2) mt-0.5">
             Generate posts automatically using your brand brain.
           </div>
         </div>
@@ -228,7 +228,7 @@ export function AutopilotCard({ brandId, brandName }: Props) {
             onClick={runNow}
             disabled={running}
             title="Generate one post right now (ignores schedule and paused state)"
-            className="rounded-lg border border-teal-700/60 hover:border-teal-500 bg-teal-950/30 hover:bg-teal-900/40 text-teal-300 hover:text-teal-200 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium px-2.5 py-1 transition-colors"
+            className="rounded-lg border border-(--violet)/60 hover:border-(--violet-bright) bg-(--violet-12) hover:bg-(--violet-24) text-(--violet-bright) hover:text-(--txt) disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium px-2.5 py-1 transition-colors"
           >
             {running ? 'Running…' : 'Run now'}
           </button>
@@ -240,26 +240,26 @@ export function AutopilotCard({ brandId, brandName }: Props) {
               onChange={(e) => patch({ enabled: e.target.checked })}
               disabled={saving}
             />
-            <div className="w-11 h-6 bg-zinc-700 rounded-full peer peer-checked:bg-teal-600 transition-colors relative">
+            <div className="w-11 h-6 bg-(--surface-2) rounded-full peer peer-checked:bg-(--violet) transition-colors relative">
               <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform ${s.enabled ? 'translate-x-5' : ''}`} />
             </div>
           </label>
         </div>
       </div>
       {runMsg && (
-        <div className="mb-3 text-xs text-teal-300 bg-teal-950/30 border border-teal-900/50 rounded px-2 py-1">
+        <div className="mb-3 text-xs text-(--violet-bright) bg-(--violet-12) border border-(--violet)/50 rounded px-2 py-1">
           {runMsg}
         </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
         <div>
-          <label className="text-xs text-zinc-400 mb-1 block">Frequency</label>
+          <label className="text-xs text-(--muted) mb-1 block">Frequency</label>
           <select
             value={s.frequency}
             disabled={!s.enabled || saving}
             onChange={(e) => patch({ frequency: e.target.value as Settings['frequency'] })}
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-white focus:border-teal-500 focus:outline-none disabled:opacity-50"
+            className="w-full rounded-lg border border-(--line) bg-(--bg) px-3 py-1.5 text-sm text-(--txt) focus:border-(--violet) focus:outline-none disabled:opacity-50"
           >
             {(Object.keys(FREQ_LABELS) as Settings['frequency'][]).map((k) => (
               <option key={k} value={k}>{FREQ_LABELS[k]}</option>
@@ -267,12 +267,12 @@ export function AutopilotCard({ brandId, brandName }: Props) {
           </select>
         </div>
         <div>
-          <label className="text-xs text-zinc-400 mb-1 block">Mode</label>
+          <label className="text-xs text-(--muted) mb-1 block">Mode</label>
           <select
             value={s.mode}
             disabled={!s.enabled || saving}
             onChange={(e) => patch({ mode: e.target.value as Settings['mode'] })}
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-white focus:border-teal-500 focus:outline-none disabled:opacity-50"
+            className="w-full rounded-lg border border-(--line) bg-(--bg) px-3 py-1.5 text-sm text-(--txt) focus:border-(--violet) focus:outline-none disabled:opacity-50"
           >
             <option value="queue">Queue drafts (review before publish)</option>
             <option value="auto">Full auto (schedule directly to Buffer)</option>
@@ -286,22 +286,22 @@ export function AutopilotCard({ brandId, brandName }: Props) {
 
       <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <div>
-          <div className="text-zinc-500">Status</div>
-          <div className={`font-medium ${s.enabled ? 'text-emerald-400' : 'text-zinc-400'}`}>
+          <div className="text-(--muted-2)">Status</div>
+          <div className={`font-medium ${s.enabled ? 'text-(--success)' : 'text-(--muted)'}`}>
             {s.enabled ? 'Active' : 'Paused'}
           </div>
         </div>
         <div>
-          <div className="text-zinc-500">Last run</div>
-          <div className="text-zinc-300">{fmtDate(s.lastRunAt)}</div>
+          <div className="text-(--muted-2)">Last run</div>
+          <div className="text-(--muted)">{fmtDate(s.lastRunAt)}</div>
         </div>
         <div>
-          <div className="text-zinc-500">Next run</div>
-          <div className="text-zinc-300">{fmtDate(s.nextRunAt)}</div>
+          <div className="text-(--muted-2)">Next run</div>
+          <div className="text-(--muted)">{fmtDate(s.nextRunAt)}</div>
         </div>
         <div>
-          <div className="text-zinc-500">Total generated</div>
-          <div className="text-zinc-300">{s.totalGenerated}</div>
+          <div className="text-(--muted-2)">Total generated</div>
+          <div className="text-(--muted)">{s.totalGenerated}</div>
         </div>
       </div>
 
@@ -342,15 +342,15 @@ interface QueueItem {
 function statusBadge(status: string): { label: string; classes: string } {
   switch (status) {
     case 'scheduled':
-      return { label: 'Scheduled', classes: 'bg-teal-950/40 text-teal-300 border-teal-900/60' };
+      return { label: 'Scheduled', classes: 'bg-(--cyan)/10 text-(--cyan) border-(--cyan)/30' };
     case 'published':
-      return { label: 'Published', classes: 'bg-emerald-950/40 text-emerald-300 border-emerald-900/60' };
+      return { label: 'Published', classes: 'bg-(--success)/10 text-(--success) border-(--success)/30' };
     case 'draft':
-      return { label: 'Draft', classes: 'bg-zinc-900 text-zinc-300 border-zinc-700' };
+      return { label: 'Draft', classes: 'bg-(--surface) text-(--muted) border-(--line-strong)' };
     case 'failed':
       return { label: 'Failed', classes: 'bg-red-950/40 text-red-300 border-red-900/60' };
     default:
-      return { label: status, classes: 'bg-zinc-900 text-zinc-300 border-zinc-700' };
+      return { label: status, classes: 'bg-(--surface) text-(--muted) border-(--line-strong)' };
   }
 }
 
@@ -443,12 +443,12 @@ function AutopilotQueue({
   }, [refreshKey]);
 
   return (
-    <div className="mt-4 border-t border-zinc-800/60 pt-3">
+    <div className="mt-4 border-t border-(--line) pt-3">
       <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="text-xs text-zinc-300 hover:text-white flex items-center gap-1"
+          className="text-xs text-(--muted) hover:text-(--txt) flex items-center gap-1"
         >
           <span className={`inline-block transition-transform ${open ? 'rotate-90' : ''}`}>›</span>
           Recent generated posts {items ? `(${items.length})` : ''}
@@ -467,9 +467,9 @@ function AutopilotQueue({
       {open && (
         <div className="mt-3">
           {err && <div className="text-xs text-red-400 mb-2">{err}</div>}
-          {items === null && !err && <div className="text-xs text-zinc-500">Loading…</div>}
+          {items === null && !err && <div className="text-xs text-(--muted-2)">Loading…</div>}
           {items && items.length === 0 && (
-            <div className="text-xs text-zinc-500">
+            <div className="text-xs text-(--muted-2)">
               No autopilot posts yet. They&apos;ll show up here after the next cron run.
             </div>
           )}
@@ -486,34 +486,34 @@ function AutopilotQueue({
                     type="button"
                     key={p.id}
                     onClick={() => setPreview(p)}
-                    className="text-left rounded-lg border border-zinc-800/60 bg-zinc-950/40 overflow-hidden flex flex-col hover:border-zinc-700 hover:bg-zinc-900/40 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+                    className="text-left rounded-lg border border-(--line) bg-(--bg)/40 overflow-hidden flex flex-col hover:border-(--line-strong) hover:bg-(--surface)/40 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
                   >
                     {thumb ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={thumb}
                         alt=""
-                        className="w-full aspect-square object-cover bg-zinc-900"
+                        className="w-full aspect-square object-cover bg-(--surface)"
                       />
                     ) : (
-                      <div className="w-full aspect-square bg-zinc-900" />
+                      <div className="w-full aspect-square bg-(--surface)" />
                     )}
                     <div className="p-2.5 flex flex-col gap-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded border ${badge.classes}`}>
                           {badge.label}
                         </span>
-                        <span className="text-[10px] text-zinc-500">{relative(when)}</span>
+                        <span className="text-[10px] text-(--muted-2)">{relative(when)}</span>
                         {p.bufferPostId && (
-                          <span className="text-[10px] text-zinc-500" title={p.bufferPostId}>
+                          <span className="text-[10px] text-(--muted-2)" title={p.bufferPostId}>
                             Buffer ✓
                           </span>
                         )}
                       </div>
                       {p.hookText && (
-                        <div className="text-xs font-medium text-white line-clamp-2">{p.hookText}</div>
+                        <div className="text-xs font-medium text-(--txt) line-clamp-2">{p.hookText}</div>
                       )}
-                      <div className="text-[11px] text-zinc-400 line-clamp-3 whitespace-pre-line">
+                      <div className="text-[11px] text-(--muted) line-clamp-3 whitespace-pre-line">
                         {p.caption}
                       </div>
                     </div>
@@ -623,23 +623,23 @@ function PostPreviewModal({
       onClick={onClose}
     >
       <div
-        className="bg-zinc-950 border border-zinc-800 rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="bg-(--bg) border border-(--line) rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Instagram-style header */}
-        <div className="flex items-center justify-between px-3 py-2.5 border-b border-zinc-800">
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-(--line)">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-fuchsia-500 via-pink-500 to-yellow-500 p-0.5">
-              <div className="w-full h-full rounded-full bg-zinc-950 flex items-center justify-center text-[11px] font-semibold text-white">
+              <div className="w-full h-full rounded-full bg-(--bg) flex items-center justify-center text-[11px] font-semibold text-(--txt)">
                 {brandName.slice(0, 1).toUpperCase()}
               </div>
             </div>
-            <div className="text-sm font-semibold text-white">{handle}</div>
+            <div className="text-sm font-semibold text-(--txt)">{handle}</div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-zinc-400 hover:text-white text-xl leading-none px-1"
+            className="text-(--muted) hover:text-(--txt) text-xl leading-none px-1"
             aria-label="Close preview"
           >
             ×
@@ -649,15 +649,15 @@ function PostPreviewModal({
         {/* Image */}
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={image} alt="" className="w-full aspect-square object-cover bg-zinc-900" />
+          <img src={image} alt="" className="w-full aspect-square object-cover bg-(--surface)" />
         ) : (
-          <div className="w-full aspect-square bg-zinc-900 flex items-center justify-center text-xs text-zinc-600">
+          <div className="w-full aspect-square bg-(--surface) flex items-center justify-center text-xs text-(--muted-2)">
             no image
           </div>
         )}
 
         {/* Mock action row (visual only — no functionality) */}
-        <div className="px-3 pt-3 flex items-center gap-4 text-white">
+        <div className="px-3 pt-3 flex items-center gap-4 text-(--txt)">
           <span aria-hidden className="text-xl">♡</span>
           <span aria-hidden className="text-xl">💬</span>
           <span aria-hidden className="text-xl">↗</span>
@@ -665,16 +665,16 @@ function PostPreviewModal({
         </div>
 
         {/* Caption + hashtags */}
-        <div className="px-3 py-3 text-sm text-white">
+        <div className="px-3 py-3 text-sm text-(--txt)">
           <span className="font-semibold mr-2">{handle}</span>
-          <span className="whitespace-pre-line text-zinc-100">{post.caption}</span>
+          <span className="whitespace-pre-line text-(--txt)">{post.caption}</span>
           {post.hashtags && (
-            <div className="mt-2 text-sky-400 whitespace-pre-line text-xs">{post.hashtags}</div>
+            <div className="mt-2 text-(--cyan) whitespace-pre-line text-xs">{post.hashtags}</div>
           )}
         </div>
 
         {/* Status footer */}
-        <div className="px-3 pb-3 border-t border-zinc-800 pt-2.5 flex items-center justify-between gap-2 text-xs text-zinc-500 flex-wrap">
+        <div className="px-3 pb-3 border-t border-(--line) pt-2.5 flex items-center justify-between gap-2 text-xs text-(--muted-2) flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded border ${badge.classes}`}>
               {badge.label}
@@ -685,14 +685,14 @@ function PostPreviewModal({
             )}
           </div>
           {post.hookText && (
-            <span className="text-zinc-500" title="Hook (image overlay text)">
-              Hook: <span className="text-zinc-300">{post.hookText}</span>
+            <span className="text-(--muted-2)" title="Hook (image overlay text)">
+              Hook: <span className="text-(--muted)">{post.hookText}</span>
             </span>
           )}
         </div>
 
         {/* Action bar */}
-        <div className="px-3 pb-3 pt-1 border-t border-zinc-800 mt-0 flex flex-col gap-2">
+        <div className="px-3 pb-3 pt-1 border-t border-(--line) mt-0 flex flex-col gap-2">
           {actionErr && (
             <div className="text-[11px] text-red-400 bg-red-950/30 border border-red-900/50 rounded px-2 py-1">
               {actionErr}
@@ -704,7 +704,7 @@ function PostPreviewModal({
               onClick={handleSchedule}
               disabled={!canSchedule || busy !== null}
               title={canSchedule ? 'Push this draft to Buffer at the brain best slot' : `Post is "${post.status}" — nothing to schedule.`}
-              className="flex-1 rounded-lg bg-teal-600 hover:bg-teal-500 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white text-sm font-medium py-2 transition-colors"
+              className="flex-1 rounded-lg bg-(--violet) hover:bg-(--violet-bright) disabled:bg-(--surface-2) disabled:text-(--muted-2) disabled:cursor-not-allowed text-(--txt) text-sm font-medium py-2 transition-colors"
             >
               {busy === 'schedule'
                 ? 'Scheduling…'
@@ -718,12 +718,12 @@ function PostPreviewModal({
               type="button"
               onClick={handleDelete}
               disabled={busy !== null}
-              className="rounded-lg border border-zinc-700 hover:border-red-700 text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm px-3 py-2 transition-colors"
+              className="rounded-lg border border-(--line-strong) hover:border-red-700 text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm px-3 py-2 transition-colors"
             >
               {busy === 'delete' ? 'Deleting…' : 'Delete'}
             </button>
           </div>
-          <p className="text-[10px] text-zinc-500 leading-snug">
+          <p className="text-[10px] text-(--muted-2) leading-snug">
             {canSchedule
               ? 'Scheduling sends this post to your selected Buffer channel at the brain best slot (24h from now if no best slot yet).'
               : 'Once a post is scheduled, manage it from inside Buffer.'}
