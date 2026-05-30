@@ -54,12 +54,17 @@ export default function AdsPage() {
   if (metaConnected === false) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="text-xl font-semibold text-zinc-100">Connect Meta first</h1>
+        <h1 className="text-xl font-semibold text-zinc-100">Connect your Meta ad account</h1>
         <p className="mt-2 text-sm text-zinc-400">
-          The ad builder needs your Meta connection. Connect it, then come back.
+          The ad builder needs your Facebook/Meta ad-account connection — the one that
+          carries your ad accounts and Pages. This is separate from the Instagram
+          connection used for analytics, so it&apos;s a one-time extra step here.
         </p>
-        <a href="/settings" className="mt-4 inline-block rounded-lg bg-teal-500 px-4 py-2 text-sm font-medium text-white">
-          Go to Settings
+        <a
+          href="/api/meta/oauth/start"
+          className="mt-4 inline-block rounded-lg bg-teal-500 px-4 py-2 text-sm font-medium text-white"
+        >
+          Connect Meta ad account
         </a>
       </div>
     );
