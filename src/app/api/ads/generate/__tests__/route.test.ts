@@ -1,13 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-const { limitMock } = vi.hoisted(() => ({ limitMock: vi.fn() }));
+const { limitMock, genMock } = vi.hoisted(() => ({ limitMock: vi.fn(), genMock: vi.fn() }));
 const brandRow = { id: 'b1', slug: 'acme', name: 'Acme', userId: 'u1', description: 'A brand' };
 
 vi.mock('@/lib/auth-helpers', () => ({ getUserId: vi.fn().mockResolvedValue('u1') }));
 vi.mock('@/lib/brain/consume', () => ({
   readBrandBrain: vi.fn().mockResolvedValue({ briefMd: '# brief', briefVersion: 1, generatedAt: '2026-01-01T00:00:00Z', formula: null }),
 }));
+vi.mock('@/lib/brain/competitor-intel', () => ({
+  buildCompetitorIntel: vi.fn().mockResolvedValue({
+    competitorCount: 0, sampleSize: 0, topHashtags: [], topHookPatterns: [], topMediaTypes: [], topPostingSlots: [], topPosts: [],
+  }),
+}));
+vi.mock('@/lib/ads/ad-copy', () => ({ generateAdCopy: genMock }));
 vi.mock('@/lib/db', () => ({
   db: { select: () => ({ from: () => ({ where: () => ({ limit: limitMock }) }) }) },
 }));
@@ -30,7 +36,6 @@ function setFetch(...responses: Array<{ ok: boolean; json: () => Promise<unknown
   (global as unknown as { fetch: typeof fetch }).fetch = fetchMock as unknown as typeof fetch;
 }
 
-const capOk = { ok: true, json: async () => ({ caption: 'Body copy here.', hashtags: '#a #b', hookText: 'Stop scrolling now' }) };
 const pickOk = { ok: true, json: async () => ({ searchTerm: 'people running', alternatives: ['people running'] }) };
 const pixabayOk = { ok: true, json: async () => ({ hits: [{ webformatURL: 'https://img/1.jpg', tags: 'running, people' }, { webformatURL: 'https://img/2.jpg', tags: 'running, outdoor' }] }) };
 
@@ -38,8 +43,12 @@ describe('POST /api/ads/generate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     limitMock.mockResolvedValue([brandRow]);
-    // internal fetches: /api/captions then /api/images/pick (mode A) then /api/pixabay
-    setFetch(capOk, pickOk, pixabayOk);
+    genMock.mockResolvedValue({
+      primaryText: 'Body copy here.', hook: 'Stop scrolling now', headline: 'Run smarter today',
+      hashtags: ['#a', '#b'],
+    });
+    // copy is generated in-process now; remaining fetches: /api/images/pick then /api/pixabay
+    setFetch(pickOk, pixabayOk);
   });
 
   it('returns 400 when brandId is missing', async () => {
@@ -63,15 +72,15 @@ describe('POST /api/ads/generate', () => {
     expect(res.status).toBe(403);
   });
 
-  it('returns 502 when caption generation fails', async () => {
-    setFetch({ ok: false, json: async () => ({ message: 'rate limited' }) });
+  it('returns 502 when copy generation fails', async () => {
+    genMock.mockRejectedValueOnce(new Error('model unparseable'));
     const res = await POST(makeReq({ brandId: 'b1', objective: 'TRAFFIC', destinationUrl: 'https://x.com' }));
     expect(res.status).toBe(502);
   });
 
   it('sets imageMissing true when no image is found', async () => {
-    // captions ok, then images/pick returns empty searchTerm → pixabay skipped.
-    setFetch(capOk, { ok: true, json: async () => ({ searchTerm: '' }) });
+    // images/pick returns empty searchTerm → pixabay skipped.
+    setFetch({ ok: true, json: async () => ({ searchTerm: '' }) });
     const res = await POST(makeReq({ brandId: 'b1', objective: 'TRAFFIC', destinationUrl: 'https://x.com' }));
     const json = await res.json();
     expect(res.status).toBe(200);
@@ -92,7 +101,7 @@ describe('POST /api/ads/generate', () => {
   });
 
   it('sets appStoreUrl and applicationId on the draft for APP objective', async () => {
-    setFetch(capOk, pickOk, pixabayOk);
+    setFetch(pickOk, pixabayOk);
     const res = await POST(makeReq({
       brandId: 'b1',
       objective: 'APP',
@@ -107,7 +116,7 @@ describe('POST /api/ads/generate', () => {
   });
 
   it('accepts APP objective without applicationId (picker not yet selected)', async () => {
-    setFetch(capOk, pickOk, pixabayOk);
+    setFetch(pickOk, pixabayOk);
     const res = await POST(makeReq({
       brandId: 'b1',
       objective: 'APP',

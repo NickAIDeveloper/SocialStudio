@@ -4,8 +4,26 @@ import { db } from '@/lib/db';
 import { brands } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
 import { readBrandBrain } from '@/lib/brain/consume';
+import { buildCompetitorIntel, type CompetitorIntel } from '@/lib/brain/competitor-intel';
 import { buildAdDraft } from '@/lib/ads/build-draft';
+import { generateAdCopy } from '@/lib/ads/ad-copy';
 import { OBJECTIVE_CONFIG, type AdObjective } from '@/lib/meta/ads-types';
+
+// Distil competitor intel into a concise prompt-friendly string for the ad-copy
+// generator. Mirrors the summarizer in /api/ads/copy.
+function summarizeCompetitorIntel(intel: CompetitorIntel | null): string | null {
+  if (!intel || intel.competitorCount === 0 || intel.sampleSize === 0) return null;
+  const parts: string[] = [];
+  parts.push(`${intel.competitorCount} competitors, ${intel.sampleSize} top posts analyzed.`);
+  if (intel.topHookPatterns.length > 0) {
+    parts.push(`Their best hooks lean: ${intel.topHookPatterns.map((h) => h.pattern).slice(0, 3).join(', ')}.`);
+  }
+  if (intel.topPosts.length > 0) {
+    const hooks = intel.topPosts.slice(0, 3).map((p) => `"${p.hook.slice(0, 70)}"`).join(' / ');
+    parts.push(`Top competitor hooks: ${hooks}.`);
+  }
+  return parts.join(' ').slice(0, 800);
+}
 
 export const maxDuration = 60;
 
@@ -71,27 +89,39 @@ export async function POST(request: NextRequest) {
     }
 
     const cfg = OBJECTIVE_CONFIG[body.objective];
-    const brain = await readBrandBrain(body.brandId).catch(() => null);
     const origin = request.nextUrl.origin;
     const cookie = request.headers.get('cookie') ?? '';
 
-    const capRes = await fetch(`${origin}/api/captions`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', cookie },
-      body: JSON.stringify({
-        brandSlug: brand.slug,
-        contentType: cfg.captionContentType,
-        brainBriefMd: brain?.briefMd ?? undefined,
-      }),
-    });
-    if (!capRes.ok) {
-      const err = await capRes.json().catch(() => ({}));
-      return NextResponse.json(
-        { error: 'caption_failed', message: (err as { message?: string }).message ?? 'Caption generation failed' },
-        { status: 502 },
-      );
+    const [brain, intel] = await Promise.all([
+      readBrandBrain(body.brandId).catch(() => null),
+      buildCompetitorIntel(body.brandId).catch(() => null),
+    ]);
+    const competitorContext = summarizeCompetitorIntel(intel);
+
+    let copy;
+    try {
+      copy = await generateAdCopy({
+        brand: {
+          name: brand.name ?? brand.slug,
+          slug: brand.slug,
+          description: brand.description ?? null,
+          websiteUrl: brand.websiteUrl ?? null,
+        },
+        objective: body.objective,
+        destinationUrl: body.destinationUrl,
+        briefMd: brain?.briefMd ?? null,
+        competitorContext,
+      });
+    } catch (genErr) {
+      const message = genErr instanceof Error ? genErr.message : 'Copy generation failed';
+      return NextResponse.json({ error: 'caption_failed', message: message.slice(0, 200) }, { status: 502 });
     }
-    const caption = (await capRes.json()) as { caption: string; hashtags: string; hookText: string };
+    // Adapt the premium copy into the CaptionResult shape buildAdDraft expects.
+    const caption = {
+      caption: copy.primaryText,
+      hashtags: copy.hashtags.join(' '),
+      hookText: copy.hook,
+    };
 
     const { chosen, candidates } = await pickImages({
       origin, cookie,

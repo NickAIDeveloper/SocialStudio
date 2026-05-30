@@ -32,7 +32,7 @@ export function StepCreative(props: {
     setRegenError(null);
     setRegenerating(true);
     try {
-      const res = await fetch('/api/ads/generate', {
+      const res = await fetch('/api/ads/copy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -42,20 +42,23 @@ export function StepCreative(props: {
         }),
       });
       const json = (await res.json()) as {
-        draft?: AdDraft;
+        success?: boolean;
+        primaryText?: string;
+        hook?: string;
+        headline?: string;
+        hashtags?: string[];
         error?: string;
         message?: string;
       };
       if (!res.ok) throw new Error(json.message ?? json.error ?? 'Failed to regenerate copy');
-      const nd = json.draft;
-      if (!nd) throw new Error('No draft returned');
+      if (!json.primaryText) throw new Error('No copy returned');
       // Preserve the user's media — update only copy fields.
       setDraft({
         ...draft,
-        primaryText: nd.primaryText,
-        hook: nd.hook,
-        headline: nd.headline,
-        hashtags: nd.hashtags,
+        primaryText: json.primaryText,
+        hook: json.hook ?? draft.hook,
+        headline: json.headline ?? draft.headline,
+        hashtags: json.hashtags ?? draft.hashtags,
       });
     } catch (err) {
       setRegenError(err instanceof Error ? err.message : 'Failed to regenerate copy');
