@@ -4,14 +4,13 @@ import {
   Sparkles,
   BarChart3,
   ArrowRight,
-  Zap,
   Target,
-  TrendingUp,
   Brain,
   Eye,
-  Layers,
+  Bot,
+  Megaphone,
   Search,
-  MousePointerClick,
+  TrendingUp,
   CheckCircle2,
   Globe,
   Calendar,
@@ -55,42 +54,42 @@ const features = [
   {
     icon: Brain,
     title: 'AI-Powered Captions',
-    description: 'Generate unique captions tailored to your brand voice, informed by competitor analysis and your best-performing content.',
+    description: 'Generate captions tuned to your brand voice across five content types (promo, tips, quotes, community, carousel) with branded image overlays and hashtags.',
     gradient: 'from-(--violet)/20 via-(--violet)/5 to-transparent',
     glow: 'group-hover:shadow-(--violet)/10',
   },
   {
-    icon: Search,
-    title: 'Competitor Discovery',
-    description: 'AI finds your real competitors on Instagram and analyzes their profiles to learn what content works in your niche.',
-    gradient: 'from-(--violet-deep)/20 via-(--violet-deep)/5 to-transparent',
-    glow: 'group-hover:shadow-(--violet-deep)/10',
+    icon: Sparkles,
+    title: 'Smart Posts',
+    description: 'Turn your own analytics into ready-to-post ideas. One click drafts on-brand posts informed by what is already working on your account.',
+    gradient: 'from-(--violet-bright)/20 via-(--violet-bright)/5 to-transparent',
+    glow: 'group-hover:shadow-(--violet-bright)/10',
   },
   {
     icon: Eye,
     title: 'Competitor Intelligence',
-    description: 'Follower counts, posting frequency, top hashtags, and engagement rates. Know exactly what your competitors are doing.',
+    description: 'Auto-discover up to 10 competitors on Instagram and track their followers, posting cadence, top hashtags, and engagement.',
     gradient: 'from-(--cyan)/20 via-(--cyan)/5 to-transparent',
     glow: 'group-hover:shadow-(--cyan)/10',
   },
   {
     icon: BarChart3,
-    title: 'Visual Analytics',
-    description: 'Health Score, timing heatmaps, content mix analysis, and hashtag performance. Your data as actionable insights.',
-    gradient: 'from-(--violet-bright)/20 via-(--violet-bright)/5 to-transparent',
-    glow: 'group-hover:shadow-(--violet-bright)/10',
+    title: 'Analytics & Health Score',
+    description: 'A Health Score, timing heatmaps, content-mix breakdowns, and hashtag performance turn your data into actionable insights.',
+    gradient: 'from-(--violet-deep)/20 via-(--violet-deep)/5 to-transparent',
+    glow: 'group-hover:shadow-(--violet-deep)/10',
   },
   {
-    icon: Layers,
-    title: 'Batch Content Creation',
-    description: 'Generate 5 to 20 posts at once with AI captions, branded image overlays, and optimized hashtags.',
+    icon: Bot,
+    title: 'Autopilot',
+    description: 'Let GoViraleza generate and schedule on-brand posts to Buffer on a cadence you set, so your feed stays active hands-free.',
     gradient: 'from-(--pink)/20 via-(--pink)/5 to-transparent',
     glow: 'group-hover:shadow-(--pink)/10',
   },
   {
-    icon: MousePointerClick,
-    title: 'One-Click Scheduling',
-    description: 'Schedule directly to Buffer with branded overlays and smart timing. Idea to scheduled post in seconds.',
+    icon: Megaphone,
+    title: 'Meta Ad Builder',
+    description: 'Draft Facebook and Instagram ad campaigns with AI copy and creative. Every ad is created paused in your Ads Manager for you to review before anything spends.',
     gradient: 'from-(--violet)/20 via-(--violet)/5 to-transparent',
     glow: 'group-hover:shadow-(--violet)/10',
   },
@@ -98,21 +97,23 @@ const features = [
 
 const steps = [
   { number: '01', icon: Globe, title: 'Connect', description: 'Add your Instagram handle and connect Buffer for scheduling.' },
-  { number: '02', icon: Target, title: 'Discover', description: 'AI finds your top 10 competitors and scrapes their strategy.' },
-  { number: '03', icon: Sparkles, title: 'Create', description: 'Generate AI captions with images, hooks, and branded overlays.' },
-  { number: '04', icon: Calendar, title: 'Schedule', description: 'One-click to Buffer. Track performance with Health Score.' },
+  { number: '02', icon: Target, title: 'Analyze', description: 'Get a Health Score and auto-discover up to 10 competitors to learn from.' },
+  { number: '03', icon: Sparkles, title: 'Create', description: 'Generate captions, images, and hooks, or let Smart Posts draft from your analytics.' },
+  { number: '04', icon: Calendar, title: 'Automate', description: 'Schedule to Buffer in one click, or let Autopilot keep posting on a cadence.' },
 ];
 
 const marqueeItems = [
   'AI Caption Generation',
-  'Competitor Scraping',
-  'Visual Analytics',
-  'Batch Post Creation',
+  'Smart Posts',
+  'Competitor Tracking',
+  'Health Score',
+  'Batch Creation',
   'Brand Voice AI',
   'Hook Text Overlays',
   'Buffer Scheduling',
+  'Autopilot',
+  'Meta Ad Builder',
   'Hashtag Optimization',
-  'Health Score Tracking',
   'Content Type Templates',
 ];
 
@@ -373,7 +374,7 @@ export default function LandingPage() {
         <div className="mb-16 text-center">
           <SectionLabel>Built For</SectionLabel>
           <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
-            Who uses GoViraleza?
+            Who it&apos;s built for
           </h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
