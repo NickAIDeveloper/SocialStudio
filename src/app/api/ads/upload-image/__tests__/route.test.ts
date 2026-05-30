@@ -1,22 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-const { putMock } = vi.hoisted(() => ({
-  putMock: vi.fn().mockResolvedValue({ url: 'https://blob/x.jpg' }),
-}));
+const { putMock, sharpMock } = vi.hoisted(() => {
+  const metaMock = vi.fn().mockResolvedValue({ format: 'png' });
+  const sharpInstance = {
+    metadata: metaMock,
+    resize: () => sharpInstance,
+    jpeg: () => sharpInstance,
+    toBuffer: vi.fn().mockResolvedValue(Buffer.from('x')),
+  };
+  const sharpMock = vi.fn(() => sharpInstance);
+  return {
+    putMock: vi.fn().mockResolvedValue({ url: 'https://blob/x.jpg' }),
+    sharpMock,
+  };
+});
 
 vi.mock('@/lib/auth-helpers', () => ({ getUserId: vi.fn().mockResolvedValue('u1') }));
 vi.mock('@vercel/blob', () => ({ put: putMock }));
-
-vi.mock('sharp', () => ({
-  default: () => ({
-    resize: () => ({
-      jpeg: () => ({
-        toBuffer: async () => Buffer.from('x'),
-      }),
-    }),
-  }),
-}));
+vi.mock('sharp', () => ({ default: sharpMock }));
 
 import { POST } from '../route';
 
@@ -82,5 +84,41 @@ describe('POST /api/ads/upload-image', () => {
     expect(blobPath).toMatch(/^ad-images\/.+\.jpg$/);
     expect(opts.access).toBe('public');
     expect(opts.contentType).toBe('image/jpeg');
+  });
+
+  it('returns 401 when getUserId rejects with Unauthorized', async () => {
+    const { getUserId } = await import('@/lib/auth-helpers');
+    vi.mocked(getUserId).mockRejectedValueOnce(new Error('Unauthorized'));
+    const file = new File([new Uint8Array([1, 2, 3])], 'photo.png', { type: 'image/png' });
+    const fd = new FormData();
+    fd.set('image', file);
+    const res = await POST(makeRequest(fd));
+    expect(res.status).toBe(401);
+    const json = await res.json();
+    expect(json.error).toBe('Unauthorized');
+  });
+
+  it('returns 400 when sharp metadata rejects (non-image bytes)', async () => {
+    const sharpInstance = sharpMock.mock.results[0]?.value ?? sharpMock();
+    vi.spyOn(sharpInstance, 'metadata').mockRejectedValueOnce(new Error('unsupported image format'));
+    const file = new File([new Uint8Array([1, 2, 3])], 'fake.png', { type: 'image/png' });
+    const fd = new FormData();
+    fd.set('image', file);
+    const res = await POST(makeRequest(fd));
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe('File is not a valid image');
+  });
+
+  it('returns 400 when sharp metadata returns no format', async () => {
+    const sharpInstance = sharpMock.mock.results[0]?.value ?? sharpMock();
+    vi.spyOn(sharpInstance, 'metadata').mockResolvedValueOnce({});
+    const file = new File([new Uint8Array([1, 2, 3])], 'empty.png', { type: 'image/png' });
+    const fd = new FormData();
+    fd.set('image', file);
+    const res = await POST(makeRequest(fd));
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe('File is not a valid image');
   });
 });

@@ -110,7 +110,7 @@ export function StepCreative(props: {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/webp"
           className="hidden"
           onChange={handleFileChange}
         />
@@ -122,7 +122,7 @@ export function StepCreative(props: {
 
       <div className="flex justify-between">
         <button type="button" onClick={props.onBack} className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300">Back</button>
-        <button type="button" onClick={props.onNext} disabled={!draft.imageUrl || !draft.primaryText}
+        <button type="button" onClick={props.onNext} disabled={!/^https?:\/\//.test(draft.imageUrl) || !draft.primaryText}
           className="rounded-lg bg-teal-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Next</button>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { put } from '@vercel/blob';
 import sharp from 'sharp';
 import crypto from 'node:crypto';
 
-const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB
+const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB — intentionally higher than the 2MB logo route; ad creatives need more room
 const ALLOWED_TYPES = new Set([
   'image/png',
   'image/jpeg',
@@ -41,6 +41,15 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+
+    // Magic-bytes probe: rejects spoofed/non-image files with 400 rather than 500
+    try {
+      const meta = await sharp(buffer).metadata();
+      if (!meta.format) throw new Error('no format');
+    } catch {
+      return NextResponse.json({ error: 'File is not a valid image' }, { status: 400 });
+    }
+
     const out = await sharp(buffer)
       .resize(1500, 1500, { fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 88 })
