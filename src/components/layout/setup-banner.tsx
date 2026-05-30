@@ -55,20 +55,20 @@ export function SetupBanner() {
   ];
 
   return (
-    <div className="mb-6 rounded-xl border border-teal-500/30 bg-teal-500/5 p-4">
+    <div className="mb-6 rounded-2xl border border-[--violet-24] bg-[--violet-08] p-4">
       <div className="flex items-start gap-3">
-        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-teal-300" />
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[--violet-bright]" />
         <div className="flex-1">
-          <p className="text-sm font-semibold text-white">Finish setup to unlock everything</p>
+          <p className="text-sm font-semibold text-[--txt]">Finish setup to unlock everything</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {chips.filter((c) => !c.done).map((c) => (
-              <Link key={c.label} href={c.href} className="rounded-lg border border-teal-500/30 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-teal-100 hover:bg-zinc-800">
+              <Link key={c.label} href={c.href} className="chip hover:brightness-110">
                 {c.label}
               </Link>
             ))}
           </div>
         </div>
-        <button type="button" onClick={() => setDismissed(true)} aria-label="Dismiss" className="rounded-lg p-1 text-zinc-500 hover:bg-zinc-800 hover:text-white">
+        <button type="button" onClick={() => setDismissed(true)} aria-label="Dismiss" className="rounded-lg p-1 text-[--muted-2] hover:bg-white/[0.04] hover:text-[--txt]">
           <X className="h-4 w-4" />
         </button>
       </div>
