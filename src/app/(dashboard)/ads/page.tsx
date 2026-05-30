@@ -29,7 +29,7 @@ export default function AdsPage() {
   const [imageMissing, setImageMissing] = useState(false);
   const [targeting, setTargeting] = useState<AdTargeting>({
     countries: ['GB'], ageMin: 18, ageMax: 65, gender: 'all', interests: [],
-    dailyBudgetMinor: 500, startDate: '', endDate: '',
+    dailyBudgetMinor: 1000, startDate: '', endDate: '',
   });
 
   useEffect(() => {
@@ -109,6 +109,7 @@ export default function AdsPage() {
             <StepAudience
               targeting={targeting} setTargeting={setTargeting}
               suggestions={draft?.interestSuggestions ?? []}
+              currency={adAccounts[0]?.currency ?? ''}
               onBack={() => setStep(1)} onNext={() => setStep(3)}
             />
           )}

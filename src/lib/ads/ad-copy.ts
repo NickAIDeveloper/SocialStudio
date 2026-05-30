@@ -125,6 +125,7 @@ COPYWRITING FRAMEWORK (choose the single best fit for this objective):
 - BAB (Before, After, Bridge) — best for transformation products.
 - 4Ps (Promise, Picture, Proof, Push) — best when you have a strong concrete promise.
 Commit to ONE framework and structure the primaryText around it.
+Use the chosen framework INTERNALLY as structure only. NEVER print framework names or stage labels in the output (do NOT write 'Attention:', 'Interest:', 'Desire:', 'Action:', 'PAS', 'AIDA', 'BAB', '4Ps', 'Problem:', 'Solution:', 'Before:', 'After:', 'Bridge:', etc.). The copy must read as natural persuasive prose, not a labelled template.
 
 DIFFERENTIATION: position AGAINST the competitor angle above. Out-flank, do not imitate. Make the distinct value of ${brandName} the spine of the ad.
 

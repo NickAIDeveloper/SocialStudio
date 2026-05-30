@@ -4,12 +4,56 @@
 import { useEffect } from 'react';
 import type { AdTargeting } from '@/lib/meta/ads-types';
 
+// Main ad markets, ISO-2 code + display name. Sorted by name in the picker.
+const COUNTRIES: { code: string; name: string }[] = [
+  { code: 'AU', name: 'Australia' },
+  { code: 'US', name: 'United States' },
+  { code: 'GB', name: 'United Kingdom' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'NZ', name: 'New Zealand' },
+  { code: 'IE', name: 'Ireland' },
+  { code: 'ZA', name: 'South Africa' },
+  { code: 'IN', name: 'India' },
+  { code: 'SG', name: 'Singapore' },
+  { code: 'AE', name: 'United Arab Emirates' },
+  { code: 'DE', name: 'Germany' },
+  { code: 'FR', name: 'France' },
+  { code: 'ES', name: 'Spain' },
+  { code: 'IT', name: 'Italy' },
+  { code: 'NL', name: 'Netherlands' },
+  { code: 'SE', name: 'Sweden' },
+  { code: 'NO', name: 'Norway' },
+  { code: 'DK', name: 'Denmark' },
+  { code: 'FI', name: 'Finland' },
+  { code: 'CH', name: 'Switzerland' },
+  { code: 'AT', name: 'Austria' },
+  { code: 'BE', name: 'Belgium' },
+  { code: 'PT', name: 'Portugal' },
+  { code: 'PL', name: 'Poland' },
+  { code: 'BR', name: 'Brazil' },
+  { code: 'MX', name: 'Mexico' },
+  { code: 'AR', name: 'Argentina' },
+  { code: 'JP', name: 'Japan' },
+  { code: 'KR', name: 'South Korea' },
+  { code: 'PH', name: 'Philippines' },
+  { code: 'MY', name: 'Malaysia' },
+  { code: 'ID', name: 'Indonesia' },
+  { code: 'TH', name: 'Thailand' },
+  { code: 'VN', name: 'Vietnam' },
+  { code: 'HK', name: 'Hong Kong' },
+];
+
+const COUNTRIES_SORTED = [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name));
+const COUNTRY_NAME = new Map(COUNTRIES.map((c) => [c.code, c.name]));
+
 export function StepAudience(props: {
   targeting: AdTargeting; setTargeting: (t: AdTargeting) => void;
   suggestions: string[];
+  currency?: string;
   onBack: () => void; onNext: () => void;
 }) {
   const { targeting, setTargeting } = props;
+  const currency = props.currency?.trim() ?? '';
   const set = <K extends keyof AdTargeting>(k: K, v: AdTargeting[K]) => setTargeting({ ...targeting, [k]: v });
 
   // Seed sensible default dates (tomorrow → +7 days) once.
@@ -36,14 +80,51 @@ export function StepAudience(props: {
       : [...targeting.interests, name]);
   }
 
+  function addCountry(code: string) {
+    if (!code || targeting.countries.includes(code)) return;
+    set('countries', [...targeting.countries, code]);
+  }
+
+  function removeCountry(code: string) {
+    set('countries', targeting.countries.filter((c) => c !== code));
+  }
+
+  const budgetLabel = currency ? `Daily budget (${currency})` : 'Daily budget';
+  const budgetHint = `Most ad accounts require at least ~5–10${currency ? ` ${currency}` : ''} / day.`;
+
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3">
-        <Labeled label="Country (ISO-2)">
-          <input value={targeting.countries.join(',')}
-            onChange={(e) => set('countries', e.target.value.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean))}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
-        </Labeled>
+      <Labeled label="Countries">
+        <div className="space-y-2">
+          <select
+            value=""
+            onChange={(e) => { addCountry(e.target.value); e.currentTarget.value = ''; }}
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+          >
+            <option value="">Add a country…</option>
+            {COUNTRIES_SORTED.map((c) => (
+              <option key={c.code} value={c.code} disabled={targeting.countries.includes(c.code)}>
+                {c.name} ({c.code})
+              </option>
+            ))}
+          </select>
+          <div className="flex flex-wrap gap-2">
+            {targeting.countries.map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => removeCountry(code)}
+                className="flex items-center gap-1 rounded-full border border-teal-500 bg-teal-500/10 px-3 py-1 text-xs text-teal-300"
+              >
+                {COUNTRY_NAME.get(code) ?? code} ({code})
+                <span className="text-teal-400/70">×</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </Labeled>
+
+      <div className="grid grid-cols-3 gap-3">
         <Labeled label="Gender">
           <select value={targeting.gender} onChange={(e) => set('gender', e.target.value as AdTargeting['gender'])}
             className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100">
@@ -75,10 +156,11 @@ export function StepAudience(props: {
       </Labeled>
 
       <div className="grid grid-cols-2 gap-3">
-        <Labeled label="Daily budget (minor units, e.g. 500 = 5.00)">
-          <input type="number" min={0} value={targeting.dailyBudgetMinor}
-            onChange={(e) => set('dailyBudgetMinor', Number(e.target.value))}
+        <Labeled label={budgetLabel}>
+          <input type="number" min={0} step="0.01" value={(targeting.dailyBudgetMinor / 100).toString()}
+            onChange={(e) => { const n = Number(e.target.value); set('dailyBudgetMinor', Number.isNaN(n) ? 0 : Math.round(n * 100)); }}
             className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
+          <p className="mt-1 text-xs text-zinc-500">{budgetHint}</p>
         </Labeled>
         <Labeled label="Run dates">
           <div className="flex gap-2">
