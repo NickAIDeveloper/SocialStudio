@@ -90,4 +90,32 @@ describe('POST /api/ads/generate', () => {
     expect(json.imageMissing).toBe(false);
     expect(json.imageCandidates.length).toBeGreaterThanOrEqual(2);
   });
+
+  it('sets appStoreUrl and applicationId on the draft for APP objective', async () => {
+    setFetch(capOk, pickOk, pixabayOk);
+    const res = await POST(makeReq({
+      brandId: 'b1',
+      objective: 'APP',
+      destinationUrl: 'https://apps.apple.com/app/my-app/id123',
+      applicationId: '987654321',
+    }));
+    const json = await res.json();
+    expect(res.status).toBe(200);
+    expect(json.draft.appStoreUrl).toBe('https://apps.apple.com/app/my-app/id123');
+    expect(json.draft.applicationId).toBe('987654321');
+    expect(json.draft.cta).toBe('INSTALL_MOBILE_APP');
+  });
+
+  it('accepts APP objective without applicationId (picker not yet selected)', async () => {
+    setFetch(capOk, pickOk, pixabayOk);
+    const res = await POST(makeReq({
+      brandId: 'b1',
+      objective: 'APP',
+      destinationUrl: 'https://apps.apple.com/app/my-app/id123',
+    }));
+    const json = await res.json();
+    expect(res.status).toBe(200);
+    expect(json.draft.appStoreUrl).toBe('https://apps.apple.com/app/my-app/id123');
+    expect(json.draft.applicationId).toBeUndefined();
+  });
 });

@@ -1,10 +1,16 @@
 // src/app/(dashboard)/ads/_components/StepGoal.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { OBJECTIVE_CONFIG, type AdDraft, type AdObjective } from '@/lib/meta/ads-types';
 
 interface BrandLite { id: string; name: string; slug: string }
+
+interface AdvertisableApp {
+  id: string;
+  name: string;
+  iosUrl: string | null;
+}
 
 export function StepGoal(props: {
   brands: BrandLite[];
@@ -16,16 +22,66 @@ export function StepGoal(props: {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // APP-objective state
+  const [apps, setApps] = useState<AdvertisableApp[]>([]);
+  const [appsLoading, setAppsLoading] = useState(false);
+  const [applicationId, setApplicationId] = useState<string>('');
+
+  const isApp = props.objective === 'APP';
+
+  // Fetch promotable apps once when APP objective is selected
+  useEffect(() => {
+    if (!isApp) return;
+    let cancelled = false;
+    setAppsLoading(true);
+    fetch('/api/meta/apps')
+      .then((r) => r.json())
+      .then((json: { success?: boolean; apps?: AdvertisableApp[] }) => {
+        if (!cancelled) setApps(json.apps ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setApps([]);
+      })
+      .finally(() => {
+        if (!cancelled) setAppsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [isApp]);
+
+  // When user picks an app, auto-fill the URL field if the app has an iosUrl
+  function handleAppSelect(appId: string) {
+    setApplicationId(appId);
+    if (!appId) return;
+    const app = apps.find((a) => a.id === appId);
+    if (app?.iosUrl) props.setDestinationUrl(app.iosUrl);
+  }
+
   async function generate() {
     setError(null);
     if (!props.brandId) return setError('Pick a brand.');
-    if (!/^https?:\/\//.test(props.destinationUrl)) return setError('Enter a valid URL (https://...).');
+
+    if (isApp) {
+      if (!applicationId) return setError('Select an app from the picker.');
+      if (!/^https:\/\/apps\.apple\.com\//.test(props.destinationUrl)) {
+        return setError('Enter a valid App Store URL (https://apps.apple.com/...).');
+      }
+    } else {
+      if (!/^https?:\/\//.test(props.destinationUrl)) return setError('Enter a valid URL (https://...).');
+    }
+
     setLoading(true);
     try {
+      const body: Record<string, unknown> = {
+        brandId: props.brandId,
+        objective: props.objective,
+        destinationUrl: props.destinationUrl,
+      };
+      if (isApp && applicationId) body.applicationId = applicationId;
+
       const res = await fetch('/api/ads/generate', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ brandId: props.brandId, objective: props.objective, destinationUrl: props.destinationUrl }),
+        body: JSON.stringify(body),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message ?? json.error ?? 'Generation failed');
@@ -64,11 +120,42 @@ export function StepGoal(props: {
         </div>
       </div>
 
+      {isApp && (
+        <div>
+          <label className="mb-1 block text-sm font-medium text-zinc-300">App</label>
+          {appsLoading ? (
+            <p className="text-sm text-zinc-400">Loading apps…</p>
+          ) : apps.length === 0 ? (
+            <p className="text-sm text-zinc-400">
+              No promotable apps found on your ad account. Add your iOS app in Meta
+              (Business Settings → Apps) and associate it with your App Store listing,
+              then come back.
+            </p>
+          ) : (
+            <select
+              value={applicationId}
+              onChange={(e) => handleAppSelect(e.target.value)}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+            >
+              <option value="">Select an app…</option>
+              {apps.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
       <div>
-        <label className="mb-1 block text-sm font-medium text-zinc-300">Destination URL</label>
-        <input value={props.destinationUrl} onChange={(e) => props.setDestinationUrl(e.target.value)}
-          placeholder="https://yoursite.com/offer"
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
+        <label className="mb-1 block text-sm font-medium text-zinc-300">
+          {isApp ? 'App Store URL' : 'Destination URL'}
+        </label>
+        <input
+          value={props.destinationUrl}
+          onChange={(e) => props.setDestinationUrl(e.target.value)}
+          placeholder={isApp ? 'https://apps.apple.com/...' : 'https://yoursite.com/offer'}
+          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+        />
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}

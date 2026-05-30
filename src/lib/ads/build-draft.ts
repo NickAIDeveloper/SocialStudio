@@ -18,6 +18,9 @@ export interface BuildAdDraftInput {
   caption: CaptionResult;
   imageUrl: string;
   interestSuggestions: string[];
+  // APP objective only — passed through unchanged onto the draft.
+  appStoreUrl?: string;
+  applicationId?: string;
 }
 
 function capHeadline(text: string): string {
@@ -45,5 +48,7 @@ export function buildAdDraft(input: BuildAdDraftInput): AdDraft {
     cta: cfg.defaultCta,
     imageUrl: input.imageUrl,
     interestSuggestions: [...new Set(input.interestSuggestions)].slice(0, 10),
+    ...(input.appStoreUrl !== undefined && { appStoreUrl: input.appStoreUrl }),
+    ...(input.applicationId !== undefined && { applicationId: input.applicationId }),
   };
 }

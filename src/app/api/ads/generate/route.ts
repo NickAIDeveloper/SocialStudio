@@ -10,7 +10,7 @@ import { OBJECTIVE_CONFIG, type AdObjective } from '@/lib/meta/ads-types';
 export const maxDuration = 60;
 
 function isObjective(v: unknown): v is AdObjective {
-  return v === 'TRAFFIC' || v === 'ENGAGEMENT' || v === 'LEADS';
+  return v === 'TRAFFIC' || v === 'ENGAGEMENT' || v === 'LEADS' || v === 'APP';
 }
 
 // Derive a query and fetch on-topic image URLs using the existing pipeline.
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
     const userId = await getUserId();
     const body = (await request.json()) as {
       brandId?: string; objective?: string; destinationUrl?: string;
+      applicationId?: string;
     };
 
     if (!body.brandId) {
@@ -106,12 +107,17 @@ export async function POST(request: NextRequest) {
       .filter(Boolean)
       .map((s) => String(s));
 
+    // For APP objective, treat destinationUrl as the App Store URL so that
+    // the publish route can wire it into promoted_object correctly.
+    const isApp = body.objective === 'APP';
     const draft = buildAdDraft({
       objective: body.objective,
       destinationUrl: body.destinationUrl,
       caption,
       imageUrl: chosen ?? '',
       interestSuggestions,
+      ...(isApp && { appStoreUrl: body.destinationUrl }),
+      ...(isApp && body.applicationId && { applicationId: body.applicationId }),
     });
 
     return NextResponse.json({ draft, imageMissing: !chosen, imageCandidates: candidates });

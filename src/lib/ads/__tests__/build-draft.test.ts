@@ -46,4 +46,31 @@ describe('buildAdDraft', () => {
     expect(draft.hashtags.length).toBeLessThanOrEqual(5);
     expect(new Set(draft.hashtags).size).toBe(draft.hashtags.length);
   });
+
+  it('passes through appStoreUrl and applicationId for APP objective', () => {
+    const draft = buildAdDraft({
+      objective: 'APP',
+      destinationUrl: 'https://apps.apple.com/app/my-app/id123',
+      caption: captionResult,
+      imageUrl: 'https://img/x.jpg',
+      interestSuggestions: [],
+      appStoreUrl: 'https://apps.apple.com/app/my-app/id123',
+      applicationId: '987654321',
+    });
+    expect(draft.appStoreUrl).toBe('https://apps.apple.com/app/my-app/id123');
+    expect(draft.applicationId).toBe('987654321');
+    expect(draft.cta).toBe('INSTALL_MOBILE_APP');
+  });
+
+  it('does not set appStoreUrl or applicationId when not provided', () => {
+    const draft = buildAdDraft({
+      objective: 'TRAFFIC',
+      destinationUrl: 'https://example.com',
+      caption: captionResult,
+      imageUrl: 'https://img/x.jpg',
+      interestSuggestions: [],
+    });
+    expect(draft.appStoreUrl).toBeUndefined();
+    expect(draft.applicationId).toBeUndefined();
+  });
 });

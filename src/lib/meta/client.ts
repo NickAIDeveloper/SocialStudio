@@ -209,6 +209,38 @@ export const DEFAULT_INSIGHTS_FIELDS = [
   'date_stop',
 ];
 
+// ── Advertisable applications ─────────────────────────────────────────────────
+
+export interface AdvertisableApp {
+  id: string;
+  name: string;
+  iosUrl: string | null;
+}
+
+export async function getAdvertisableApps(
+  accessToken: string,
+  adAccountId: string
+): Promise<AdvertisableApp[]> {
+  const accId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
+  const data = await graphGet<{
+    data: Array<{
+      id: string;
+      name?: string;
+      object_store_urls?: Record<string, string>;
+    }>;
+  }>(`/${accId}/advertisable_applications`, accessToken, {
+    fields: 'id,name,object_store_urls',
+    limit: '200',
+  });
+  return (data.data ?? []).map((a) => ({
+    id: a.id,
+    name: a.name ?? a.id,
+    iosUrl: a.object_store_urls?.itunes ?? a.object_store_urls?.ios ?? null,
+  }));
+}
+
+// ── Insights ─────────────────────────────────────────────────────────────────
+
 export async function getInsights(
   accessToken: string,
   query: InsightsQuery
