@@ -95,7 +95,7 @@ export default function AdsPage() {
             />
           )}
           {step === 1 && draft && (
-            <StepCreative draft={draft} setDraft={setDraft} onBack={() => setStep(0)} onNext={() => setStep(2)} candidates={imageCandidates} imageMissing={imageMissing} />
+            <StepCreative draft={draft} setDraft={setDraft} brandId={brandId} onBack={() => setStep(0)} onNext={() => setStep(2)} candidates={imageCandidates} imageMissing={imageMissing} />
           )}
           {step === 2 && (
             <StepAudience

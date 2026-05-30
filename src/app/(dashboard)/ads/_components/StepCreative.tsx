@@ -4,9 +4,12 @@
 import { useRef, useState } from 'react';
 import { HEADLINE_MAX, type AdDraft } from '@/lib/meta/ads-types';
 
+type SuggestField = 'primaryText' | 'hook' | 'headline' | 'hashtags';
+
 export function StepCreative(props: {
   draft: AdDraft;
   setDraft: (d: AdDraft) => void;
+  brandId: string;
   onBack: () => void;
   onNext: () => void;
   candidates: string[];
@@ -21,6 +24,53 @@ export function StepCreative(props: {
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenError, setRegenError] = useState<string | null>(null);
+
+  async function handleRegenerateAll() {
+    setRegenError(null);
+    setRegenerating(true);
+    try {
+      const res = await fetch('/api/ads/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brandId: props.brandId,
+          objective: draft.objective,
+          destinationUrl: draft.destinationUrl,
+        }),
+      });
+      const json = (await res.json()) as {
+        draft?: AdDraft;
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok) throw new Error(json.message ?? json.error ?? 'Failed to regenerate copy');
+      const nd = json.draft;
+      if (!nd) throw new Error('No draft returned');
+      // Preserve the user's media — update only copy fields.
+      setDraft({
+        ...draft,
+        primaryText: nd.primaryText,
+        hook: nd.hook,
+        headline: nd.headline,
+        hashtags: nd.hashtags,
+      });
+    } catch (err) {
+      setRegenError(err instanceof Error ? err.message : 'Failed to regenerate copy');
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
+  function applySuggestion(field: SuggestField, option: string) {
+    if (field === 'hashtags') {
+      set('hashtags', (option.match(/#\w+/g) ?? []).slice(0, 5));
+    } else {
+      set(field, option);
+    }
+  }
 
   async function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -70,23 +120,79 @@ export function StepCreative(props: {
         </div>
       </div>
 
-      <Field label="Primary text">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleRegenerateAll}
+          disabled={regenerating}
+          className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm font-medium text-teal-300 hover:bg-zinc-800 disabled:opacity-50"
+        >
+          {regenerating ? 'Regenerating…' : '✨ Regenerate all copy'}
+        </button>
+        {regenError && <span className="text-sm text-red-400">{regenError}</span>}
+      </div>
+
+      <Field
+        label="Primary text"
+        action={
+          <SuggestButton
+            field="primaryText"
+            brandId={props.brandId}
+            draft={draft}
+            current={draft.primaryText}
+            onApply={(opt) => applySuggestion('primaryText', opt)}
+          />
+        }
+      >
         <textarea value={draft.primaryText} onChange={(e) => set('primaryText', e.target.value)} rows={6}
           className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
       </Field>
 
-      <Field label={`Headline (${draft.headline.length}/${HEADLINE_MAX})`}>
+      <Field
+        label={`Headline (${draft.headline.length}/${HEADLINE_MAX})`}
+        action={
+          <SuggestButton
+            field="headline"
+            brandId={props.brandId}
+            draft={draft}
+            current={draft.headline}
+            onApply={(opt) => applySuggestion('headline', opt)}
+          />
+        }
+      >
         <input value={draft.headline} maxLength={HEADLINE_MAX}
           onChange={(e) => set('headline', e.target.value)}
           className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
       </Field>
 
-      <Field label="Hook">
+      <Field
+        label="Hook"
+        action={
+          <SuggestButton
+            field="hook"
+            brandId={props.brandId}
+            draft={draft}
+            current={draft.hook}
+            onApply={(opt) => applySuggestion('hook', opt)}
+          />
+        }
+      >
         <input value={draft.hook} onChange={(e) => set('hook', e.target.value)}
           className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
       </Field>
 
-      <Field label="Hashtags (space-separated)">
+      <Field
+        label="Hashtags (space-separated)"
+        action={
+          <SuggestButton
+            field="hashtags"
+            brandId={props.brandId}
+            draft={draft}
+            current={draft.hashtags.join(' ')}
+            onApply={(opt) => applySuggestion('hashtags', opt)}
+          />
+        }
+      >
         <input value={draft.hashtags.join(' ')}
           onChange={(e) => set('hashtags', e.target.value.split(/\s+/).map((t) => t.replace(/^#+/, '')).filter(Boolean).map((t) => `#${t}`).slice(0, 5))}
           className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
@@ -237,11 +343,107 @@ function ImageChooser(props: {
   );
 }
 
-function Field(props: { label: string; children: React.ReactNode }) {
+function Field(props: { label: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium text-zinc-300">{props.label}</label>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <label className="block text-sm font-medium text-zinc-300">{props.label}</label>
+        {props.action}
+      </div>
       {props.children}
+    </div>
+  );
+}
+
+function SuggestButton(props: {
+  field: SuggestField;
+  brandId: string;
+  draft: AdDraft;
+  current: string;
+  onApply: (option: string) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [options, setOptions] = useState<string[] | null>(null);
+
+  async function handleSuggest() {
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch('/api/ads/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brandId: props.brandId,
+          objective: props.draft.objective,
+          field: props.field,
+          destinationUrl: props.draft.destinationUrl,
+          current: props.current,
+        }),
+      });
+      const json = (await res.json()) as {
+        success?: boolean;
+        options?: string[];
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok || !json.options) {
+        throw new Error(json.message ?? json.error ?? 'Failed to get suggestions');
+      }
+      setOptions(json.options);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to get suggestions');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={handleSuggest}
+        disabled={loading}
+        className="text-xs font-medium text-teal-300 hover:text-teal-200 disabled:opacity-50"
+      >
+        {loading ? '…' : '✨ Suggest'}
+      </button>
+
+      {error && <span className="ml-2 text-xs text-red-400">{error}</span>}
+
+      {options && (
+        <div className="absolute right-0 z-10 mt-1 w-80 max-w-[80vw] rounded-lg border border-zinc-700 bg-zinc-900 p-2 shadow-lg">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs font-medium text-zinc-400">Viral suggestions</span>
+            <button
+              type="button"
+              onClick={() => setOptions(null)}
+              className="text-xs text-zinc-500 hover:text-zinc-300"
+              aria-label="Dismiss suggestions"
+            >
+              ✕
+            </button>
+          </div>
+          <ul className="space-y-1">
+            {options.map((opt, i) => (
+              <li key={i}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    props.onApply(opt);
+                    setOptions(null);
+                  }}
+                  className="w-full rounded border border-zinc-700 px-2 py-1.5 text-left text-xs text-zinc-200 hover:border-teal-500 hover:bg-zinc-800"
+                >
+                  {props.field === 'primaryText' && opt.length > 140
+                    ? `${opt.slice(0, 140)}…`
+                    : opt}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
