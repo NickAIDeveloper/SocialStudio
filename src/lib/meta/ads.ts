@@ -105,6 +105,12 @@ export async function createAdSet(
     optimization_goal: input.optimizationGoal,
     billing_event: input.billingEvent,
     daily_budget: String(input.dailyBudgetMinor),
+    // Auto-bid ("Highest volume"). Without an explicit strategy Meta falls back
+    // to one that demands a bid cap and rejects the ad set with subcode 2490487
+    // ("Bid Amount Or Bid Constraints Required For Bid Strategy"). LOWEST_COST_
+    // WITHOUT_CAP needs no bid_amount and belongs on the ad set for non-CBO
+    // campaigns (budget is at the ad-set level here).
+    bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
     start_time: input.startTime,
     end_time: input.endTime,
     targeting: JSON.stringify(input.targeting),

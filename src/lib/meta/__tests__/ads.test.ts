@@ -77,6 +77,8 @@ describe('meta/ads write client', () => {
     const body = String(fetchMock.mock.calls[0][1].body);
     expect(body).toContain('status=PAUSED');
     expect(body).toContain('daily_budget=500');
+    // Auto-bid strategy so Meta doesn't demand a bid cap (subcode 2490487).
+    expect(body).toContain('bid_strategy=LOWEST_COST_WITHOUT_CAP');
   });
 
   it('createAdCreative serializes object_story_spec and sends no status', async () => {
