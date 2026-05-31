@@ -96,8 +96,10 @@ export interface AdTargeting {
   countries: string[]; // ISO-2, e.g. ['GB']
   // City-level geo targeting (ADDITIVE to countries). Each entry is a Meta
   // adgeolocation `key` (from /search?type=adgeolocation) plus a display name.
-  // radius/distanceUnit default to 25km at publish time when omitted. An ad may
-  // be city-only (empty countries) — geo is validated at publish time.
+  // radius/distanceUnit default to Meta's canonical 10-mile default at publish
+  // time when omitted, and any custom radius is clamped into Meta's valid range
+  // (mile 10–50, kilometer 17–80). An ad may be city-only (empty countries) —
+  // geo is validated at publish time.
   cities?: Array<{ key: string; name: string; radius?: number; distanceUnit?: 'mile' | 'kilometer' }>;
   ageMin: number; // 13..65
   ageMax: number; // 13..65

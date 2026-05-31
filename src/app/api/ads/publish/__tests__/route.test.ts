@@ -231,7 +231,7 @@ describe('POST /api/ads/publish', () => {
 
   // ── Geo targeting (countries + cities) ───────────────────────────────────
 
-  it('city-only targeting: builds geo_locations.cities (radius 25 km) and creates the ad set', async () => {
+  it('city-only targeting: defaults to Meta canonical radius 10 mile and creates the ad set', async () => {
     const res = await POST(makeReq({
       ...validBody,
       targeting: {
@@ -245,8 +245,45 @@ describe('POST /api/ads/publish', () => {
     const adSetInput = vi.mocked(createAdSet).mock.calls[0][2];
     const geo = (adSetInput.targeting as { geo_locations: Record<string, unknown> }).geo_locations;
     expect(geo.countries).toBeUndefined();
-    expect(geo.cities).toEqual([{ key: '1234', radius: 25, distance_unit: 'kilometer' }]);
+    // Default (no radius/unit supplied) → Meta's canonical 10-mile default; key
+    // sent as the exact numeric string. This is the shape that avoids subcode
+    // 1487756 ("Locations Can't Be Used").
+    expect(geo.cities).toEqual([{ key: '1234', radius: 10, distance_unit: 'mile' }]);
     expect(vi.mocked(createAdSet)).toHaveBeenCalled();
+  });
+
+  it('clamps a too-small km radius up to the Meta minimum (17) and keeps the unit', async () => {
+    const res = await POST(makeReq({
+      ...validBody,
+      targeting: {
+        ...validBody.targeting,
+        countries: ['GB'],
+        cities: [{ key: 5678, name: 'Leeds', radius: 5, distanceUnit: 'kilometer' }],
+      },
+    }));
+    expect(res.status).toBe(200);
+
+    const adSetInput = vi.mocked(createAdSet).mock.calls[0][2];
+    const geo = (adSetInput.targeting as { geo_locations: Record<string, unknown> }).geo_locations;
+    expect(geo.countries).toEqual(['GB']);
+    // 5 km is below the 17 km floor → clamped to 17; numeric key coerced to string.
+    expect(geo.cities).toEqual([{ key: '5678', radius: 17, distance_unit: 'kilometer' }]);
+  });
+
+  it('clamps an over-max mile radius down to 50', async () => {
+    const res = await POST(makeReq({
+      ...validBody,
+      targeting: {
+        ...validBody.targeting,
+        countries: [],
+        cities: [{ key: '999', name: 'Austin', radius: 200, distanceUnit: 'mile' }],
+      },
+    }));
+    expect(res.status).toBe(200);
+
+    const adSetInput = vi.mocked(createAdSet).mock.calls[0][2];
+    const geo = (adSetInput.targeting as { geo_locations: Record<string, unknown> }).geo_locations;
+    expect(geo.cities).toEqual([{ key: '999', radius: 50, distance_unit: 'mile' }]);
   });
 
   it('returns 400 no_geo when both countries and cities are empty', async () => {

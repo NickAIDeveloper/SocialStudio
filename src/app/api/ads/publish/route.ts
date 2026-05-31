@@ -130,14 +130,27 @@ export async function POST(request: NextRequest) {
 
     // Build geo_locations from countries (existing) + cities (additive). An ad
     // can be city-only, but it must have at least one geo dimension.
+    //
+    // City radius rules (Meta Marketing API, basic-targeting reference):
+    //   - mile: 10–50, kilometer: 17–80.
+    // A radius below the per-unit minimum makes Meta reject the whole targeting
+    // with subcode 1487756 ("Locations Can't Be Used"). The previous default of
+    // 25 km was numerically valid but we still saw rejections, so we standardise
+    // on Meta's own canonical default — radius 10 mile — used in every official
+    // targeting example, and clamp any user-supplied radius into the valid range
+    // for its unit. `key` is sent as the exact numeric string from the
+    // adgeolocation search. Cities do NOT require a country in geo_locations.
     const geo: Record<string, unknown> = {};
     if (targeting.countries?.length) geo.countries = targeting.countries;
     if (targeting.cities?.length) {
-      geo.cities = targeting.cities.map((c) => ({
-        key: c.key,
-        radius: c.radius ?? 25,
-        distance_unit: c.distanceUnit ?? 'kilometer',
-      }));
+      geo.cities = targeting.cities.map((c) => {
+        const unit: 'mile' | 'kilometer' = c.distanceUnit === 'kilometer' ? 'kilometer' : 'mile';
+        const [min, max] = unit === 'kilometer' ? [17, 80] : [10, 50];
+        const fallback = unit === 'kilometer' ? 17 : 10;
+        const requested = typeof c.radius === 'number' && Number.isFinite(c.radius) ? c.radius : fallback;
+        const radius = Math.min(max, Math.max(min, Math.round(requested)));
+        return { key: String(c.key), radius, distance_unit: unit };
+      });
     }
 
     const metaTargeting: Record<string, unknown> = {
