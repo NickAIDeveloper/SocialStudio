@@ -55,6 +55,11 @@ vi.mock('@/lib/db/schema', () => ({
 
 vi.mock('drizzle-orm', () => ({ eq: vi.fn(), and: vi.fn() }));
 
+const getAdvertisableApps = vi.fn();
+vi.mock('@/lib/meta/client', () => ({
+  getAdvertisableApps: (...args: unknown[]) => getAdvertisableApps(...args),
+}));
+
 vi.mock('@/lib/meta/ads', () => ({
   uploadAdImage: vi.fn().mockResolvedValue('img_hash'),
   createCampaign: vi.fn().mockResolvedValue('camp_1'),
@@ -123,6 +128,12 @@ describe('POST /api/ads/publish', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     insertValues.mockResolvedValue(undefined);
+    // Default: the draft's applicationId resolves to an app with a registered
+    // App Store URL. The registered url intentionally differs from the
+    // free-text appStoreUrl so happy-path tests prove we use the registered one.
+    getAdvertisableApps.mockResolvedValue([
+      { id: '123456789', name: 'My App', iosUrl: 'https://apps.apple.com/app/id123456789' },
+    ]);
     // Reset to defaults.
     state.brand = { id: 'b1', slug: 'acme', userId: 'u1' };
     state.account = {
@@ -273,13 +284,36 @@ describe('POST /api/ads/publish', () => {
     const adSetInput = adSetCall[2]; // (token, acctId, input)
     expect(adSetInput.promotedObject).toBeDefined();
     expect(adSetInput.promotedObject?.application_id).toBe('123456789');
-    expect(adSetInput.promotedObject?.object_store_url).toBe('https://apps.apple.com/app/my-app/id123456789');
+    // object_store_url must be the Meta-REGISTERED url (from getAdvertisableApps),
+    // NOT the free-text appStoreUrl the user typed in the draft.
+    expect(adSetInput.promotedObject?.object_store_url).toBe('https://apps.apple.com/app/id123456789');
 
-    // createAdCreative link must be the App Store URL, not destinationUrl.
+    // createAdCreative link must still be the user's App Store URL (the
+    // destination), not the registered promoted_object url and not destinationUrl.
     const creativeCall = vi.mocked(createAdCreative).mock.calls[0];
     const creativeInput = creativeCall[2]; // (token, acctId, input)
     expect(creativeInput.link).toBe('https://apps.apple.com/app/my-app/id123456789');
     expect(creativeInput.cta).toBe('INSTALL_MOBILE_APP');
+  });
+
+  it('returns 400 app_store_not_linked when the registered app has no iosUrl, without creating the ad set', async () => {
+    getAdvertisableApps.mockResolvedValue([
+      { id: '123456789', name: 'My App', iosUrl: null },
+    ]);
+    const res = await POST(makeReq({ ...validBody, draft: validAppDraft }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('app_store_not_linked');
+    expect(vi.mocked(createAdSet)).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 app_not_promotable when applicationId is not in the advertisable list, without creating the ad set', async () => {
+    getAdvertisableApps.mockResolvedValue([
+      { id: '999999999', name: 'Some Other App', iosUrl: 'https://apps.apple.com/app/id999999999' },
+    ]);
+    const res = await POST(makeReq({ ...validBody, draft: validAppDraft }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('app_not_promotable');
+    expect(vi.mocked(createAdSet)).not.toHaveBeenCalled();
   });
 
   // ── Video path ────────────────────────────────────────────────────────────

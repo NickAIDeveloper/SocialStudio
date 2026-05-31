@@ -10,6 +10,7 @@ import {
   createVideoCreative,
   searchAdInterests, buildAdsManagerUrl,
 } from '@/lib/meta/ads';
+import { getAdvertisableApps } from '@/lib/meta/client';
 import {
   OBJECTIVE_CONFIG, minDailyBudget, type AdDraft, type AdTargeting, type AdObjective,
 } from '@/lib/meta/ads-types';
@@ -129,11 +130,30 @@ export async function POST(request: NextRequest) {
     if (resolved.length) metaTargeting.flexible_spec = [{ interests: resolved.map((r) => ({ id: r.id, name: r.name })) }];
 
     // For APP objective, promoted_object links the ad set to the registered app.
-    // For all other objectives, promotedObject is undefined (omitted from request).
-    const promotedObject =
-      draft.objective === 'APP' && draft.applicationId && draft.appStoreUrl
-        ? { application_id: draft.applicationId, object_store_url: draft.appStoreUrl }
-        : undefined;
+    // The object_store_url MUST be the URL Meta has registered for this
+    // application_id — NOT the free-text field the user typed. A mismatch
+    // triggers Meta subcode 1885093 ("Application/Object Store URL Mismatch")
+    // at ad-set creation. We resolve it authoritatively from Meta here.
+    // For all other objectives, promotedObject is undefined (omitted) and we
+    // skip the lookup entirely.
+    let promotedObject: { application_id: string; object_store_url: string } | undefined;
+    if (draft.objective === 'APP') {
+      const apps = await getAdvertisableApps(accessToken, adAccountId);
+      const app = apps.find((a) => a.id === draft.applicationId);
+      if (!app) {
+        return NextResponse.json(
+          { error: 'app_not_promotable', message: 'The selected app is no longer available on this ad account. Reconnect Meta or pick another app.' },
+          { status: 400 },
+        );
+      }
+      if (!app.iosUrl) {
+        return NextResponse.json(
+          { error: 'app_store_not_linked', message: 'This app is not linked to an App Store listing in Meta (Business Settings → Apps → associate it with the App Store listing), so it cannot be promoted yet.' },
+          { status: 400 },
+        );
+      }
+      promotedObject = { application_id: draft.applicationId!, object_store_url: app.iosUrl };
+    }
 
     // APP ads use the App Store URL as the creative link; others use destinationUrl.
     const creativeLink = draft.objective === 'APP' ? draft.appStoreUrl! : draft.destinationUrl;
