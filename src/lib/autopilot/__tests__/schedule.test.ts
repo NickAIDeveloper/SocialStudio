@@ -84,59 +84,69 @@ describe('nextPostSlot (frequency-aware)', () => {
 });
 
 describe('computeNextRunAt', () => {
-  it('every_other_day fires ~2 days out at the best hour, not the best weekday (regression)', () => {
-    // Exactly the production bug: last ran 26 May, brain best slot = Wed 21:00,
-    // now is 31 May. Old code returned 3 June (next Wednesday). It must instead
-    // fire today/tonight (overdue) at 21:00 — never snap a week out.
+  it('every_other_day that has stalled becomes due today (regression: was 3 June)', () => {
+    // Exactly the production bug: last ran 26 May, brain best slot = Wed (dow 3),
+    // now is 31 May. Old code returned 3 June (next Wednesday) and the brand
+    // stayed stuck. nextRunAt must be a *day* threshold (00:00 UTC) so the next
+    // daily cron tick fires it — here it's overdue → today at 00:00.
     const next = computeNextRunAt({
       frequency: 'every_other_day',
       lastRunAt: new Date('2026-05-26T10:58:00Z'),
       bestSlot: { dow: 3, hour: 21 },
       now: new Date('2026-05-31T11:00:00Z'),
     });
-    expect(next.toISOString()).toBe('2026-05-31T21:00:00.000Z');
-    // And critically it is NOT 3 June.
-    expect(next.getUTCDate()).not.toBe(3);
+    expect(next.toISOString()).toBe('2026-05-31T00:00:00.000Z');
+    expect(next.getUTCDate()).not.toBe(3); // never the brain's weekday a week out
+    expect(isDueNow(next, new Date('2026-06-01T03:00:00Z'))).toBe(true); // next cron fires it
   });
 
-  it('every_other_day respects the 2-day gap from a recent run', () => {
-    // Ran today 08:00, best hour 21:00. Earliest = +2 days. Lands 2 days out at 21:00.
+  it('every_other_day respects the 2-day gap from a recent run (day-granular)', () => {
+    // Ran today 08:00. Earliest = +2 days → the trigger day is 2 June at 00:00,
+    // so the 2 June 03:00 cron is the one that fires it. The best HOUR is not in
+    // nextRunAt (it belongs to the Buffer publish time).
     const next = computeNextRunAt({
       frequency: 'every_other_day',
       lastRunAt: new Date('2026-05-31T08:00:00Z'),
       bestSlot: { dow: 3, hour: 21 },
       now: new Date('2026-05-31T08:05:00Z'),
     });
-    expect(next.toISOString()).toBe('2026-06-02T21:00:00.000Z');
+    expect(next.toISOString()).toBe('2026-06-02T00:00:00.000Z');
   });
 
-  it('respects min gap for daily frequency', () => {
-    const lastRunAt = new Date('2026-05-10T19:00:00Z');
-    const now = new Date('2026-05-10T20:00:00Z');
+  it('daily lands on the next day at 00:00 (cron-catchable)', () => {
     const next = computeNextRunAt({
       frequency: 'daily',
-      lastRunAt,
-      bestSlot: { dow: 1, hour: 19 }, // Mon 19:00
-      now,
+      lastRunAt: new Date('2026-05-10T19:00:00Z'),
+      bestSlot: { dow: 1, hour: 19 },
+      now: new Date('2026-05-10T20:00:00Z'),
     });
-    // Earliest = lastRun + 1 day = 2026-05-11T19:00. Mon 19:00 same day.
-    expect(next.toISOString()).toBe('2026-05-11T19:00:00.000Z');
+    // Earliest = lastRun + 1 day = 2026-05-11T19:00 → floored to the day.
+    expect(next.toISOString()).toBe('2026-05-11T00:00:00.000Z');
   });
 
-  it('weekly frequency forces a 7-day gap minimum', () => {
-    const lastRunAt = new Date('2026-05-10T19:00:00Z');
-    const now = new Date('2026-05-12T10:00:00Z');
+  it('weekly forces a 7-day gap and pins to the brain best weekday (00:00)', () => {
     const next = computeNextRunAt({
       frequency: 'weekly',
-      lastRunAt,
-      bestSlot: { dow: 0, hour: 19 }, // Sun 19:00
-      now,
+      lastRunAt: new Date('2026-05-10T19:00:00Z'), // Sunday
+      bestSlot: { dow: 0, hour: 19 }, // Sun
+      now: new Date('2026-05-12T10:00:00Z'),
     });
-    // Earliest = lastRun + 7d = 2026-05-17T19:00 (Sun). Slot matches.
-    expect(next.toISOString()).toBe('2026-05-17T19:00:00.000Z');
+    // Earliest = lastRun + 7d = 2026-05-17 (Sun). Weekday matches → that day 00:00.
+    expect(next.toISOString()).toBe('2026-05-17T00:00:00.000Z');
   });
 
-  it('falls back to now+1day when no bestSlot', () => {
+  it('weekly rolls to the next best weekday when the gap day is a different dow', () => {
+    const next = computeNextRunAt({
+      frequency: 'weekly',
+      lastRunAt: new Date('2026-05-10T19:00:00Z'), // Sun → +7 = Sun 17 May
+      bestSlot: { dow: 3, hour: 19 }, // wants Wednesday
+      now: new Date('2026-05-12T10:00:00Z'),
+    });
+    // +7 lands Sun 17 May; next Wednesday is 20 May.
+    expect(next.toISOString()).toBe('2026-05-20T00:00:00.000Z');
+  });
+
+  it('defers ~a day when there is no run history', () => {
     const now = new Date('2026-05-10T12:00:00Z');
     const next = computeNextRunAt({
       frequency: 'daily',
@@ -144,7 +154,9 @@ describe('computeNextRunAt', () => {
       bestSlot: null,
       now,
     });
-    expect(next.getTime()).toBeGreaterThanOrEqual(now.getTime() + 86_400_000 - 1000);
+    // now+1day = 11 May 12:00 → floored to 11 May 00:00, still in the future.
+    expect(next.toISOString()).toBe('2026-05-11T00:00:00.000Z');
+    expect(next.getTime()).toBeGreaterThan(now.getTime());
   });
 });
 

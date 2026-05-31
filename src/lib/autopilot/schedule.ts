@@ -67,6 +67,21 @@ function pinsToWeekday(freq: Frequency): boolean {
   return freq === 'weekly';
 }
 
+function startOfUTCDay(d: Date): Date {
+  const out = new Date(d.getTime());
+  out.setUTCHours(0, 0, 0, 0);
+  return out;
+}
+
+// First calendar day (UTC, 00:00) on or after `from` whose weekday is `dow`.
+// Returns `from`'s own day when it already matches.
+function nextWeekdayStart(from: Date, dow: number): Date {
+  const out = startOfUTCDay(from);
+  const delta = (dow - out.getUTCDay() + 7) % 7;
+  out.setUTCDate(out.getUTCDate() + delta);
+  return out;
+}
+
 // Next publish time for a freshly generated post: the brain's best DOW+hour for
 // weekly, or just the best hour (today/tomorrow) for gap-based cadences. This is
 // the single source of truth shared by the cron run (scheduledAt) and the manual
@@ -81,20 +96,25 @@ export function nextPostSlot(
     : nextHourAfter(from, bestSlot.hour);
 }
 
+// When the GENERATOR may next run — a day-granular threshold at 00:00 UTC, NOT a
+// precise minute. The generation cron fires once a day (well before any posting
+// hour), so nextRunAt only needs to name the right *day*; isDueNow then trips on
+// that day's tick. We deliberately do NOT bake the brain's best hour in here:
+// doing so pushed isDueNow past the daily cron and silently stretched
+// 'every other day' toward every third day. The best hour is applied to the
+// Buffer publish time (scheduledAt in the run route) via nextPostSlot instead.
 export function computeNextRunAt(input: ScheduleInput): Date {
   const gap = minDaysGap(input.frequency);
   const earliest = input.lastRunAt
     ? new Date(input.lastRunAt.getTime() + gap * MS_PER_DAY)
-    : input.now;
-  if (!input.bestSlot) {
-    // No slot yet — defer one day (but never sooner than the cadence gap).
-    return new Date(Math.max(earliest.getTime(), input.now.getTime() + MS_PER_DAY));
-  }
-  // Anchor at the later of (lastRun + gap) and now, then snap to the cadence's
-  // slot. For every_other_day this lands on the next best HOUR ~2 days out, NOT
-  // the brain's best weekday — that weekday-snap was the "next run = 3 June" bug.
+    : new Date(input.now.getTime() + MS_PER_DAY); // no history yet → wait a day
   const base = new Date(Math.max(earliest.getTime(), input.now.getTime()));
-  return nextPostSlot(input.frequency, input.bestSlot, base);
+  if (input.frequency === 'weekly' && input.bestSlot) {
+    // Once a week: pin to the brain's best weekday (the day is the whole point).
+    return nextWeekdayStart(base, input.bestSlot.dow);
+  }
+  // Gap cadences: the day-gap is all that decides *when to generate*.
+  return startOfUTCDay(base);
 }
 
 export function isDueNow(nextRunAt: Date | null, now: Date): boolean {
