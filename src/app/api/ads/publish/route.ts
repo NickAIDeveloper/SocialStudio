@@ -100,6 +100,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'invalid_dates' }, { status: 400 });
     }
 
+    // Geo: at least one country OR one city is required.
+    if (!targeting.countries?.length && !targeting.cities?.length) {
+      return NextResponse.json(
+        { error: 'no_geo', message: 'Select at least one country or city to target.' },
+        { status: 400 },
+      );
+    }
+
     // APP objective: validate required App Store fields before any write.
     const APP_STORE_RE = /^https?:\/\/(apps\.apple\.com|itunes\.apple\.com)/;
     if (draft.objective === 'APP') {
@@ -120,8 +128,20 @@ export async function POST(request: NextRequest) {
       await Promise.all((targeting.interests ?? []).map((name) => searchAdInterests(accessToken, name)))
     ).filter((x): x is { id: string; name: string } => Boolean(x));
 
+    // Build geo_locations from countries (existing) + cities (additive). An ad
+    // can be city-only, but it must have at least one geo dimension.
+    const geo: Record<string, unknown> = {};
+    if (targeting.countries?.length) geo.countries = targeting.countries;
+    if (targeting.cities?.length) {
+      geo.cities = targeting.cities.map((c) => ({
+        key: c.key,
+        radius: c.radius ?? 25,
+        distance_unit: c.distanceUnit ?? 'kilometer',
+      }));
+    }
+
     const metaTargeting: Record<string, unknown> = {
-      geo_locations: { countries: targeting.countries },
+      geo_locations: geo,
       age_min: targeting.ageMin,
       age_max: targeting.ageMax,
       // Meta now requires the Advantage+ audience flag to be set explicitly, or

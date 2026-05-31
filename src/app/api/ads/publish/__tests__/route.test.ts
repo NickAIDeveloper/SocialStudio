@@ -229,6 +229,36 @@ describe('POST /api/ads/publish', () => {
     expect(inserted.adId).toBe('ad_1');
   });
 
+  // ── Geo targeting (countries + cities) ───────────────────────────────────
+
+  it('city-only targeting: builds geo_locations.cities (radius 25 km) and creates the ad set', async () => {
+    const res = await POST(makeReq({
+      ...validBody,
+      targeting: {
+        ...validBody.targeting,
+        countries: [],
+        cities: [{ key: '1234', name: 'Melbourne' }],
+      },
+    }));
+    expect(res.status).toBe(200);
+
+    const adSetInput = vi.mocked(createAdSet).mock.calls[0][2];
+    const geo = (adSetInput.targeting as { geo_locations: Record<string, unknown> }).geo_locations;
+    expect(geo.countries).toBeUndefined();
+    expect(geo.cities).toEqual([{ key: '1234', radius: 25, distance_unit: 'kilometer' }]);
+    expect(vi.mocked(createAdSet)).toHaveBeenCalled();
+  });
+
+  it('returns 400 no_geo when both countries and cities are empty', async () => {
+    const res = await POST(makeReq({
+      ...validBody,
+      targeting: { ...validBody.targeting, countries: [], cities: [] },
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('no_geo');
+    expect(vi.mocked(createAdSet)).not.toHaveBeenCalled();
+  });
+
   // ── APP objective ─────────────────────────────────────────────────────────
 
   const validAppDraft = {

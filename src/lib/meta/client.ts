@@ -239,6 +239,56 @@ export async function getAdvertisableApps(
   }));
 }
 
+// ── Ad geo-location search ────────────────────────────────────────────────────
+
+export interface AdGeoLocation {
+  key: string;
+  name: string;
+  type: string;
+  countryName?: string;
+  region?: string;
+}
+
+// Best-effort typeahead against Meta's adgeolocation search. Used by the ad
+// builder to let users target a specific city. Returns [] on any non-OK
+// response (the UI treats an empty list as "no matches"), mirroring the other
+// read helpers' graceful-degradation style. `types` maps to Meta's
+// location_types (default ["city"]).
+export async function searchAdGeoLocations(
+  accessToken: string,
+  query: string,
+  types: string[] = ['city']
+): Promise<AdGeoLocation[]> {
+  const u = new URL(`${GRAPH_BASE}/search`);
+  u.searchParams.set('type', 'adgeolocation');
+  u.searchParams.set('location_types', JSON.stringify(types));
+  u.searchParams.set('q', query);
+  u.searchParams.set('limit', '8');
+  u.searchParams.set('access_token', accessToken);
+
+  const res = await fetch(u, { method: 'GET' });
+  if (!res.ok) return [];
+
+  const body = (await res.json()) as {
+    data?: Array<{
+      key?: string;
+      name?: string;
+      type?: string;
+      country_name?: string;
+      region?: string;
+    }>;
+  };
+  return (body.data ?? [])
+    .filter((d): d is { key: string; name: string } => Boolean(d.key && d.name))
+    .map((d) => ({
+      key: d.key,
+      name: d.name,
+      type: (d as { type?: string }).type ?? '',
+      countryName: (d as { country_name?: string }).country_name,
+      region: (d as { region?: string }).region,
+    }));
+}
+
 // ── Insights ─────────────────────────────────────────────────────────────────
 
 export async function getInsights(

@@ -28,7 +28,7 @@ export default function AdsPage() {
   const [imageCandidates, setImageCandidates] = useState<string[]>([]);
   const [imageMissing, setImageMissing] = useState(false);
   const [targeting, setTargeting] = useState<AdTargeting>({
-    countries: ['GB'], ageMin: 18, ageMax: 65, gender: 'all', interests: [],
+    countries: ['GB'], cities: [], ageMin: 18, ageMax: 65, gender: 'all', interests: [],
     dailyBudgetMinor: 1000, startDate: '', endDate: '',
   });
 

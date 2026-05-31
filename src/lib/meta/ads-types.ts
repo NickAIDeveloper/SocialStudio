@@ -94,6 +94,11 @@ export interface AdDraft {
 // The audience/budget the user sets in Step 3, sent to /api/ads/publish.
 export interface AdTargeting {
   countries: string[]; // ISO-2, e.g. ['GB']
+  // City-level geo targeting (ADDITIVE to countries). Each entry is a Meta
+  // adgeolocation `key` (from /search?type=adgeolocation) plus a display name.
+  // radius/distanceUnit default to 25km at publish time when omitted. An ad may
+  // be city-only (empty countries) — geo is validated at publish time.
+  cities?: Array<{ key: string; name: string; radius?: number; distanceUnit?: 'mile' | 'kilometer' }>;
   ageMin: number; // 13..65
   ageMax: number; // 13..65
   gender: 'all' | 'male' | 'female';

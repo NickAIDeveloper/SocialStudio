@@ -1,8 +1,11 @@
 // src/app/(dashboard)/ads/_components/StepAudience.tsx
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AdTargeting } from '@/lib/meta/ads-types';
+
+// A single Meta adgeolocation result row returned by /api/meta/geo-search.
+interface GeoResult { key: string; name: string; type: string; countryName?: string; region?: string }
 
 // Main ad markets, ISO-2 code + display name. Sorted by name in the picker.
 const COUNTRIES: { code: string; name: string }[] = [
@@ -89,6 +92,44 @@ export function StepAudience(props: {
     set('countries', targeting.countries.filter((c) => c !== code));
   }
 
+  // ── City search (typeahead) ───────────────────────────────────────────────
+  const cities = targeting.cities ?? [];
+  const [cityQuery, setCityQuery] = useState('');
+  const [cityResults, setCityResults] = useState<GeoResult[]>([]);
+  const [citySearching, setCitySearching] = useState(false);
+  const cityReqId = useRef(0); // guards against out-of-order responses
+
+  useEffect(() => {
+    const q = cityQuery.trim();
+    if (q.length < 2) { setCityResults([]); setCitySearching(false); return; }
+    setCitySearching(true);
+    const reqId = ++cityReqId.current;
+    const handle = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/meta/geo-search?q=${encodeURIComponent(q)}`);
+        const json = (await res.json()) as { locations?: GeoResult[] };
+        if (reqId === cityReqId.current) setCityResults(json.locations ?? []);
+      } catch {
+        if (reqId === cityReqId.current) setCityResults([]);
+      } finally {
+        if (reqId === cityReqId.current) setCitySearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [cityQuery]);
+
+  function addCity(r: GeoResult) {
+    if (cities.some((c) => c.key === r.key)) return;
+    set('cities', [...cities, { key: r.key, name: r.name }]);
+    setCityQuery('');
+    setCityResults([]);
+    cityReqId.current++; // discard any in-flight response for the cleared query
+  }
+
+  function removeCity(key: string) {
+    set('cities', cities.filter((c) => c.key !== key));
+  }
+
   const budgetLabel = currency ? `Daily budget (${currency})` : 'Daily budget';
   const budgetHint = `Most ad accounts require at least ~5–10${currency ? ` ${currency}` : ''} / day.`;
 
@@ -117,6 +158,57 @@ export function StepAudience(props: {
                 className="flex items-center gap-1 rounded-full border border-(--violet-24) bg-(--violet-08) px-3 py-1 text-xs text-(--violet-bright)"
               >
                 {COUNTRY_NAME.get(code) ?? code} ({code})
+                <span className="text-(--violet)/70">×</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </Labeled>
+
+      <Labeled label="Cities (optional)">
+        <div className="space-y-2">
+          <div className="relative">
+            <input
+              type="text"
+              value={cityQuery}
+              onChange={(e) => setCityQuery(e.target.value)}
+              placeholder="Search a city, e.g. Melbourne…"
+              className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt) placeholder:text-(--muted-2)"
+            />
+            {(citySearching || cityResults.length > 0) && cityQuery.trim().length >= 2 && (
+              <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-2xl border border-(--line-strong) bg-(--surface) py-1 text-sm shadow-lg">
+                {citySearching && cityResults.length === 0 && (
+                  <li className="px-3 py-2 text-xs text-(--muted-2)">Searching…</li>
+                )}
+                {cityResults.map((r) => (
+                  <li key={r.key}>
+                    <button
+                      type="button"
+                      onClick={() => addCity(r)}
+                      disabled={cities.some((c) => c.key === r.key)}
+                      className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-(--violet-08) disabled:opacity-50"
+                    >
+                      <span className="text-(--txt)">{r.name}</span>
+                      {(r.region || r.countryName) && (
+                        <span className="text-xs text-(--muted-2)">
+                          {[r.region, r.countryName].filter(Boolean).join(', ')}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {cities.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => removeCity(c.key)}
+                className="flex items-center gap-1 rounded-full border border-(--violet-24) bg-(--violet-08) px-3 py-1 text-xs text-(--violet-bright)"
+              >
+                {c.name}
                 <span className="text-(--violet)/70">×</span>
               </button>
             ))}
@@ -176,7 +268,7 @@ export function StepAudience(props: {
 
       <div className="flex justify-between">
         <button type="button" onClick={props.onBack} className="rounded-2xl border border-(--line-strong) px-4 py-2 text-sm text-(--muted)">Back</button>
-        <button type="button" onClick={props.onNext} disabled={targeting.countries.length === 0}
+        <button type="button" onClick={props.onNext} disabled={targeting.countries.length === 0 && (targeting.cities?.length ?? 0) === 0}
           className="rounded-2xl bg-(--violet) px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Next</button>
       </div>
     </div>
