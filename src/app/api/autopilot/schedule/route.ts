@@ -20,7 +20,7 @@ import { autopilotSettings, brands, linkedAccounts, posts } from '@/lib/db/schem
 import { createPost } from '@/lib/buffer';
 import { decrypt } from '@/lib/encryption';
 import { readBrandBrain } from '@/lib/brain/consume';
-import { nextSlotAfter } from '@/lib/autopilot/schedule';
+import { nextPostSlot, type Frequency } from '@/lib/autopilot/schedule';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,7 +124,13 @@ export async function POST(req: Request): Promise<Response> {
   try {
     const brain = await readBrandBrain(post.brandId);
     if (brain?.formula?.bestSlot) {
-      scheduledAt = nextSlotAfter(now, brain.formula.bestSlot.dow, brain.formula.bestSlot.hour);
+      // Frequency-aware: gap cadences schedule to the next best HOUR, weekly to
+      // the best weekday. Matches the cron path so manual + auto never diverge.
+      scheduledAt = nextPostSlot(
+        settings.frequency as Frequency,
+        brain.formula.bestSlot,
+        now,
+      );
     } else {
       scheduledAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     }

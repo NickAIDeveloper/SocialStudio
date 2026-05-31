@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { brands, autopilotSettings, posts, linkedAccounts, instagramAccounts } from '@/lib/db/schema';
 import { verifyBrainSignature } from '@/lib/brain/auth';
 import { readBrandBrain } from '@/lib/brain/consume';
-import { computeNextRunAt, isDueNow, type Frequency } from '@/lib/autopilot/schedule';
+import { computeNextRunAt, isDueNow, nextPostSlot, type Frequency } from '@/lib/autopilot/schedule';
 import { createPost } from '@/lib/buffer';
 import { decrypt } from '@/lib/encryption';
 import { uploadImageToGitHub } from '@/lib/github-images';
@@ -192,19 +192,14 @@ export async function POST(req: Request): Promise<Response> {
   // The URL we pass to Buffer: composited image if available, else stock photo.
   const bufferImageUrl = processedImageUrl ?? sourceImageUrl;
 
-  // Compute scheduledAt from brain bestSlot when mode=auto.
+  // Compute scheduledAt from brain bestSlot when mode=auto. Uses the SAME
+  // frequency-aware slot logic as nextRunAt: for every_other_day (and daily /
+  // three_per_week) we schedule to the next best HOUR (today/tomorrow), NOT the
+  // brain's best weekday — pinning to a weekday made an "every other day" post
+  // land up to a week out and clustered every post on one day.
   const scheduledAt =
     settings.mode === 'auto' && brain?.formula?.bestSlot
-      ? (() => {
-          const out = new Date(now.getTime());
-          const desiredDow = brain.formula!.bestSlot.dow;
-          const hour = brain.formula!.bestSlot.hour;
-          out.setUTCHours(hour, 0, 0, 0);
-          let delta = (desiredDow - out.getUTCDay() + 7) % 7;
-          if (delta === 0 && out.getTime() <= now.getTime()) delta = 7;
-          out.setUTCDate(out.getUTCDate() + delta);
-          return out;
-        })()
+      ? nextPostSlot(settings.frequency as Frequency, brain.formula.bestSlot, now)
       : null;
 
   let bufferPostId: string | null = null;
