@@ -58,6 +58,7 @@ export function StepAudience(props: {
   const { targeting, setTargeting } = props;
   const currency = props.currency?.trim() ?? '';
   const set = <K extends keyof AdTargeting>(k: K, v: AdTargeting[K]) => setTargeting({ ...targeting, [k]: v });
+  const [customInterest, setCustomInterest] = useState('');
 
   // Seed sensible default dates (tomorrow → +7 days) once.
   useEffect(() => {
@@ -76,6 +77,13 @@ export function StepAudience(props: {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.suggestions]);
+
+  function addCustomInterest() {
+    const name = customInterest.trim();
+    if (!name) return;
+    if (!targeting.interests.includes(name)) set('interests', [...targeting.interests, name]);
+    setCustomInterest('');
+  }
 
   function toggleInterest(name: string) {
     set('interests', targeting.interests.includes(name)
@@ -233,7 +241,7 @@ export function StepAudience(props: {
         </Labeled>
       </div>
 
-      <Labeled label="Interests (AI-suggested — click to toggle)">
+      <Labeled label="Interests (AI-suggested — click to toggle, or add your own)">
         <div className="flex flex-wrap gap-2">
           {[...new Set([...props.suggestions, ...targeting.interests])].map((name) => {
             const active = targeting.interests.includes(name);
@@ -245,6 +253,20 @@ export function StepAudience(props: {
             );
           })}
         </div>
+        <div className="mt-2 flex gap-2">
+          <input
+            value={customInterest}
+            onChange={(e) => setCustomInterest(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomInterest(); } }}
+            placeholder="Add an interest, e.g. Reggaeton, J Balvin, Running"
+            className="flex-1 rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt) placeholder:text-(--muted-2)"
+          />
+          <button type="button" onClick={addCustomInterest}
+            className="rounded-2xl border border-(--line-strong) px-4 py-2 text-sm font-medium text-(--txt) hover:bg-white/[0.04]">
+            Add
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-(--muted-2)">Custom interests are matched to Meta&apos;s interest list on publish; unmatched ones are skipped.</p>
       </Labeled>
 
       <div className="grid grid-cols-2 gap-3">
