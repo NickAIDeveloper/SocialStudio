@@ -71,12 +71,13 @@ vi.mock('@/lib/meta/ads', () => ({
   uploadAdVideo: vi.fn().mockResolvedValue('vid_1'),
   waitForVideoReady: vi.fn().mockResolvedValue(undefined),
   createVideoCreative: vi.fn().mockResolvedValue('vcreative_1'),
+  deleteCampaign: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { POST } from '../route';
 import {
   createCampaign, createAdSet, createAd, createAdCreative,
-  uploadAdVideo, waitForVideoReady, createVideoCreative,
+  uploadAdVideo, waitForVideoReady, createVideoCreative, deleteCampaign,
 } from '@/lib/meta/ads';
 // uploadAdVideo + waitForVideoReady moved to /api/ads/upload-video; publish must
 // NOT call them anymore. They remain imported here to assert they are not used.
@@ -227,6 +228,41 @@ describe('POST /api/ads/publish', () => {
     const inserted = insertValues.mock.calls[0][0] as Record<string, unknown>;
     expect(inserted.status).toBe('PAUSED');
     expect(inserted.adId).toBe('ad_1');
+  });
+
+  // ── Rollback on partial failure ──────────────────────────────────────────
+
+  it('rolls back the orphan campaign when ad-set creation fails', async () => {
+    // Campaign is created, then createAdSet throws — the catch must delete the
+    // campaign so no orphan shell is left in Ads Manager.
+    vi.mocked(createAdSet).mockRejectedValueOnce(new Error('Meta write error 400: bad targeting'));
+
+    const res = await POST(makeReq(validBody));
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe('publish_failed');
+
+    // Rollback fired with the bare campaign id from createCampaign.
+    expect(vi.mocked(deleteCampaign)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(deleteCampaign)).toHaveBeenCalledWith('TOKEN', 'camp_1');
+    // The ad was never created.
+    expect(vi.mocked(createAd)).not.toHaveBeenCalled();
+  });
+
+  it('does NOT attempt rollback when no campaign was created (early validation failure)', async () => {
+    // no_geo fails before any Meta write — nothing to roll back.
+    const res = await POST(makeReq({
+      ...validBody,
+      targeting: { ...validBody.targeting, countries: [], cities: [] },
+    }));
+    expect(res.status).toBe(400);
+    expect(vi.mocked(createCampaign)).not.toHaveBeenCalled();
+    expect(vi.mocked(deleteCampaign)).not.toHaveBeenCalled();
+  });
+
+  it('a successful publish never calls rollback', async () => {
+    const res = await POST(makeReq(validBody));
+    expect(res.status).toBe(200);
+    expect(vi.mocked(deleteCampaign)).not.toHaveBeenCalled();
   });
 
   // ── Geo targeting (countries + cities) ───────────────────────────────────

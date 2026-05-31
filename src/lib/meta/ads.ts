@@ -29,6 +29,24 @@ async function graphPost<T>(
   return (await res.json()) as T;
 }
 
+async function graphDelete(path: string, accessToken: string): Promise<void> {
+  const res = await fetch(
+    `${GRAPH_BASE}${path}?access_token=${encodeURIComponent(accessToken)}`,
+    { method: 'DELETE' },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Meta delete error ${res.status} on ${path}: ${text}`);
+  }
+}
+
+// Roll back an orphaned campaign after a failed publish. Deleting the campaign
+// cascades to its ad sets, creatives, and ads, so one call cleans up the whole
+// partial tree. campaignId is the bare id (NOT act_-prefixed).
+export async function deleteCampaign(accessToken: string, campaignId: string): Promise<void> {
+  await graphDelete(`/${campaignId}`, accessToken);
+}
+
 // 1. Upload the image to the ad account's library → image_hash.
 // Meta will not reference an arbitrary external URL in a creative, so we fetch
 // the bytes and upload them as a base64 `bytes` field. The URL is user-editable

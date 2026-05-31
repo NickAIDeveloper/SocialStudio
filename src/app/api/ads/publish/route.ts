@@ -7,7 +7,7 @@ import { getUserId } from '@/lib/auth-helpers';
 import { decrypt } from '@/lib/encryption';
 import {
   uploadAdImage, createCampaign, createAdSet, createAdCreative, createAd,
-  createVideoCreative,
+  createVideoCreative, deleteCampaign,
   searchAdInterests, buildAdsManagerUrl,
 } from '@/lib/meta/ads';
 import { getAdvertisableApps } from '@/lib/meta/client';
@@ -39,6 +39,9 @@ export async function POST(request: NextRequest) {
   let createdCampaign: string | null = null;
   let createdAdset: string | null = null;
   let createdCreative: string | null = null;
+  // Lifted out of the try so the catch can use it to roll back an orphan
+  // campaign. Empty until we decrypt the Meta token below.
+  let accessToken = '';
 
   try {
     userId = await getUserId();
@@ -121,7 +124,7 @@ export async function POST(request: NextRequest) {
 
     const cfg = OBJECTIVE_CONFIG[draft.objective as AdObjective];
     metaObjective = cfg.metaObjective;
-    const accessToken = decrypt(account.accessToken);
+    accessToken = decrypt(account.accessToken);
 
     // Resolve interest names → ids (drop the ones that don't resolve).
     const resolved = (
@@ -263,6 +266,17 @@ export async function POST(request: NextRequest) {
           objective: metaObjective, status: 'FAILED', draft: null, lastError: message.slice(0, 500),
         });
       } catch { /* best-effort forensic logging only */ }
+    }
+    // ROLLBACK: a failed publish must not leave an orphan campaign shell behind.
+    // Deleting the campaign cascades to any ad set / creative / ad we created, so
+    // a partial tree can never linger in Ads Manager. Best-effort: a rollback
+    // failure (e.g. Meta throttling deletes) is logged, never thrown.
+    if (createdCampaign && accessToken) {
+      try {
+        await deleteCampaign(accessToken, createdCampaign);
+      } catch (rollbackErr) {
+        console.error('[ads/publish] rollback (deleteCampaign) failed:', rollbackErr);
+      }
     }
     return NextResponse.json({ error: 'publish_failed', message: message.slice(0, 1500) }, { status: 500 });
   }

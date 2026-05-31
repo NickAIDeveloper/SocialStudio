@@ -9,6 +9,7 @@ import {
   uploadAdVideo,
   waitForVideoReady,
   createVideoCreative,
+  deleteCampaign,
 } from '../ads';
 
 // The SSRF-guarded image fetch is unit-tested in safe-image-fetch.test.ts.
@@ -137,6 +138,35 @@ describe('meta/ads write client', () => {
     expect(body).toContain('adset_id=adset_1');
     const decoded = decodeURIComponent(body);
     expect(decoded).toContain('"creative_id":"creative_1"');
+  });
+
+  it('deleteCampaign issues a DELETE to the bare campaign id (rollback path)', async () => {
+    const g = global as unknown as { fetch: typeof fetch };
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () => '{"success":true}',
+      json: async () => ({ success: true }),
+    });
+    g.fetch = fetchMock as unknown as typeof fetch;
+
+    await deleteCampaign('TOKEN', 'camp_1');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(init.method).toBe('DELETE');
+    expect(String(url)).toContain('/camp_1');
+    expect(String(url)).toContain('access_token=TOKEN');
+  });
+
+  it('deleteCampaign throws when Meta returns a non-ok response', async () => {
+    const g = global as unknown as { fetch: typeof fetch };
+    g.fetch = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      text: async () => 'cannot delete',
+    }) as unknown as typeof fetch;
+
+    await expect(deleteCampaign('TOKEN', 'camp_bad')).rejects.toThrow(/Meta delete error 400/);
   });
 
   it('buildAdsManagerUrl points at the created campaign in the account', () => {
