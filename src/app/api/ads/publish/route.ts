@@ -264,6 +264,6 @@ export async function POST(request: NextRequest) {
         });
       } catch { /* best-effort forensic logging only */ }
     }
-    return NextResponse.json({ error: 'publish_failed', message: message.slice(0, 300) }, { status: 500 });
+    return NextResponse.json({ error: 'publish_failed', message: message.slice(0, 1500) }, { status: 500 });
   }
 }
