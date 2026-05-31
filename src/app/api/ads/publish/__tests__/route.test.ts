@@ -265,6 +265,18 @@ describe('POST /api/ads/publish', () => {
     expect(vi.mocked(deleteCampaign)).not.toHaveBeenCalled();
   });
 
+  it('rejects an App Store URL on a non-APP objective before any Meta write (1487810 guard)', async () => {
+    const res = await POST(makeReq({
+      ...validBody,
+      draft: { ...validBody.draft, objective: 'TRAFFIC', destinationUrl: 'https://apps.apple.com/us/app/pacebrain/id6759993012' },
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('app_url_wrong_objective');
+    // No Meta objects were created, so nothing to roll back.
+    expect(vi.mocked(createCampaign)).not.toHaveBeenCalled();
+    expect(vi.mocked(deleteCampaign)).not.toHaveBeenCalled();
+  });
+
   // ── Geo targeting (countries + cities) ───────────────────────────────────
 
   it('city-only targeting: defaults to Meta canonical radius 10 mile and creates the ad set', async () => {

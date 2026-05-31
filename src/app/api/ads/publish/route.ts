@@ -120,6 +120,20 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
+    } else if (draft.destinationUrl && APP_STORE_RE.test(draft.destinationUrl)) {
+      // Meta HARD-rejects (subcode 1487810, "creative requires a different
+      // objective") an App Store URL used as the creative link on any objective
+      // other than App installs. Such an ad publishes but is immediately
+      // WITH_ISSUES and would be disapproved on activation. Catch it before any
+      // write with a clear, actionable message instead of shipping a broken ad.
+      return NextResponse.json(
+        {
+          error: 'app_url_wrong_objective',
+          message:
+            'App Store URLs can only be used with the “App installs” objective. For Traffic, Engagement, or Leads, set a website URL (e.g. https://yourdomain.com) as the destination.',
+        },
+        { status: 400 },
+      );
     }
 
     const cfg = OBJECTIVE_CONFIG[draft.objective as AdObjective];
