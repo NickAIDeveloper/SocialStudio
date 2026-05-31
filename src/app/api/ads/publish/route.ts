@@ -124,6 +124,10 @@ export async function POST(request: NextRequest) {
       geo_locations: { countries: targeting.countries },
       age_min: targeting.ageMin,
       age_max: targeting.ageMax,
+      // Meta now requires the Advantage+ audience flag to be set explicitly, or
+      // it rejects the ad set with subcode 1870227 ("Advantage Audience Flag
+      // Required"). We use manual detailed targeting, so opt out (0).
+      targeting_automation: { advantage_audience: 0 },
     };
     const genders = genderCodes(targeting.gender);
     if (genders) metaTargeting.genders = genders;
