@@ -8,6 +8,7 @@ import { StepAudience } from './_components/StepAudience';
 import { StepReview } from './_components/StepReview';
 import { AdPreview } from './_components/AdPreview';
 import type { AdDraft, AdTargeting, AdObjective } from '@/lib/meta/ads-types';
+import { listTemplates, saveTemplate, deleteTemplate, type AdTemplate } from '@/lib/ads/ad-templates';
 
 interface BrandLite { id: string; name: string; slug: string }
 interface MetaAsset { id: string; name?: string; currency?: string }
@@ -31,6 +32,41 @@ export default function AdsPage() {
     countries: ['GB'], cities: [], ageMin: 18, ageMax: 65, gender: 'all', interests: [],
     dailyBudgetMinor: 1000, startDate: '', endDate: '',
   });
+
+  // Repeatable-ad templates (browser-local only). Loading a template only
+  // PREFILLS the wizard and jumps to Review — it never auto-publishes.
+  const [templates, setTemplates] = useState<AdTemplate[]>([]);
+  useEffect(() => { setTemplates(listTemplates()); }, []);
+
+  function handleSaveTemplate(name: string) {
+    if (!draft) return;
+    saveTemplate(name, {
+      brandId,
+      objective,
+      destinationUrl,
+      applicationId: draft.applicationId,
+      draft,
+      targeting,
+    });
+    setTemplates(listTemplates());
+  }
+
+  function handleLoadTemplate(t: AdTemplate) {
+    setBrandId(t.config.brandId);
+    setObjective(t.config.objective);
+    setDestinationUrl(t.config.destinationUrl);
+    setDraft(t.config.draft);
+    setTargeting(t.config.targeting);
+    // Templates carry a finished draft; no image candidates to surface.
+    setImageCandidates([]);
+    setImageMissing(false);
+    setStep(3); // jump straight to Review
+  }
+
+  function handleDeleteTemplate(id: string) {
+    deleteTemplate(id);
+    setTemplates(listTemplates());
+  }
 
   useEffect(() => {
     fetch('/api/brands').then((r) => r.json()).then((d) => {
@@ -95,12 +131,21 @@ export default function AdsPage() {
       <div className="grid gap-8 md:grid-cols-[1fr_360px]">
         <div>
           {step === 0 && (
-            <StepGoal
-              brands={brands} brandId={brandId} setBrandId={setBrandId}
-              objective={objective} setObjective={setObjective}
-              destinationUrl={destinationUrl} setDestinationUrl={setDestinationUrl}
-              onDraft={(d, cands, missing) => { setDraft(d); setImageCandidates(cands); setImageMissing(missing); setStep(1); }}
-            />
+            <div className="space-y-5">
+              {templates.length > 0 && (
+                <TemplatePicker
+                  templates={templates}
+                  onLoad={handleLoadTemplate}
+                  onDelete={handleDeleteTemplate}
+                />
+              )}
+              <StepGoal
+                brands={brands} brandId={brandId} setBrandId={setBrandId}
+                objective={objective} setObjective={setObjective}
+                destinationUrl={destinationUrl} setDestinationUrl={setDestinationUrl}
+                onDraft={(d, cands, missing) => { setDraft(d); setImageCandidates(cands); setImageMissing(missing); setStep(1); }}
+              />
+            </div>
           )}
           {step === 1 && draft && (
             <StepCreative draft={draft} setDraft={setDraft} brandId={brandId} onBack={() => setStep(0)} onNext={() => setStep(2)} candidates={imageCandidates} imageMissing={imageMissing} />
@@ -114,14 +159,94 @@ export default function AdsPage() {
             />
           )}
           {step === 3 && draft && (
-            <StepReview
-              draft={draft} targeting={targeting} brandId={brandId}
-              adAccounts={adAccounts} pages={pages} onBack={() => setStep(2)}
-            />
+            <div className="space-y-4">
+              <SaveTemplateBar onSave={handleSaveTemplate} />
+              <StepReview
+                draft={draft} targeting={targeting} brandId={brandId}
+                adAccounts={adAccounts} pages={pages} onBack={() => setStep(2)}
+              />
+            </div>
           )}
         </div>
         <AdPreview draft={draft} />
       </div>
+    </div>
+  );
+}
+
+// "Start from a saved template" — shown on the Goal step when templates exist.
+// Selecting one restores the full wizard state and jumps to Review.
+function TemplatePicker(props: {
+  templates: AdTemplate[];
+  onLoad: (t: AdTemplate) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-(--violet-24) bg-(--violet-08) p-4">
+      <div className="mb-2 text-sm font-semibold text-(--violet-bright)">Start from a saved template</div>
+      <ul className="space-y-1.5">
+        {props.templates.map((t) => (
+          <li key={t.id} className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => props.onLoad(t)}
+              className="flex-1 rounded-xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-left text-sm text-(--txt) transition-colors hover:border-(--violet-24)"
+            >
+              <span className="font-medium">{t.name}</span>
+              <span className="ml-2 text-xs text-(--muted-2)">
+                {new Date(t.savedAt).toLocaleDateString()}
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-label={`Delete template ${t.name}`}
+              title="Delete template"
+              onClick={() => props.onDelete(t.id)}
+              className="rounded-xl border border-(--line-strong) px-2.5 py-2 text-sm text-(--muted) transition-colors hover:text-red-400"
+            >
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// "Save as template" — shown on the Review step once a draft exists. Captures
+// the current config so the same ad can be recreated later (still PAUSED).
+function SaveTemplateBar(props: { onSave: (name: string) => void }) {
+  const [name, setName] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  function save() {
+    const finalName = name.trim() || 'Untitled ad';
+    props.onSave(finalName);
+    setName('');
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  return (
+    <div className="rounded-2xl border border-(--line) bg-(--surface) p-3">
+      <label className="mb-1.5 block text-sm font-medium text-(--muted)">Save as template</label>
+      <div className="flex items-center gap-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
+          placeholder="e.g. Spring sale — UK traffic"
+          className="flex-1 rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)"
+        />
+        <button
+          type="button"
+          onClick={save}
+          className="shrink-0 rounded-2xl border border-(--violet-24) bg-(--violet-08) px-4 py-2 text-sm font-medium text-(--violet-bright) transition-colors hover:bg-(--violet)/20"
+        >
+          Save
+        </button>
+      </div>
+      {saved && <p className="mt-1.5 text-xs text-(--violet-bright)">Saved — reusable from the Goal step.</p>}
     </div>
   );
 }
