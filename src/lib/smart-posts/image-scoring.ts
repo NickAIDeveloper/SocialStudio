@@ -49,13 +49,23 @@ const LANDSCAPE_TAGS = new Set([
 // candidates — that's how a carnation-in-a-cup photo won "Your pace is a
 // myth" for affectly. Tokens here must mean "this photo shows the activity",
 // not "this object might be in the same room as the activity".
+// Discipline note for pacebrain: tokens here must mean "this photo shows a
+// person running/training", NOT "this could be any kind of race/track/sport".
+// The ambiguous words race / racing / track / trail / sport / sports / outdoor
+// were REMOVED — they single-handedly admitted off-topic photos (galloping
+// HORSES tagged "race, racing, gallop" won "Your race plan is wrong"; F1 cars
+// tagged "race, track" won earlier) because a stray ambiguous tag satisfied the
+// floor and skipped the brand-anchored recovery search. Genuine running photos
+// virtually always carry a strong token below (runner/running/jog/marathon/
+// sprint/athlete/athletics/fitness/training/treadmill/pace/shoe/sneaker), so
+// dropping the ambiguous ones loses ~no real runners while closing the leak.
 const BRAND_DOMAIN_TOKENS: Record<string, Set<string>> = {
   pacebrain: new Set([
     'run', 'runner', 'runners', 'running', 'jog', 'jogger', 'jogging',
     'marathon', 'sprint', 'sprinter', 'athlete', 'athletic', 'athletics',
-    'sport', 'sports', 'fitness', 'workout', 'training', 'cardio', 'treadmill',
-    'racing', 'race', 'track', 'trail', 'outdoor', 'exercise', 'stamina',
-    'endurance', 'pace', 'shoe', 'shoes', 'sneaker', 'sneakers', 'gym',
+    'fitness', 'workout', 'training', 'cardio', 'treadmill',
+    'exercise', 'stamina', 'endurance', 'pace', 'shoe', 'shoes',
+    'sneaker', 'sneakers', 'gym',
   ]),
   affectly: new Set([
     'student', 'students', 'study', 'studying', 'studies',
@@ -77,6 +87,21 @@ const BRAND_DOMAIN_TOKENS: Record<string, Set<string>> = {
 // Conservative on purpose: only include tokens that signal "this is the
 // photo's actual subject" — not incidental props. Coffee, for instance,
 // is NOT here because studying photos commonly include a coffee cup.
+// Animal subjects. No running/study photo is ABOUT an animal, but animal stock
+// is heavily tagged with our ambiguous sport words — galloping horses come back
+// tagged "horse, race, racing, gallop, animal", storks as "bird, grass, field".
+// Listing the animal subject vocabulary rejects those at the floor regardless of
+// any stray sport tag. (Deliberately excludes 'dog'/'cat'/'pet' so a genuine
+// "person running with their dog" photo still qualifies.)
+const ANIMAL_SUBJECT_TOKENS = [
+  'horse', 'horses', 'equine', 'equestrian', 'pony', 'ponies', 'stallion',
+  'mare', 'foal', 'colt', 'gallop', 'galloping', 'hoof', 'hooves', 'mane',
+  'horseback', 'animal', 'animals', 'wildlife', 'mammal', 'creature',
+  'safari', 'zoo', 'jungle', 'farm', 'livestock', 'cattle', 'cow', 'cows',
+  'sheep', 'goat', 'pig', 'deer', 'elephant', 'lion', 'tiger', 'bear',
+  'wolf', 'fox', 'bird', 'birds', 'stork', 'storks', 'duck', 'swan',
+];
+
 const SHARED_NEGATIVE_TOKENS = [
   'flower', 'flowers', 'floral', 'bouquet', 'vase', 'rose', 'roses',
   'carnation', 'tulip', 'tulips', 'daisy', 'petal', 'petals', 'blossom',
@@ -85,6 +110,7 @@ const SHARED_NEGATIVE_TOKENS = [
   'dessert', 'cake', 'pastry', 'cocktail',
   'kitten', 'puppy',
   'baby', 'infant', 'newborn', 'toddler',
+  ...ANIMAL_SUBJECT_TOKENS,
 ];
 
 // PaceBrain-only negatives: study / office / reading subjects. A genuine
@@ -106,12 +132,12 @@ const PACEBRAIN_NEGATIVE_TOKENS = [
   'pen', 'write', 'writing',
   'office', 'desk', 'business', 'meeting', 'corporate',
   'laptop', 'keyboard', 'computer', 'coding', 'programming', 'software', 'hacker',
-  // Motor sports. PaceBrain's positive set has 'race', 'racing', 'track' — all of
-  // which also describe car/bike racing. Without these negatives a Formula 1 photo
-  // (tagged "race, racing, car, motorsport, track") passes the brand-domain floor
-  // and ships for a running-pace caption — the user reported "Race predictions you
-  // can trust" landing on a vintage F1 photo. These tokens identify the photo as a
-  // vehicle scene; legitimate running shots are never tagged with them.
+  // Motor sports — kept as defense-in-depth. The ambiguous positives 'race' /
+  // 'racing' / 'track' were since removed from the domain set, so a vehicle photo
+  // no longer passes the floor on those alone; these negatives still hard-reject
+  // any car scene that sneaks a strong token (e.g. a gym-branded race-car photo).
+  // The user reported "Race predictions you can trust" landing on a vintage F1
+  // photo. Legitimate running shots are never tagged with these.
   //
   // Discipline: motorsport-only vocabulary. Avoid generic words (engine, wheel,
   // tire) that appear on wheelchair athletes, crossfit tire flips, or treadmill

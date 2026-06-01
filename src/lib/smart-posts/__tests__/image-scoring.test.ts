@@ -220,6 +220,34 @@ describe('hasBrandDomainMatch', () => {
       hasBrandDomainMatch('running, athletics, track, playground, life physical education, runner', 'pacebrain'),
     ).toBe(true);
   });
+
+  it('rejects galloping HORSES that used to pass on the "race"/"racing" tag (regression)', () => {
+    // The exact "Your race plan is wrong" failure: a Camargue-horses-in-water
+    // photo tagged with sport words won the running brand. Now blocked two ways
+    // (ambiguous 'race'/'racing' no longer a positive + animal negative).
+    expect(
+      hasBrandDomainMatch('horse, horses, race, racing, gallop, water, animal', 'pacebrain'),
+    ).toBe(false);
+    // Animal negative is a HARD block — even a stray strong token can't rescue it.
+    expect(hasBrandDomainMatch('horse, running, gallop, animal, mane', 'pacebrain')).toBe(false);
+    // Storks / wildlife the prior pipeline surfaced are blocked too.
+    expect(hasBrandDomainMatch('stork, storks, grass, field, bird', 'pacebrain')).toBe(false);
+  });
+
+  it('no longer admits pacebrain photos that only match the ambiguous sport words', () => {
+    // race / racing / track / trail / sport / sports / outdoor were dropped from
+    // the positive set — alone they describe horse/car/boat racing, hiking, etc.
+    expect(hasBrandDomainMatch('race, racing, competition, crowd', 'pacebrain')).toBe(false);
+    expect(hasBrandDomainMatch('track, outdoor, sport, sports', 'pacebrain')).toBe(false);
+    expect(hasBrandDomainMatch('trail, mountains, landscape', 'pacebrain')).toBe(false);
+  });
+
+  it('still matches genuine running photos (strong tokens survive the tightening)', () => {
+    expect(hasBrandDomainMatch('marathon, race, runner', 'pacebrain')).toBe(true);
+    expect(hasBrandDomainMatch('trail, running, mountains', 'pacebrain')).toBe(true);
+    expect(hasBrandDomainMatch('athletics, track, stadium, sprinter', 'pacebrain')).toBe(true);
+    expect(hasBrandDomainMatch('running shoes, sneaker, jogging', 'pacebrain')).toBe(true);
+  });
 });
 
 describe('hasBrandDomainConfig', () => {
