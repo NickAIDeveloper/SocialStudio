@@ -246,7 +246,24 @@ describe('hasBrandDomainMatch', () => {
     expect(hasBrandDomainMatch('marathon, race, runner', 'pacebrain')).toBe(true);
     expect(hasBrandDomainMatch('trail, running, mountains', 'pacebrain')).toBe(true);
     expect(hasBrandDomainMatch('athletics, track, stadium, sprinter', 'pacebrain')).toBe(true);
-    expect(hasBrandDomainMatch('running shoes, sneaker, jogging', 'pacebrain')).toBe(true);
+    expect(hasBrandDomainMatch('runner, sneaker, jogging', 'pacebrain')).toBe(true);
+  });
+
+  it('rejects BALLET / yoga / gymnastics that passed on generic fitness words (regression)', () => {
+    // "Your training plan is lying" landed on ballerinas: the photo was tagged
+    // "ballet, dance, training, athlete" and the old positive set trusted
+    // 'training'/'athlete'. The floor now demands a running-locomotion word.
+    expect(hasBrandDomainMatch('ballet, ballerina, dance, tutu, training, athlete', 'pacebrain')).toBe(false);
+    expect(hasBrandDomainMatch('yoga, fitness, workout, exercise, woman', 'pacebrain')).toBe(false);
+    expect(hasBrandDomainMatch('gymnast, gymnastics, athletic, sport, training', 'pacebrain')).toBe(false);
+    // Even a "dance marathon" photo (passes on 'marathon') is rejected by the
+    // dance negative.
+    expect(hasBrandDomainMatch('dance, marathon, performance, stage', 'pacebrain')).toBe(false);
+  });
+
+  it('generic fitness/athlete words alone no longer satisfy the pacebrain floor', () => {
+    expect(hasBrandDomainMatch('athlete, fitness, training, gym', 'pacebrain')).toBe(false);
+    expect(hasBrandDomainMatch('workout, exercise, cardio, stamina', 'pacebrain')).toBe(false);
   });
 });
 

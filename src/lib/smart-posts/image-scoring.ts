@@ -49,23 +49,24 @@ const LANDSCAPE_TAGS = new Set([
 // candidates — that's how a carnation-in-a-cup photo won "Your pace is a
 // myth" for affectly. Tokens here must mean "this photo shows the activity",
 // not "this object might be in the same room as the activity".
-// Discipline note for pacebrain: tokens here must mean "this photo shows a
-// person running/training", NOT "this could be any kind of race/track/sport".
-// The ambiguous words race / racing / track / trail / sport / sports / outdoor
-// were REMOVED — they single-handedly admitted off-topic photos (galloping
-// HORSES tagged "race, racing, gallop" won "Your race plan is wrong"; F1 cars
-// tagged "race, track" won earlier) because a stray ambiguous tag satisfied the
-// floor and skipped the brand-anchored recovery search. Genuine running photos
-// virtually always carry a strong token below (runner/running/jog/marathon/
-// sprint/athlete/athletics/fitness/training/treadmill/pace/shoe/sneaker), so
-// dropping the ambiguous ones loses ~no real runners while closing the leak.
+// Discipline note for pacebrain: tokens here must mean "a person is RUNNING",
+// nothing weaker. We learned this the hard way through a chain of false
+// positives, each from a too-generic token:
+//   - "race / racing / track / trail" admitted galloping HORSES and F1 cars.
+//   - "athlete / athletic / fitness / workout / training / exercise / sport"
+//     admitted BALLET dancers (tagged "ballet, dance, training, athlete"),
+//     and would equally admit yoga, gymnastics, swimming — any "athletic"
+//     activity that is not running.
+// So the floor now requires an actual running-LOCOMOTION word. Genuine running
+// photos virtually always carry one (Pixabay tags them run/runner/running/jog/
+// marathon/sprint), and the brand-anchored recovery search re-queries with
+// runner-specific terms when no candidate matches — so recall stays intact while
+// the leak closes. Do NOT re-add generic fitness words here; they are the leak.
 const BRAND_DOMAIN_TOKENS: Record<string, Set<string>> = {
   pacebrain: new Set([
     'run', 'runner', 'runners', 'running', 'jog', 'jogger', 'jogging',
-    'marathon', 'sprint', 'sprinter', 'athlete', 'athletic', 'athletics',
-    'fitness', 'workout', 'training', 'cardio', 'treadmill',
-    'exercise', 'stamina', 'endurance', 'pace', 'shoe', 'shoes',
-    'sneaker', 'sneakers', 'gym',
+    'marathon', 'marathoner', 'halfmarathon', 'sprint', 'sprinter', 'sprinting',
+    'treadmill',
   ]),
   affectly: new Set([
     'student', 'students', 'study', 'studying', 'studies',
@@ -146,6 +147,15 @@ const PACEBRAIN_NEGATIVE_TOKENS = [
   'car', 'cars', 'auto', 'autos', 'automobile', 'automotive', 'vehicle', 'vehicles',
   'formula', 'f1', 'nascar', 'motorsport', 'motorsports', 'motorcycle', 'motorbike',
   'kart', 'karting', 'raceway', 'racetrack', 'pitstop',
+  // Other athletic activities that are NOT running. The locomotion-only positive
+  // set already excludes most, but a hybrid tag ("dance marathon" → 'marathon')
+  // could slip through, so hard-reject the activity subject. Ballet won
+  // "Your training plan is lying" before this. (Cycling/swimming intentionally
+  // omitted — runners cross-train and that stock can illustrate endurance.)
+  'ballet', 'ballerina', 'ballerinas', 'dance', 'dancer', 'dancers', 'dancing',
+  'tutu', 'ballroom', 'choreography', 'yoga', 'pilates', 'meditation',
+  'gymnast', 'gymnastics', 'gymnastic', 'boxing', 'boxer', 'martial', 'karate',
+  'skateboard', 'skateboarding', 'surfer', 'surfing', 'skiing', 'snowboard',
 ];
 
 const BRAND_NEGATIVE_TOKENS: Record<string, Set<string>> = {
