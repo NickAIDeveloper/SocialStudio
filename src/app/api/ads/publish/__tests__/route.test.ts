@@ -508,4 +508,23 @@ describe('POST /api/ads/publish', () => {
     expect(vi.mocked(createVideoCreative)).not.toHaveBeenCalled();
     expect(vi.mocked(createAdCreative)).toHaveBeenCalledOnce();
   });
+
+  // ── Overlapping city radii (Meta subcode 1487756) ─────────────────────────
+
+  it('returns 400 with overlap error and does NOT call createCampaign when cities overlap', async () => {
+    const res = await POST(makeReq({
+      ...validBody,
+      targeting: {
+        ...validBody.targeting,
+        countries: [],
+        cities: [
+          { key: '1', name: 'Melbourne', lat: -37.8136, lng: 144.9631, radius: 10, distanceUnit: 'mile' },
+          { key: '2', name: 'Richmond',  lat: -37.8233, lng: 144.9980, radius: 10, distanceUnit: 'mile' },
+        ],
+      },
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/overlap/i);
+    expect(vi.mocked(createCampaign)).not.toHaveBeenCalled();
+  });
 });

@@ -14,6 +14,7 @@ import { getAdvertisableApps } from '@/lib/meta/client';
 import {
   OBJECTIVE_CONFIG, minDailyBudget, type AdDraft, type AdTargeting, type AdObjective,
 } from '@/lib/meta/ads-types';
+import { findOverlap, type GeoCity } from '@/lib/ads/geo-overlap';
 
 export const maxDuration = 60;
 
@@ -109,6 +110,24 @@ export async function POST(request: NextRequest) {
         { error: 'no_geo', message: 'Select at least one country or city to target.' },
         { status: 400 },
       );
+    }
+
+    // Reject overlapping city radii up front (Meta subcode 1487756). Only cities
+    // that carry coordinates can be checked; coordinate-less legacy cities pass.
+    const targetCities = (targeting.cities ?? []) as Array<{ key: string; name: string; lat?: number; lng?: number; radius?: number; distanceUnit?: 'mile' | 'kilometer' }>;
+    for (let i = 0; i < targetCities.length; i++) {
+      const c = targetCities[i];
+      if (c.lat == null || c.lng == null) continue;
+      const priorWithCoords: GeoCity[] = targetCities.slice(0, i)
+        .filter((p) => p.lat != null && p.lng != null)
+        .map((p) => ({ key: p.key, name: p.name, lat: p.lat as number, lng: p.lng as number, radius: p.radius, distanceUnit: p.distanceUnit }));
+      const clash = findOverlap(priorWithCoords, { key: c.key, name: c.name, lat: c.lat, lng: c.lng, radius: c.radius, distanceUnit: c.distanceUnit });
+      if (clash) {
+        return NextResponse.json(
+          { error: `Locations overlap: "${c.name}" overlaps "${clash.name}". Remove one and try again.` },
+          { status: 400 },
+        );
+      }
     }
 
     // APP objective: validate required App Store fields before any write.
