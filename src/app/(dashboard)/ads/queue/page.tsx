@@ -16,6 +16,7 @@ export default function QueuedAdsPage() {
 
   async function loadAds(refresh = false) {
     const url = refresh ? '/api/ads/dashboard?refresh=1' : '/api/ads/dashboard';
+    setError(null);
     try {
       const r = await fetch(url);
       if (!r.ok) throw new Error('Failed to load your ads dashboard.');
@@ -27,25 +28,7 @@ export default function QueuedAdsPage() {
   }
 
   useEffect(() => {
-    let cancelled = false;
-
-    fetch('/api/ads/dashboard')
-      .then(async (r) => {
-        if (!r.ok) throw new Error('Failed to load your ads dashboard.');
-        return (await r.json()) as DashboardResponse;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setAds(data.ads ?? []);
-      })
-      .catch((e: unknown) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Something went wrong.');
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    void loadAds();
   }, []);
 
   async function handleRefresh() {
@@ -66,7 +49,7 @@ export default function QueuedAdsPage() {
         <div className="flex shrink-0 items-center gap-3">
           <button
             onClick={handleRefresh}
-            disabled={refreshing || ads === null}
+            disabled={refreshing}
             className="rounded-2xl border border-(--line) bg-(--surface-2) px-3 py-2 text-sm font-medium text-(--muted) transition-colors hover:text-(--txt) disabled:opacity-50"
           >
             {refreshing ? 'Refreshing…' : 'Refresh now'}
