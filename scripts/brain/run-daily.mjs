@@ -65,6 +65,15 @@ async function runOne(brandId, day) {
   console.log('  autopilot:', autopilot.status, autopilot.json?.status ?? '', autopilot.json?.reason ?? autopilot.json?.postId ?? '');
 }
 
+async function syncAdInsights() {
+  try {
+    const result = await call('/api/ads/sync-insights', {});
+    console.log(`[brain] sync-insights: status=${result.status} synced=${result.json?.synced ?? 0}`);
+  } catch (err) {
+    console.error('[brain] sync-insights failed:', err);
+  }
+}
+
 (async () => {
   const day = new Date().toISOString().slice(0, 10);
   const brands = await listBrands();
@@ -78,4 +87,7 @@ async function runOne(brandId, day) {
       console.error(`[brain] brand ${brand.id} failed:`, err);
     }
   }
+
+  // Sync live ad status + insight snapshots for all non-archived ads (best-effort).
+  await syncAdInsights();
 })();
