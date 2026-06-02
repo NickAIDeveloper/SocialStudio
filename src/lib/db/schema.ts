@@ -6,6 +6,8 @@ import {
   text,
   timestamp,
   integer,
+  numeric,
+  date,
   jsonb,
   uniqueIndex,
   index,
@@ -317,6 +319,36 @@ export const metaAds = pgTable('meta_ads', {
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });
+
+// ── Meta Ad Insights ─────────────────────────────────────────────────────────
+// Daily performance snapshot per ad (one row per ad per UTC day) so the dashboard
+// can show trends. Idempotent on (meta_ads_id, snapshot_date).
+export const metaAdInsights = pgTable(
+  'meta_ad_insights',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    metaAdsId: uuid('meta_ads_id')
+      .notNull()
+      .references(() => metaAds.id, { onDelete: 'cascade' }),
+    adId: varchar('ad_id', { length: 64 }).notNull(),
+    snapshotDate: date('snapshot_date', { mode: 'string' }).notNull(),
+    currency: varchar('currency', { length: 3 }),
+    spend: numeric('spend', { precision: 12, scale: 2 }).notNull().default('0'),
+    impressions: integer('impressions').notNull().default(0),
+    reach: integer('reach').notNull().default(0),
+    clicks: integer('clicks').notNull().default(0),
+    inlineLinkClicks: integer('inline_link_clicks').notNull().default(0),
+    ctr: numeric('ctr', { precision: 6, scale: 3 }).notNull().default('0'),
+    cpc: numeric('cpc', { precision: 10, scale: 2 }).notNull().default('0'),
+    frequency: numeric('frequency', { precision: 6, scale: 2 }).notNull().default('0'),
+    results: integer('results').notNull().default(0),
+    resultType: varchar('result_type', { length: 48 }),
+    raw: jsonb('raw'),
+    fetchedAt: timestamp('fetched_at', { mode: 'date' }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('meta_ad_insights_ad_day_idx').on(t.metaAdsId, t.snapshotDate)],
+);
 
 // ── Instagram (direct IG Login for Business) ──────────────────────────────────
 // Separate from meta_accounts because Instagram Login for Business is a
