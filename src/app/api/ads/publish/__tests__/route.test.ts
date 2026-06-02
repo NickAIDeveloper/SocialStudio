@@ -66,6 +66,7 @@ vi.mock('@/lib/meta/ads', () => ({
   createAdSet: vi.fn().mockResolvedValue('adset_1'),
   createAdCreative: vi.fn().mockResolvedValue('creative_1'),
   createAd: vi.fn().mockResolvedValue('ad_1'),
+  getAd: vi.fn().mockResolvedValue(null),
   searchAdInterests: vi.fn().mockResolvedValue(null),
   buildAdsManagerUrl: vi.fn().mockReturnValue('https://adsmanager/x'),
   uploadAdVideo: vi.fn().mockResolvedValue('vid_1'),

@@ -10,6 +10,7 @@ import {
   waitForVideoReady,
   createVideoCreative,
   deleteCampaign,
+  getAd,
 } from '../ads';
 
 // The SSRF-guarded image fetch is unit-tested in safe-image-fetch.test.ts.
@@ -346,5 +347,25 @@ describe('meta/ads write client', () => {
     const rawBody = String(fetchMock.mock.calls[0][1].body);
     expect(rawBody).not.toContain('promoted_object');
     expect(rawBody).toContain('status=PAUSED');
+  });
+
+  // ── getAd read-back ──────────────────────────────────────────────────────
+
+  it('getAd returns effective_status and review_feedback', async () => {
+    const g = global as unknown as { fetch: typeof fetch };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: '123', effective_status: 'PENDING_REVIEW', review_feedback: '{}' }),
+    });
+    g.fetch = fetchMock as unknown as typeof fetch;
+    const result = await getAd('tok', '123');
+    expect(result).toEqual({ effectiveStatus: 'PENDING_REVIEW', reviewFeedback: '{}' });
+  });
+
+  it('getAd returns null on Meta failure (best-effort)', async () => {
+    const g = global as unknown as { fetch: typeof fetch };
+    g.fetch = vi.fn().mockResolvedValue({ ok: false, text: async () => 'boom' }) as unknown as typeof fetch;
+    const result = await getAd('tok', '123');
+    expect(result).toBeNull();
   });
 });

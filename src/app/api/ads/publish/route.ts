@@ -8,7 +8,7 @@ import { decrypt } from '@/lib/encryption';
 import {
   uploadAdImage, createCampaign, createAdSet, createAdCreative, createAd,
   createVideoCreative, deleteCampaign,
-  searchAdInterests, buildAdsManagerUrl,
+  searchAdInterests, buildAdsManagerUrl, getAd,
 } from '@/lib/meta/ads';
 import { getAdvertisableApps } from '@/lib/meta/client';
 import {
@@ -272,10 +272,17 @@ export async function POST(request: NextRequest) {
       adsetId: createdAdset, creativeId: createdCreative, name: `Ad — ${draft.headline}`,
     });
 
+    const verdict = await getAd(accessToken, adId); // best-effort read-back
+    const liveStatus = verdict?.effectiveStatus ?? 'PAUSED';
+    const liveError =
+      (liveStatus === 'DISAPPROVED' || liveStatus === 'WITH_ISSUES')
+        ? (verdict?.reviewFeedback ?? null)
+        : null;
+
     await db.insert(metaAds).values({
       userId, brandId, adAccountId, pageId, igAccountId: igAccountId ?? null,
       campaignId: createdCampaign, adsetId: createdAdset, creativeId: createdCreative, adId,
-      objective: cfg.metaObjective, status: 'PAUSED', draft: { ...draft, targeting }, lastError: null,
+      objective: cfg.metaObjective, status: liveStatus, draft: { ...draft, targeting }, lastError: liveError,
     });
 
     return NextResponse.json({
