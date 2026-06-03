@@ -391,6 +391,15 @@ describe('meta/ads write client', () => {
     expect(await getAdLiveStatus('tok', '1')).toEqual({ kind: 'deleted' });
   });
 
+  it('getAdLiveStatus reports deleted when effective_status is DELETED (soft delete)', async () => {
+    const g = global as unknown as { fetch: typeof fetch };
+    g.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ effective_status: 'DELETED', review_feedback: null }),
+    }) as unknown as typeof fetch;
+    expect(await getAdLiveStatus('tok', '1')).toEqual({ kind: 'deleted' });
+  });
+
   it('getAdLiveStatus reports unknown on a transient (non-deletion) failure', async () => {
     const g = global as unknown as { fetch: typeof fetch };
     g.fetch = vi.fn().mockResolvedValue({
