@@ -110,7 +110,7 @@ export function StepGoal(props: {
       <div>
         <label className="mb-1 block text-sm font-medium text-(--muted)">Goal</label>
         <div className="grid gap-2 sm:grid-cols-3">
-          {(Object.keys(OBJECTIVE_CONFIG) as AdObjective[]).map((key) => {
+          {(Object.keys(OBJECTIVE_CONFIG) as AdObjective[]).filter((key) => key !== 'APP').map((key) => {
             const c = OBJECTIVE_CONFIG[key];
             const active = props.objective === key;
             return (
