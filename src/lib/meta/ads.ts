@@ -336,15 +336,20 @@ export async function getAdLiveStatus(
     const res = await fetch(u, { signal: AbortSignal.timeout(8000) });
     if (res.ok) {
       const j = (await res.json()) as { effective_status?: string; review_feedback?: unknown };
+      const es = j.effective_status ?? null;
+      // Meta represents a soft-deleted ad as a SUCCESSFUL GET with effective_status
+      // DELETED/ARCHIVED (not a 400), so treat those as deletions too.
+      if (es === 'DELETED' || es === 'ARCHIVED') return { kind: 'deleted' };
       return {
         kind: 'status',
-        effectiveStatus: j.effective_status ?? null,
+        effectiveStatus: es,
         reviewFeedback:
           j.review_feedback == null ? null
           : typeof j.review_feedback === 'string' ? j.review_feedback
           : JSON.stringify(j.review_feedback),
       };
     }
+    // Hard-deleted ads return a 400 "does not exist".
     const body = await res.text();
     if (res.status === 400 && /does not exist/i.test(body)) return { kind: 'deleted' };
     return { kind: 'unknown' };
