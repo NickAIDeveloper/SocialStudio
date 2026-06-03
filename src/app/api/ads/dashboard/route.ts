@@ -6,7 +6,7 @@ import { db } from '@/lib/db';
 import { metaAds, metaAccounts, metaAdInsights } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
 import { decrypt } from '@/lib/encryption';
-import { buildAdsManagerUrl } from '@/lib/meta/ads';
+import { buildAdsManagerUrl, getAdLiveStatus } from '@/lib/meta/ads';
 import { getAdInsights, type AdInsight } from '@/lib/meta/ad-insights';
 import { buildSnapshotRow, computeTrend } from '@/lib/ads/insights-store';
 import { evaluateSignals } from '@/lib/ads/signals';
@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     const userId = await getUserId();
     const refresh = new URL(req.url).searchParams.get('refresh') === '1';
 
-    const rows = await db
+    let rows = await db
       .select()
       .from(metaAds)
       .where(eq(metaAds.userId, userId))
@@ -41,6 +41,19 @@ export async function GET(req: Request) {
           await Promise.all(rows.map(async (r) => {
             try {
               if (!r.adId) return;
+              // Reconcile status with Meta: pick up real effective_status and, for
+              // ads deleted in Ads Manager, drop them to ARCHIVED so the queue stops
+              // showing a phantom PAUSED. 'unknown' leaves the stored status as-is.
+              const live = await getAdLiveStatus(token, r.adId);
+              if (live.kind === 'status' && live.effectiveStatus) {
+                await db.update(metaAds)
+                  .set({ status: live.effectiveStatus, updatedAt: new Date() })
+                  .where(eq(metaAds.id, r.id));
+              } else if (live.kind === 'deleted') {
+                await db.update(metaAds)
+                  .set({ status: 'ARCHIVED', updatedAt: new Date() })
+                  .where(eq(metaAds.id, r.id));
+              }
               const res = await getAdInsights(token, [r.adId], r.objective, 'last_14d');
               const insight = res[r.adId];
               if (!insight) return;
@@ -62,6 +75,13 @@ export async function GET(req: Request) {
       } catch {
         // best-effort — fall through to render stored data
       }
+      // Re-read so the rendered cards reflect any status updates from the refresh.
+      rows = await db
+        .select()
+        .from(metaAds)
+        .where(eq(metaAds.userId, userId))
+        .orderBy(desc(metaAds.createdAt))
+        .limit(50);
     }
 
     const ads = await Promise.all(rows.map(async (r) => {

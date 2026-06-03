@@ -7,7 +7,7 @@ import { db } from '@/lib/db';
 import { metaAds, metaAccounts, metaAdInsights } from '@/lib/db/schema';
 import { decrypt } from '@/lib/encryption';
 import { getAdInsights } from '@/lib/meta/ad-insights';
-import { getAd } from '@/lib/meta/ads';
+import { getAdLiveStatus } from '@/lib/meta/ads';
 import { buildSnapshotRow } from '@/lib/ads/insights-store';
 import { verifyBrainSignature } from '@/lib/brain/auth';
 
@@ -56,10 +56,14 @@ export async function POST(req: Request): Promise<Response> {
           const insights = await getAdInsights(token, [adId], r.objective, 'last_14d');
           const insight = insights[adId];
 
-          const verdict = await getAd(token, adId);
-          if (verdict?.effectiveStatus) {
+          const live = await getAdLiveStatus(token, adId);
+          if (live.kind === 'status' && live.effectiveStatus) {
             await db.update(metaAds)
-              .set({ status: verdict.effectiveStatus, updatedAt: new Date() })
+              .set({ status: live.effectiveStatus, updatedAt: new Date() })
+              .where(eq(metaAds.id, r.id));
+          } else if (live.kind === 'deleted') {
+            await db.update(metaAds)
+              .set({ status: 'ARCHIVED', updatedAt: new Date() })
               .where(eq(metaAds.id, r.id));
           }
 

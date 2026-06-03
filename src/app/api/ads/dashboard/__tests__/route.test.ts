@@ -79,6 +79,7 @@ vi.mock('@/lib/auth-helpers', () => ({ getUserId: vi.fn().mockResolvedValue('u1'
 vi.mock('@/lib/encryption', () => ({ decrypt: vi.fn().mockReturnValue('TOKEN') }));
 vi.mock('@/lib/meta/ads', () => ({
   buildAdsManagerUrl: vi.fn().mockReturnValue('https://adsmanager/x'),
+  getAdLiveStatus: vi.fn().mockResolvedValue({ kind: 'unknown' }),
 }));
 
 vi.mock('@/lib/meta/ad-insights', () => ({
