@@ -625,7 +625,9 @@ export async function generateFromSeed(
           images?: Array<{ largeImageURL?: string; url?: string; tags?: string }>;
         };
         const fallbackPool = buildStock(fb);
-        const fallbackRanked = rankCandidates(fallbackPool, relevanceContext);
+        // Pass brand.slug so the category safety-net still honors the brand-domain
+        // floor — without it this fallback served off-topic (misaligned) images.
+        const fallbackRanked = rankCandidates(fallbackPool, relevanceContext, brand.slug);
         combinedCandidates.push(...fallbackRanked.map((r) => r.candidate).slice(0, 3));
       }
     } catch { /* swallow — final fallback is no image */ }
