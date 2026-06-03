@@ -11,6 +11,7 @@ import {
   createVideoCreative,
   deleteCampaign,
   getAd,
+  getAdLiveStatus,
 } from '../ads';
 
 // The SSRF-guarded image fetch is unit-tested in safe-image-fetch.test.ts.
@@ -367,5 +368,34 @@ describe('meta/ads write client', () => {
     g.fetch = vi.fn().mockResolvedValue({ ok: false, text: async () => 'boom' }) as unknown as typeof fetch;
     const result = await getAd('tok', '123');
     expect(result).toBeNull();
+  });
+
+  it('getAdLiveStatus returns the live status on success', async () => {
+    const g = global as unknown as { fetch: typeof fetch };
+    g.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ effective_status: 'ACTIVE', review_feedback: null }),
+    }) as unknown as typeof fetch;
+    expect(await getAdLiveStatus('tok', '1')).toEqual({
+      kind: 'status', effectiveStatus: 'ACTIVE', reviewFeedback: null,
+    });
+  });
+
+  it('getAdLiveStatus reports deleted on a 400 "does not exist"', async () => {
+    const g = global as unknown as { fetch: typeof fetch };
+    g.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () => '{"error":{"message":"Unsupported get request. Object with ID does not exist","code":100}}',
+    }) as unknown as typeof fetch;
+    expect(await getAdLiveStatus('tok', '1')).toEqual({ kind: 'deleted' });
+  });
+
+  it('getAdLiveStatus reports unknown on a transient (non-deletion) failure', async () => {
+    const g = global as unknown as { fetch: typeof fetch };
+    g.fetch = vi.fn().mockResolvedValue({
+      ok: false, status: 500, text: async () => 'server error',
+    }) as unknown as typeof fetch;
+    expect(await getAdLiveStatus('tok', '1')).toEqual({ kind: 'unknown' });
   });
 });

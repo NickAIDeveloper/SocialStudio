@@ -61,7 +61,7 @@ const {
   );
   const decryptFn = vi.fn().mockReturnValue('TOKEN');
   const getAdInsightsFn = vi.fn().mockResolvedValue({});
-  const getAdFn = vi.fn().mockResolvedValue(null);
+  const getAdFn = vi.fn().mockResolvedValue({ kind: 'unknown' });
   const buildSnapshotRowFn = vi.fn().mockReturnValue({
     metaAdsId: 'u1',
     adId: 'ad1',
@@ -148,7 +148,7 @@ vi.mock('@/lib/meta/ad-insights', () => ({
 }));
 
 vi.mock('@/lib/meta/ads', () => ({
-  getAd: getAdFn,
+  getAdLiveStatus: getAdFn,
 }));
 
 vi.mock('@/lib/ads/insights-store', () => ({
@@ -191,7 +191,7 @@ describe('POST /api/ads/sync-insights', () => {
     verifyBrainSignatureFn.mockImplementation(() => Promise.resolve(state.verifyResult));
     decryptFn.mockReturnValue('TOKEN');
     getAdInsightsFn.mockResolvedValue({});
-    getAdFn.mockResolvedValue(null);
+    getAdFn.mockResolvedValue({ kind: 'unknown' });
     buildSnapshotRowFn.mockReturnValue({
       metaAdsId: 'u1',
       adId: 'ad1',
@@ -263,6 +263,7 @@ describe('POST /api/ads/sync-insights', () => {
     });
 
     getAdFn.mockResolvedValue({
+      kind: 'status',
       effectiveStatus: 'ACTIVE',
       reviewFeedback: null,
     });

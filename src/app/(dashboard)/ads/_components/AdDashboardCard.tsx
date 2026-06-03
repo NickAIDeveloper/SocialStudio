@@ -74,7 +74,7 @@ export function AdDashboardCard({ ad }: { ad: DashboardAd }) {
         <div className="mb-3 flex items-center gap-2 text-xs">
           <span className="rounded-full bg-(--surface-2) px-2 py-1">{ad.status}</span>
           <span className="text-(--muted-2)">{ad.objective.replace('OUTCOME_', '')}</span>
-          {ad.adsManagerUrl && <a className="ml-auto text-(--accent)" href={ad.adsManagerUrl} target="_blank" rel="noreferrer">Open in Ads Manager ↗</a>}
+          {ad.adsManagerUrl && ad.status !== 'FAILED' && ad.status !== 'ARCHIVED' && <a className="ml-auto text-(--accent)" href={ad.adsManagerUrl} target="_blank" rel="noreferrer">Open in Ads Manager ↗</a>}
         </div>
 
         {i ? (

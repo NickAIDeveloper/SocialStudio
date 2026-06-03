@@ -13,6 +13,12 @@ export default function QueuedAdsPage() {
   const [ads, setAds] = useState<DashboardAd[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
+
+  // FAILED = a publish attempt whose campaign was rolled back; ARCHIVED = an ad
+  // deleted in Meta. Neither is a live ad, so keep them out of the queue by
+  // default (the queue should mirror what's actually in Meta).
+  const isHidden = (a: DashboardAd) => a.status === 'FAILED' || a.status === 'ARCHIVED';
 
   async function loadAds(refresh = false) {
     const url = refresh ? '/api/ads/dashboard?refresh=1' : '/api/ads/dashboard';
@@ -85,13 +91,33 @@ export default function QueuedAdsPage() {
         </div>
       )}
 
-      {!error && ads !== null && ads.length > 0 && (
-        <div className="space-y-3">
-          {ads.map((ad) => (
-            <AdDashboardCard key={ad.id} ad={ad} />
-          ))}
-        </div>
-      )}
+      {!error && ads !== null && ads.length > 0 && (() => {
+        const live = ads.filter((a) => !isHidden(a));
+        const hidden = ads.filter(isHidden);
+        const visible = showHidden ? [...live, ...hidden] : live;
+        return (
+          <>
+            {live.length === 0 && !showHidden && (
+              <div className="mb-3 rounded-2xl border border-(--line) bg-(--bg) p-6 text-center text-sm text-(--muted)">
+                No live ads. Create one in the builder.
+              </div>
+            )}
+            <div className="space-y-3">
+              {visible.map((ad) => (
+                <AdDashboardCard key={ad.id} ad={ad} />
+              ))}
+            </div>
+            {hidden.length > 0 && (
+              <button
+                onClick={() => setShowHidden((v) => !v)}
+                className="mt-4 text-sm font-medium text-(--muted) underline-offset-4 hover:text-(--txt) hover:underline"
+              >
+                {showHidden ? 'Hide' : `Show ${hidden.length} failed/removed attempt${hidden.length === 1 ? '' : 's'}`}
+              </button>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }

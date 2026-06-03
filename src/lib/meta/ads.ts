@@ -312,29 +312,57 @@ export async function searchAdInterests(
   return json.data?.[0] ?? null;
 }
 
+// Probe an ad's live state from Meta for status reconciliation. Three outcomes:
+//   'status'  — Meta returned the ad; effectiveStatus reflects reality.
+//   'deleted' — Meta says the object does not exist (HTTP 400 + "does not exist");
+//               the ad/campaign was removed in Ads Manager.
+//   'unknown' — transient/network/permission failure; caller should leave the
+//               stored status untouched.
+// The 'deleted' heuristic is deliberately narrow so a flaky call never archives a
+// real ad — and callers re-probe on the next refresh, so a wrong guess self-heals.
+export type AdLiveStatus =
+  | { kind: 'status'; effectiveStatus: string | null; reviewFeedback: string | null }
+  | { kind: 'deleted' }
+  | { kind: 'unknown' };
+
+export async function getAdLiveStatus(
+  accessToken: string,
+  adId: string,
+): Promise<AdLiveStatus> {
+  try {
+    const u = new URL(`${GRAPH_BASE}/${adId}`);
+    u.searchParams.set('fields', 'effective_status,review_feedback');
+    u.searchParams.set('access_token', accessToken);
+    const res = await fetch(u, { signal: AbortSignal.timeout(8000) });
+    if (res.ok) {
+      const j = (await res.json()) as { effective_status?: string; review_feedback?: unknown };
+      return {
+        kind: 'status',
+        effectiveStatus: j.effective_status ?? null,
+        reviewFeedback:
+          j.review_feedback == null ? null
+          : typeof j.review_feedback === 'string' ? j.review_feedback
+          : JSON.stringify(j.review_feedback),
+      };
+    }
+    const body = await res.text();
+    if (res.status === 400 && /does not exist/i.test(body)) return { kind: 'deleted' };
+    return { kind: 'unknown' };
+  } catch {
+    return { kind: 'unknown' };
+  }
+}
+
 // Read an ad back from Meta right after creation to confirm the real verdict.
 // Best-effort: returns null on any failure so publish never fails over a read.
 export async function getAd(
   accessToken: string,
   adId: string,
 ): Promise<{ effectiveStatus: string | null; reviewFeedback: string | null } | null> {
-  try {
-    const u = new URL(`${GRAPH_BASE}/${adId}`);
-    u.searchParams.set('fields', 'effective_status,review_feedback');
-    u.searchParams.set('access_token', accessToken);
-    const res = await fetch(u, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) return null;
-    const j = (await res.json()) as { effective_status?: string; review_feedback?: unknown };
-    return {
-      effectiveStatus: j.effective_status ?? null,
-      reviewFeedback:
-        j.review_feedback == null ? null
-        : typeof j.review_feedback === 'string' ? j.review_feedback
-        : JSON.stringify(j.review_feedback),
-    };
-  } catch {
-    return null;
-  }
+  const live = await getAdLiveStatus(accessToken, adId);
+  return live.kind === 'status'
+    ? { effectiveStatus: live.effectiveStatus, reviewFeedback: live.reviewFeedback }
+    : null;
 }
 
 // Fetch each ad's effective_status from Meta. Best-effort: any failure maps to
