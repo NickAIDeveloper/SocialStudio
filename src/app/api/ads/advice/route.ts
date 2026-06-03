@@ -5,29 +5,14 @@ import { db } from '@/lib/db';
 import { metaAds, metaAdInsights, brands } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
 import { readBrandBrain } from '@/lib/brain/consume';
-import { buildCompetitorIntel, type CompetitorIntel } from '@/lib/brain/competitor-intel';
+import { buildCompetitorIntel } from '@/lib/brain/competitor-intel';
 import { evaluateSignals } from '@/lib/ads/signals';
 import { getAdvice } from '@/lib/ads/advice';
+import { summarizeCompetitorIntel } from '@/lib/ads/competitor-summary';
 import type { AdInsight } from '@/lib/meta/ad-insights';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
-
-// Distil competitor intel into a concise prompt-friendly string, mirroring the
-// summarizer in generate/route.ts.
-function summarizeCompetitorIntel(intel: CompetitorIntel | null): string | null {
-  if (!intel || intel.competitorCount === 0 || intel.sampleSize === 0) return null;
-  const parts: string[] = [];
-  parts.push(`${intel.competitorCount} competitors, ${intel.sampleSize} top posts analyzed.`);
-  if (intel.topHookPatterns.length > 0) {
-    parts.push(`Their best hooks lean: ${intel.topHookPatterns.map((h) => h.pattern).slice(0, 3).join(', ')}.`);
-  }
-  if (intel.topPosts.length > 0) {
-    const hooks = intel.topPosts.slice(0, 3).map((p) => `"${p.hook.slice(0, 70)}"`).join(' / ');
-    parts.push(`Top competitor hooks: ${hooks}.`);
-  }
-  return parts.join(' ').slice(0, 800);
-}
 
 export async function POST(req: Request) {
   try {
@@ -84,6 +69,7 @@ export async function POST(req: Request) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    console.error('[ads/advice] Error:', error);
     return NextResponse.json({ error: 'Failed to get advice' }, { status: 500 });
   }
 }

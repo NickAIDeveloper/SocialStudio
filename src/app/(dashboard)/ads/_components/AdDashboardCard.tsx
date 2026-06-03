@@ -98,11 +98,13 @@ export function AdDashboardCard({ ad }: { ad: DashboardAd }) {
         {ad.signals.tips.length > 0 && (
           <div className="mt-2 rounded-lg bg-white/5 px-3 py-2 text-sm text-(--txt)">
             💡 {ad.signals.tips.join(' ')}
-            <button onClick={askAi} disabled={loading} className="ml-2 rounded bg-(--accent) px-2 py-1 text-xs text-white disabled:opacity-50">
-              {loading ? 'Thinking…' : '✨ Ask AI'}
-            </button>
           </div>
         )}
+        <div className="mt-2">
+          <button onClick={askAi} disabled={loading} className="rounded bg-(--accent) px-2 py-1 text-xs text-white disabled:opacity-50">
+            {loading ? 'Thinking…' : '✨ Ask AI for advice'}
+          </button>
+        </div>
         {advice && <div className="mt-2 whitespace-pre-wrap rounded-lg border border-(--line) px-3 py-2 text-sm text-(--txt)">{advice}</div>}
       </div>
     </div>
