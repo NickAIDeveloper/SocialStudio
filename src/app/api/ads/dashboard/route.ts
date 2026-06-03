@@ -12,6 +12,7 @@ import { buildSnapshotRow, computeTrend } from '@/lib/ads/insights-store';
 import { evaluateSignals } from '@/lib/ads/signals';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function GET(req: Request) {
   try {
@@ -33,22 +34,30 @@ export async function GET(req: Request) {
         if (account && !(account.tokenExpiresAt && account.tokenExpiresAt <= new Date())) {
           const token = decrypt(account.accessToken);
           const today = new Date().toISOString().slice(0, 10);
-          for (const r of rows) {
-            if (!r.adId) continue;
-            const res = await getAdInsights(token, [r.adId], r.objective, 'last_14d');
-            const insight = res[r.adId];
-            if (!insight) continue;
-            const row = buildSnapshotRow(r.id, r.adId, today, insight);
-            await db.insert(metaAdInsights).values(row).onConflictDoUpdate({
-              target: [metaAdInsights.metaAdsId, metaAdInsights.snapshotDate],
-              set: {
-                currency: row.currency, spend: row.spend, impressions: row.impressions,
-                reach: row.reach, clicks: row.clicks, inlineLinkClicks: row.inlineLinkClicks,
-                ctr: row.ctr, cpc: row.cpc, frequency: row.frequency, results: row.results,
-                resultType: row.resultType, raw: row.raw, fetchedAt: new Date(),
-              },
-            });
-          }
+          // Refresh each ad concurrently — every getAdInsights call has its own
+          // 8s internal timeout, so a sequential loop over many ads would blow
+          // the function timeout. Each ad's work is isolated in a try/catch so a
+          // single ad failure never rejects the Promise.all.
+          await Promise.all(rows.map(async (r) => {
+            try {
+              if (!r.adId) return;
+              const res = await getAdInsights(token, [r.adId], r.objective, 'last_14d');
+              const insight = res[r.adId];
+              if (!insight) return;
+              const row = buildSnapshotRow(r.id, r.adId, today, insight);
+              await db.insert(metaAdInsights).values(row).onConflictDoUpdate({
+                target: [metaAdInsights.metaAdsId, metaAdInsights.snapshotDate],
+                set: {
+                  currency: row.currency, spend: row.spend, impressions: row.impressions,
+                  reach: row.reach, clicks: row.clicks, inlineLinkClicks: row.inlineLinkClicks,
+                  ctr: row.ctr, cpc: row.cpc, frequency: row.frequency, results: row.results,
+                  resultType: row.resultType, raw: row.raw, fetchedAt: new Date(),
+                },
+              });
+            } catch {
+              // best-effort — skip this ad, keep refreshing the rest
+            }
+          }));
         }
       } catch {
         // best-effort — fall through to render stored data
