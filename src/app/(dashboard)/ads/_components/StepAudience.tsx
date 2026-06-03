@@ -3,9 +3,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { AdTargeting } from '@/lib/meta/ads-types';
+import { findOverlap, type GeoCity } from '@/lib/ads/geo-overlap';
 
 // A single Meta adgeolocation result row returned by /api/meta/geo-search.
-interface GeoResult { key: string; name: string; type: string; countryName?: string; region?: string }
+interface GeoResult { key: string; name: string; type: string; countryName?: string; region?: string; lat?: number; lng?: number }
 
 // Main ad markets, ISO-2 code + display name. Sorted by name in the picker.
 const COUNTRIES: { code: string; name: string }[] = [
@@ -105,6 +106,7 @@ export function StepAudience(props: {
   const [cityQuery, setCityQuery] = useState('');
   const [cityResults, setCityResults] = useState<GeoResult[]>([]);
   const [citySearching, setCitySearching] = useState(false);
+  const [cityWarning, setCityWarning] = useState<string | null>(null);
   const cityReqId = useRef(0); // guards against out-of-order responses
 
   useEffect(() => {
@@ -128,7 +130,19 @@ export function StepAudience(props: {
 
   function addCity(r: GeoResult) {
     if (cities.some((c) => c.key === r.key)) return;
-    set('cities', [...cities, { key: r.key, name: r.name }]);
+    // Overlap guard: Meta rejects overlapping city radii (subcode 1487756).
+    if (r.lat != null && r.lng != null) {
+      const existing: GeoCity[] = cities
+        .filter((c) => c.lat != null && c.lng != null)
+        .map((c) => ({ key: c.key, name: c.name, lat: c.lat as number, lng: c.lng as number, radius: c.radius, distanceUnit: c.distanceUnit }));
+      const clash = findOverlap(existing, { key: r.key, name: r.name, lat: r.lat, lng: r.lng });
+      if (clash) {
+        setCityWarning(`${r.name} overlaps ${clash.name}. Remove one — Meta rejects overlapping locations.`);
+        return;
+      }
+    }
+    setCityWarning(null);
+    set('cities', [...cities, { key: r.key, name: r.name, lat: r.lat, lng: r.lng }]);
     setCityQuery('');
     setCityResults([]);
     cityReqId.current++; // discard any in-flight response for the cleared query
@@ -208,6 +222,7 @@ export function StepAudience(props: {
               </ul>
             )}
           </div>
+          {cityWarning && <p className="text-xs text-red-400">{cityWarning}</p>}
           <div className="flex flex-wrap gap-2">
             {cities.map((c) => (
               <button

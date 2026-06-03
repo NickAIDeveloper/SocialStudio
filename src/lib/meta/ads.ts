@@ -312,6 +312,31 @@ export async function searchAdInterests(
   return json.data?.[0] ?? null;
 }
 
+// Read an ad back from Meta right after creation to confirm the real verdict.
+// Best-effort: returns null on any failure so publish never fails over a read.
+export async function getAd(
+  accessToken: string,
+  adId: string,
+): Promise<{ effectiveStatus: string | null; reviewFeedback: string | null } | null> {
+  try {
+    const u = new URL(`${GRAPH_BASE}/${adId}`);
+    u.searchParams.set('fields', 'effective_status,review_feedback');
+    u.searchParams.set('access_token', accessToken);
+    const res = await fetch(u, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return null;
+    const j = (await res.json()) as { effective_status?: string; review_feedback?: unknown };
+    return {
+      effectiveStatus: j.effective_status ?? null,
+      reviewFeedback:
+        j.review_feedback == null ? null
+        : typeof j.review_feedback === 'string' ? j.review_feedback
+        : JSON.stringify(j.review_feedback),
+    };
+  } catch {
+    return null;
+  }
+}
+
 // Fetch each ad's effective_status from Meta. Best-effort: any failure maps to
 // null so the list still renders from stored data.
 export async function getAdStatuses(

@@ -4,26 +4,11 @@ import { db } from '@/lib/db';
 import { brands } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
 import { readBrandBrain } from '@/lib/brain/consume';
-import { buildCompetitorIntel, type CompetitorIntel } from '@/lib/brain/competitor-intel';
+import { buildCompetitorIntel } from '@/lib/brain/competitor-intel';
 import { buildAdDraft } from '@/lib/ads/build-draft';
 import { generateAdCopy } from '@/lib/ads/ad-copy';
+import { summarizeCompetitorIntel } from '@/lib/ads/competitor-summary';
 import { OBJECTIVE_CONFIG, type AdObjective } from '@/lib/meta/ads-types';
-
-// Distil competitor intel into a concise prompt-friendly string for the ad-copy
-// generator. Mirrors the summarizer in /api/ads/copy.
-function summarizeCompetitorIntel(intel: CompetitorIntel | null): string | null {
-  if (!intel || intel.competitorCount === 0 || intel.sampleSize === 0) return null;
-  const parts: string[] = [];
-  parts.push(`${intel.competitorCount} competitors, ${intel.sampleSize} top posts analyzed.`);
-  if (intel.topHookPatterns.length > 0) {
-    parts.push(`Their best hooks lean: ${intel.topHookPatterns.map((h) => h.pattern).slice(0, 3).join(', ')}.`);
-  }
-  if (intel.topPosts.length > 0) {
-    const hooks = intel.topPosts.slice(0, 3).map((p) => `"${p.hook.slice(0, 70)}"`).join(' / ');
-    parts.push(`Top competitor hooks: ${hooks}.`);
-  }
-  return parts.join(' ').slice(0, 800);
-}
 
 export const maxDuration = 60;
 

@@ -100,7 +100,14 @@ export interface AdTargeting {
   // time when omitted, and any custom radius is clamped into Meta's valid range
   // (mile 10–50, kilometer 17–80). An ad may be city-only (empty countries) —
   // geo is validated at publish time.
-  cities?: Array<{ key: string; name: string; radius?: number; distanceUnit?: 'mile' | 'kilometer' }>;
+  cities?: Array<{
+    key: string;
+    name: string;
+    lat?: number;
+    lng?: number;
+    radius?: number;
+    distanceUnit?: 'mile' | 'kilometer';
+  }>;
   ageMin: number; // 13..65
   ageMax: number; // 13..65
   gender: 'all' | 'male' | 'female';

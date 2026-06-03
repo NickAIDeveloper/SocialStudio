@@ -247,6 +247,8 @@ export interface AdGeoLocation {
   type: string;
   countryName?: string;
   region?: string;
+  lat?: number;
+  lng?: number;
 }
 
 // Best-effort typeahead against Meta's adgeolocation search. Used by the ad
@@ -276,6 +278,8 @@ export async function searchAdGeoLocations(
       type?: string;
       country_name?: string;
       region?: string;
+      latitude?: number;
+      longitude?: number;
     }>;
   };
   return (body.data ?? [])
@@ -286,6 +290,12 @@ export async function searchAdGeoLocations(
       type: (d as { type?: string }).type ?? '',
       countryName: (d as { country_name?: string }).country_name,
       region: (d as { region?: string }).region,
+      lat: typeof (d as { latitude?: number }).latitude === 'number'
+        ? (d as { latitude?: number }).latitude
+        : undefined,
+      lng: typeof (d as { longitude?: number }).longitude === 'number'
+        ? (d as { longitude?: number }).longitude
+        : undefined,
     }));
 }
 
