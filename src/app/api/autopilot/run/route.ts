@@ -17,6 +17,42 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+// Shared failure exit for the cron run. Before this existed, every early-return
+// failure path left `nextRunAt` frozen and `lastError` null, so a stuck brand
+// looked perpetually "due", silently failed every daily cron, and gave no clue
+// why (live state showed lastError=null while nothing shipped). This records a
+// descriptive `lastError` AND advances `nextRunAt` one cadence from now so the
+// schedule reflects reality instead of a frozen past date.
+//
+// `lastRunAt` is deliberately NOT touched — it still marks the last SUCCESSFUL
+// generation, so we never misreport a failed attempt as a successful run.
+async function failAutopilot(params: {
+  brandId: string;
+  frequency: Frequency;
+  bestSlot: { dow: number; hour: number } | null;
+  now: Date;
+  reason: string;
+  // Full error detail to persist; defaults to `reason`. Lets us store a verbose
+  // message (e.g. god-mode body) while returning a short, stable reason code.
+  detail?: string;
+}): Promise<Response> {
+  const next = computeNextRunAt({
+    frequency: params.frequency,
+    lastRunAt: params.now,
+    bestSlot: params.bestSlot,
+    now: params.now,
+  });
+  await db
+    .update(autopilotSettings)
+    .set({ lastError: params.detail ?? params.reason, nextRunAt: next, updatedAt: params.now })
+    .where(eq(autopilotSettings.brandId, params.brandId));
+  return NextResponse.json({
+    status: 'failed',
+    reason: params.reason,
+    nextRunAt: next.toISOString(),
+  });
+}
+
 export async function POST(req: Request): Promise<Response> {
   const { searchParams } = new URL(req.url);
   const brandId = searchParams.get('brandId');
@@ -82,11 +118,13 @@ export async function POST(req: Request): Promise<Response> {
     .limit(1);
 
   if (!igAccount?.igUserId) {
-    await db
-      .update(autopilotSettings)
-      .set({ lastError: 'no_ig_account', updatedAt: now })
-      .where(eq(autopilotSettings.brandId, brandId));
-    return NextResponse.json({ status: 'failed', reason: 'no_ig_account' });
+    return failAutopilot({
+      brandId,
+      frequency: settings.frequency as Frequency,
+      bestSlot: brain?.formula?.bestSlot ?? null,
+      now,
+      reason: 'no_ig_account',
+    });
   }
 
   // Call the god-mode endpoint with HMAC auth so we get the full composited
@@ -131,21 +169,27 @@ export async function POST(req: Request): Promise<Response> {
     if (!godRes.ok) {
       const errText = await godRes.text().catch(() => '');
       const errorCode = `god_mode_${godRes.status}`;
-      await db
-        .update(autopilotSettings)
-        .set({ lastError: `${errorCode}: ${errText.slice(0, 200)}`, updatedAt: now })
-        .where(eq(autopilotSettings.brandId, brandId));
-      return NextResponse.json({ status: 'failed', reason: errorCode });
+      return failAutopilot({
+        brandId,
+        frequency: settings.frequency as Frequency,
+        bestSlot: brain?.formula?.bestSlot ?? null,
+        now,
+        reason: errorCode,
+        detail: `${errorCode}: ${errText.slice(0, 200)}`,
+      });
     }
 
     godPayload = (await godRes.json()) as typeof godPayload;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    await db
-      .update(autopilotSettings)
-      .set({ lastError: `god_mode_fetch_failed: ${msg}`, updatedAt: now })
-      .where(eq(autopilotSettings.brandId, brandId));
-    return NextResponse.json({ status: 'failed', reason: 'god_mode_fetch_failed' });
+    return failAutopilot({
+      brandId,
+      frequency: settings.frequency as Frequency,
+      bestSlot: brain?.formula?.bestSlot ?? null,
+      now,
+      reason: 'god_mode_fetch_failed',
+      detail: `god_mode_fetch_failed: ${msg}`,
+    });
   }
 
   const caption = godPayload.caption ?? '';
@@ -163,11 +207,13 @@ export async function POST(req: Request): Promise<Response> {
   const imageDataUrl = godPayload.imageDataUrl ?? null;
 
   if (!caption || !hookText) {
-    await db
-      .update(autopilotSettings)
-      .set({ lastError: 'empty_generation', updatedAt: now })
-      .where(eq(autopilotSettings.brandId, brandId));
-    return NextResponse.json({ status: 'failed', reason: 'empty_generation' });
+    return failAutopilot({
+      brandId,
+      frequency: settings.frequency as Frequency,
+      bestSlot: brain?.formula?.bestSlot ?? null,
+      now,
+      reason: 'empty_generation',
+    });
   }
 
   // Upload the composited image to GitHub to get a public URL for Buffer.
@@ -306,6 +352,14 @@ export async function POST(req: Request): Promise<Response> {
       source: 'autopilot',
     })
     .returning({ id: posts.id });
+
+  // Visibility: a post that drafted with no usable image (god-mode returned
+  // neither a stock nor a composited URL) otherwise saves silently as a
+  // src=null draft and never reaches Buffer. Surface it in lastError so the
+  // dashboard explains the gap instead of looking like a stalled brand.
+  if (!sourceImageUrl && !processedImageUrl && !lastError) {
+    lastError = 'no_image';
+  }
 
   // Update autopilot settings.
   const next = computeNextRunAt({
