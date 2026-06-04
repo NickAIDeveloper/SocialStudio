@@ -561,6 +561,14 @@ export async function createInstagramImageWithText(
   overlayStyle: OverlayStyle = 'editorial',
   logoUrl?: string | null
 ): Promise<Buffer> {
+  // Defense in depth: libvips' vips_text throws "text: no text to render" on
+  // empty input, which surfaces as a 500 and stalls autopilot. resolveHook
+  // upstream should guarantee non-empty text, but never let an empty overlay
+  // crash any caller — fall back to the image + logo with no text overlay.
+  if (!overlayText?.trim()) {
+    return createInstagramImage(imageUrl, brand, logoUrl);
+  }
+
   assertAllowedImageUrl(imageUrl);
   const imageBuffer = await fetchImageBuffer(imageUrl);
 

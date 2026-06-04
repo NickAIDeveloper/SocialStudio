@@ -8,6 +8,7 @@ import { createInstagramImageWithText, fetchImageBuffer } from '@/lib/image-proc
 import { deriveImageQuery, deriveImageQueryFromHook } from './image-query';
 import { rankCandidates, hasBrandDomainConfig } from './image-scoring';
 import { normalizeImageUrlForDedup, buildDedupSet } from './url-dedup';
+import { resolveHook } from './hook-fallback';
 import {
   computeImageHash,
   isVisuallyDuplicate,
@@ -647,7 +648,15 @@ export async function generateFromSeed(
     };
   }
 
-  const hookText = captionPayload.hookText ?? seed.hookPattern ?? 'Save this';
+  // Use a falsy-aware fallback (NOT `??`) so an empty-string hookText from
+  // /api/captions falls through to a caption-derived hook instead of an empty
+  // overlay that crashes the renderer (libvips "no text to render"). See
+  // hook-fallback.ts.
+  const hookText = resolveHook({
+    hookText: captionPayload.hookText,
+    hookPattern: seed.hookPattern,
+    caption: captionPayload.caption,
+  });
   const renderBrand: Brand =
     brand.slug === 'affectly' || brand.slug === 'pacebrain' ? (brand.slug as Brand) : 'affectly';
 
