@@ -6,6 +6,7 @@ import { getUserId } from '@/lib/auth-helpers';
 import { verifyBrainSignature } from '@/lib/brain/auth';
 import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
 import { sanitizeCaption, sanitizeHook, sanitizeHashtags, reconcileCountClaim } from '@/lib/caption-engine';
+import { resolveHook } from '@/lib/smart-posts/hook-fallback';
 
 export async function POST(request: NextRequest) {
   try {
@@ -399,7 +400,12 @@ Return ONLY valid JSON:
         success: true,
         caption: fallbackReconciled.caption,
         hashtags: sanitizeHashtags((hashtagsMatch || []).join(' ')),
-        hookText: fallbackReconciled.hookText,
+        // Guard against an empty extracted hook crashing the renderer.
+        hookText: resolveHook({
+          hookText: fallbackReconciled.hookText,
+          hookPattern,
+          caption: fallbackReconciled.caption,
+        }),
         source: 'cerebras-extracted',
       });
     }
@@ -465,6 +471,11 @@ Return ONLY valid JSON:
     const reconciled = reconcileCountClaim(finalHook, finalCaption);
     finalHook = reconciled.hookText;
     finalCaption = reconciled.caption;
+
+    // Never return an empty hookText: the model occasionally omits it, and an
+    // empty overlay crashes the downstream image renderer. Derive one from the
+    // caption as a last resort. See hook-fallback.ts.
+    finalHook = resolveHook({ hookText: finalHook, hookPattern, caption: finalCaption });
 
     return NextResponse.json({
       success: true,
