@@ -231,6 +231,82 @@ export async function getQueuedPosts(apiKey: string): Promise<BufferPost[]> {
   }
 }
 
+// Authoritative single-post lookup by id. Unlike the org `posts` feed (which is
+// windowed — it caps well below a channel's full sent history), this resolves
+// any post id directly, so it can tell "Buffer sent it" apart from "Buffer
+// dropped it" (NOT_FOUND). Used by status reconciliation as the source of truth.
+export type BufferPostLookup =
+  | { found: true; status: string; dueAt: string | null }
+  | { found: false };
+
+export async function getPostById(apiKey: string, id: string): Promise<BufferPostLookup> {
+  const query = `{
+    post(input: { id: ${JSON.stringify(id)} }) {
+      ... on Post { id status dueAt }
+    }
+  }`;
+  const response = await fetch(BUFFER_GRAPHQL_URL, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  });
+  if (!response.ok) {
+    throw new Error(`Buffer API error (HTTP ${response.status})`);
+  }
+  const json = await response.json();
+  if (json.errors?.length) {
+    const notFound = json.errors.some(
+      (e: { message?: string; extensions?: { code?: string } }) =>
+        e.extensions?.code === 'NOT_FOUND' || /not found/i.test(e.message ?? ''),
+    );
+    if (notFound) return { found: false };
+    throw new Error(`Buffer GraphQL error: ${json.errors.map((e: { message: string }) => e.message).join('; ')}`);
+  }
+  const p = json.data?.post;
+  if (!p) return { found: false };
+  return { found: true, status: p.status, dueAt: p.dueAt ?? null };
+}
+
+// Bulk status map for an organization, paginated up to `maxPages` (×100 posts).
+// The org feed is windowed, so this covers RECENT posts efficiently (one or two
+// requests for the whole queue) but may miss old ones — callers fall back to
+// getPostById for any id not present here. Returns id → {status, dueAt}.
+export async function getOrgPostStatusMap(
+  apiKey: string,
+  orgId: string,
+  maxPages = 3,
+): Promise<Map<string, { status: string; dueAt: string | null }>> {
+  const out = new Map<string, { status: string; dueAt: string | null }>();
+  let after: string | null = null;
+  let pages = 0;
+  do {
+    const afterArg: string = after ? `, after: ${JSON.stringify(after)}` : '';
+    const query = `{
+      posts(input: { organizationId: ${JSON.stringify(orgId)} }, first: 100${afterArg}) {
+        pageInfo { hasNextPage endCursor }
+        edges { node { id status dueAt } }
+      }
+    }`;
+    const response = await fetch(BUFFER_GRAPHQL_URL, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    });
+    if (!response.ok) throw new Error(`Buffer API error (HTTP ${response.status})`);
+    const json = await response.json();
+    if (json.errors?.length) {
+      throw new Error(`Buffer GraphQL error: ${json.errors.map((e: { message: string }) => e.message).join('; ')}`);
+    }
+    for (const e of json.data?.posts?.edges ?? []) {
+      out.set(e.node.id, { status: e.node.status, dueAt: e.node.dueAt ?? null });
+    }
+    const pi = json.data?.posts?.pageInfo;
+    after = pi?.hasNextPage ? pi.endCursor : null;
+    pages++;
+  } while (after && pages < maxPages);
+  return out;
+}
+
 export async function createIdea(
   apiKey: string,
   organizationId: string,

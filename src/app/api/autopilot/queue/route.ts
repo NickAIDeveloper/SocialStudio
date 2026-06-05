@@ -4,6 +4,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { brands, posts } from '@/lib/db/schema';
+import { reconcileAutopilotStatuses } from '@/lib/autopilot/reconcile';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,11 @@ export async function GET(req: Request): Promise<Response> {
 
   const { searchParams } = new URL(req.url);
   const limit = Math.min(50, Number(searchParams.get('limit')) || 10);
+
+  // Pull Buffer's ground truth onto our rows before reading them, so a post
+  // Buffer already sent shows "Published" (not a stale "Scheduled") and a post
+  // Buffer dropped shows "Failed" (not a false "Buffer ✓"). Never throws.
+  await reconcileAutopilotStatuses(brandId);
 
   const rows = await db
     .select({
