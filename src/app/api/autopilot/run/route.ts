@@ -9,6 +9,7 @@ import { computeNextRunAt, isDueNow, nextPostSlot, type Frequency } from '@/lib/
 import { createPost } from '@/lib/buffer';
 import { decrypt } from '@/lib/encryption';
 import { uploadImageToGitHub } from '@/lib/github-images';
+import { ensureInstagramReadyImageUrl } from '@/lib/autopilot/buffer-image';
 import { auth } from '@/auth';
 import {
   normalizeImageUrlForDedup,
@@ -235,8 +236,13 @@ export async function POST(req: Request): Promise<Response> {
     }
   }
 
-  // The URL we pass to Buffer: composited image if available, else stock photo.
-  const bufferImageUrl = processedImageUrl ?? sourceImageUrl;
+  // The URL we pass to Buffer. The composited image (god-mode) is already a
+  // 1080x1080 square Instagram accepts. The raw stock fallback is NOT — its
+  // arbitrary aspect ratio gets rejected at publish time ("unknown error"), so
+  // run it through the IG-ready guard (square-crop + host) first. null means we
+  // couldn't produce a valid image → send no image rather than a doomed one.
+  const bufferImageUrl = processedImageUrl
+    ?? (sourceImageUrl ? await ensureInstagramReadyImageUrl(sourceImageUrl) : null);
 
   // Compute scheduledAt from brain bestSlot when mode=auto. Uses the SAME
   // frequency-aware slot logic as nextRunAt: for every_other_day (and daily /

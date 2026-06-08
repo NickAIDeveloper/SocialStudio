@@ -18,6 +18,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { autopilotSettings, brands, linkedAccounts, posts } from '@/lib/db/schema';
 import { createPost } from '@/lib/buffer';
+import { ensureInstagramReadyImageUrl } from '@/lib/autopilot/buffer-image';
 import { decrypt } from '@/lib/encryption';
 import { readBrandBrain } from '@/lib/brain/consume';
 import { nextPostSlot, type Frequency } from '@/lib/autopilot/schedule';
@@ -62,10 +63,6 @@ export async function POST(req: Request): Promise<Response> {
   if (!post.brandId) {
     return NextResponse.json({ error: 'no_brand' }, { status: 400 });
   }
-
-  // Buffer needs a publicly hosted image URL. We prefer the composited image
-  // (which has the hook overlay + brand logo); fall back to raw stock photo.
-  const imageUrl = post.processedImageUrl ?? post.sourceImageUrl;
 
   const [brand] = await db
     .select()
@@ -139,6 +136,13 @@ export async function POST(req: Request): Promise<Response> {
     scheduledAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   }
 
+  // Buffer needs a publicly hosted image URL. Prefer the composited image (a
+  // 1080x1080 square with hook overlay + logo, which Instagram accepts). The
+  // raw stock fallback has an arbitrary aspect ratio Instagram rejects at
+  // publish time, so run it through the IG-ready guard (square-crop + host).
+  const bufferImageUrl = post.processedImageUrl
+    ?? (post.sourceImageUrl ? await ensureInstagramReadyImageUrl(post.sourceImageUrl) : null);
+
   // Buffer call. Concatenate caption + hashtags the same way the cron path
   // does so users see consistent output.
   const fullText = `${post.caption ?? ''}\n\n${post.hashtags ?? ''}`.trim();
@@ -150,7 +154,7 @@ export async function POST(req: Request): Promise<Response> {
       text: fullText,
       mode: 'customScheduled',
       scheduledAt: scheduledAt.toISOString(),
-      imageUrls: imageUrl ? [imageUrl] : undefined,
+      imageUrls: bufferImageUrl ? [bufferImageUrl] : undefined,
     });
     bufferPostId = created.id;
   } catch (err) {
