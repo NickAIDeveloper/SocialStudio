@@ -504,7 +504,7 @@ function AutopilotQueue({
                           {badge.label}
                         </span>
                         <span className="text-[10px] text-(--muted-2)">{relative(when)}</span>
-                        {p.bufferPostId && (
+                        {p.bufferPostId && p.status !== 'failed' && (
                           <span className="text-[10px] text-(--muted-2)" title={p.bufferPostId}>
                             Buffer ✓
                           </span>
@@ -680,7 +680,7 @@ function PostPreviewModal({
               {badge.label}
             </span>
             <span>{relative(when)}</span>
-            {post.bufferPostId && (
+            {post.bufferPostId && post.status !== 'failed' && (
               <span title={post.bufferPostId}>Buffer ✓</span>
             )}
           </div>
