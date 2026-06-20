@@ -11,8 +11,8 @@
 import { db } from '@/lib/db';
 import { instagramAccounts } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { decrypt } from '@/lib/encryption';
 import { getIgMe, getIgMedia, getIgMediaInsights } from '@/lib/meta/instagram-client';
+import { getFreshIgToken } from '@/lib/meta/ig-token';
 import {
   IgMediaItem,
   getMetric,
@@ -237,7 +237,10 @@ async function fetchPostsForUser(
   const row = rows[0];
   if (!row) throw new Error('IG account not connected');
 
-  const token = decrypt(row.accessToken);
+  // Refresh-before-read: renews the long-lived token if it's near expiry so the
+  // unattended autopilot/god-mode path keeps working without a human ever
+  // opening the insights page. Never throws — a dead token surfaces below.
+  const { token } = await getFreshIgToken(row);
 
   const [me, mediaList] = await Promise.all([getIgMe(token), getIgMedia(token, 50)]);
 

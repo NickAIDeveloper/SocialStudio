@@ -3,15 +3,13 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { instagramAccounts } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
-import { decrypt, encrypt } from '@/lib/encryption';
 import {
   getIgMe,
   getIgMedia,
   getIgAccountInsights,
   getIgMediaInsights,
-  refreshIgLongLivedToken,
-  shouldRefreshIgToken,
 } from '@/lib/meta/instagram-client';
+import { getFreshIgToken } from '@/lib/meta/ig-token';
 
 // GET /api/meta/instagram/insights?igUserId=...
 //
@@ -42,27 +40,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'IG account not connected' }, { status: 404 });
     }
 
-    let token = decrypt(row.accessToken);
-
-    // Refresh-before-read if token is near expiry. Don't fail the request if
-    // refresh itself errors — fall through with the existing token; the real
-    // read below will surface the auth error if it's actually dead.
-    if (shouldRefreshIgToken(row.tokenExpiresAt)) {
-      try {
-        const refreshed = await refreshIgLongLivedToken(token);
-        token = refreshed.access_token;
-        await db
-          .update(instagramAccounts)
-          .set({
-            accessToken: encrypt(refreshed.access_token),
-            tokenExpiresAt: new Date(Date.now() + refreshed.expires_in * 1000),
-            updatedAt: new Date(),
-          })
-          .where(eq(instagramAccounts.id, row.id));
-      } catch {
-        // Swallow: surfacing the downstream 401 gives a better error to the user.
-      }
-    }
+    // Refresh-before-read via the shared helper (renews if near expiry,
+    // persists, and never throws — a dead token surfaces in the reads below).
+    const { token } = await getFreshIgToken(row);
 
     // Fan out the three reads in parallel. The "recent 12 posts" cap is a
     // UI-friendly default — enough to see engagement trends, cheap enough

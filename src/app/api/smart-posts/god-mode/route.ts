@@ -7,6 +7,7 @@ import { buildCompetitorIntel, type CompetitorIntel } from '@/lib/brain/competit
 import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
 import type { DeepProfile } from '@/lib/meta/deep-profile.types';
 import { FORMAT_OPTIONS_JSON, SUPPORTED_FORMATS, isSupportedFormat } from '@/lib/autopilot/capabilities';
+import { isIgAuthError } from '@/lib/meta/ig-token';
 
 // Allow longer runtime — deep profile fetch + LLM design + image compositing.
 // Bumped from 60s to 90s after Cerebras rate-limit retries (300ms base, up to
@@ -293,6 +294,21 @@ export async function POST(req: NextRequest) {
             message: 'This Instagram account is not connected to your user.',
           },
           { status: 403 },
+        );
+      }
+      // Expired/invalid IG token: return a distinct, actionable code instead of
+      // a cryptic god_mode_500 so the autopilot dashboard says "reconnect IG"
+      // rather than looking like a model outage. The proactive refresh in
+      // getFreshIgToken normally prevents this; this only fires if the token
+      // died while the cron was down (e.g. billing lock) past the refresh window.
+      if (isIgAuthError(e)) {
+        return NextResponse.json(
+          {
+            error: 'ig_token_expired',
+            message:
+              'Instagram session expired. Reconnect Instagram in Settings to resume autopilot.',
+          },
+          { status: 422 },
         );
       }
       throw e;
