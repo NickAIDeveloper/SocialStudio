@@ -52,6 +52,48 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+// Reasoning models (gpt-oss, glm, qwen-3, deepseek-r1, …) spend hidden
+// chain-of-thought tokens OUT OF max_tokens before emitting any visible
+// content. At a tight budget the reasoning eats the whole allowance and the API
+// returns EMPTY content at HTTP 200 — observed live: both gpt-oss-120b AND
+// zai-glm-4.7 burned all 600 tokens on reasoning and returned 0 chars, so every
+// caption/ad came back blank and autopilot reported "empty_generation".
+//
+// Two defenses, applied to ANY reasoning model (not just gpt-oss — the original
+// guard missed glm, which is what broke production):
+//   1. reasoning_effort:'low' — cuts CoT hard (gpt-oss 594→26, glm 908→606).
+//   2. a max_tokens FLOOR so reasoning + output both fit even when a model only
+//      partially honours reasoning_effort (glm still reasons ~600+ at 'low').
+// Verified live: glm-4.7 and gpt-oss-120b both return full captions at a 4000
+// floor. The floor is a CEILING, not consumption — calls still stop early, so it
+// adds no latency or token cost for well-behaved output.
+const REASONING_MODEL_RE = /gpt-oss|glm|qwen|deepseek|\br1\b/i;
+const REASONING_MIN_MAX_TOKENS = Number(process.env.CEREBRAS_MIN_MAX_TOKENS) || 4000;
+
+export function buildCerebrasRequestBody(
+  messages: CerebrasMessage[],
+  options: { temperature?: number; maxTokens?: number; responseFormat?: 'json' | 'text' } | undefined,
+  model: string,
+): Record<string, unknown> {
+  const isReasoning = REASONING_MODEL_RE.test(model);
+  const requestedMax = options?.maxTokens ?? 1500;
+  const body: Record<string, unknown> = {
+    model,
+    messages,
+    temperature: options?.temperature ?? 0.7,
+    // Floor the budget for reasoning models so CoT can't starve the output.
+    max_tokens: isReasoning ? Math.max(requestedMax, REASONING_MIN_MAX_TOKENS) : requestedMax,
+  };
+  if (options?.responseFormat === 'json') {
+    // The model is forced to emit a syntactically valid JSON object.
+    body.response_format = { type: 'json_object' };
+  }
+  if (isReasoning) {
+    body.reasoning_effort = 'low';
+  }
+  return body;
+}
+
 export async function cerebrasChatCompletion(
   messages: CerebrasMessage[],
   options?: { temperature?: number; maxTokens?: number; responseFormat?: 'json' | 'text' },
@@ -59,24 +101,7 @@ export async function cerebrasChatCompletion(
   const apiKey = process.env.CEREBUS;
   if (!apiKey) throw new Error('CEREBUS env var not set');
 
-  const body: Record<string, unknown> = {
-    model: CEREBRAS_MODEL,
-    messages,
-    temperature: options?.temperature ?? 0.7,
-    max_tokens: options?.maxTokens ?? 1500,
-  };
-  if (options?.responseFormat === 'json') {
-    // The model is forced to emit a syntactically valid JSON object.
-    body.response_format = { type: 'json_object' };
-  }
-  // gpt-oss-120b is a REASONING model. Without a low reasoning budget it can
-  // spend the entire max_tokens on internal reasoning and return EMPTY content
-  // (observed: 588 reasoning tokens of 600, 5-char content). That silently broke
-  // all generation (captions/ads came back blank at HTTP 200). Cap reasoning so
-  // the token budget goes to the actual output. Only gpt-oss accepts this param.
-  if (CEREBRAS_MODEL.includes('gpt-oss')) {
-    body.reasoning_effort = 'low';
-  }
+  const body = buildCerebrasRequestBody(messages, options, CEREBRAS_MODEL);
 
   const serialized = JSON.stringify(body);
   let lastErr: Error | null = null;

@@ -21,13 +21,20 @@ vi.mock('@/lib/db', () => ({
 
 vi.mock('@/lib/db/schema', () => ({ instagramAccounts: {} }));
 vi.mock('drizzle-orm', () => ({ eq: vi.fn(), and: vi.fn() }));
-vi.mock('@/lib/encryption', () => ({ decrypt: (t: string) => t.replace('enc_', '') }));
+vi.mock('@/lib/encryption', () => ({
+  decrypt: (t: string) => t.replace('enc_', ''),
+  encrypt: (t: string) => `enc_${t}`,
+}));
 
-// We mock getIgMe, getIgMedia, getIgMediaInsights individually
+// We mock getIgMe, getIgMedia, getIgMediaInsights individually.
+// refreshIgLongLivedToken is pulled in transitively via ig-token (used by
+// fetchPostsForUser's refresh-before-read); the fixture token has a null
+// expiry so it is never actually invoked.
 vi.mock('@/lib/meta/instagram-client', () => ({
   getIgMe: vi.fn(),
   getIgMedia: vi.fn(),
   getIgMediaInsights: vi.fn(),
+  refreshIgLongLivedToken: vi.fn(),
 }));
 
 import { getIgMe, getIgMedia, getIgMediaInsights } from '@/lib/meta/instagram-client';

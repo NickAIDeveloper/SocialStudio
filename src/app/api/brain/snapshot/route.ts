@@ -15,6 +15,7 @@ import { snapshotIg } from '@/lib/brain/snapshot-ig';
 import { snapshotAds } from '@/lib/brain/snapshot-ads';
 import { snapshotCompetitor } from '@/lib/brain/snapshot-competitor';
 import { decrypt } from '@/lib/encryption';
+import { getFreshIgToken } from '@/lib/meta/ig-token';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,11 +61,14 @@ export async function POST(req: Request): Promise<Response> {
       return NextResponse.json({ status: 'skipped', reason: 'no_connection' });
     }
 
+    // Refresh-before-read so the daily snapshot also keeps the token alive.
+    const { token: igToken } = await getFreshIgToken(igAcct);
+
     const result = await snapshotIg({
       brandId,
       userId: brand.userId,
       igUserId: igAcct.igUserId,
-      accessToken: decrypt(igAcct.accessToken),
+      accessToken: igToken,
       day: body.day,
       cacheRead: async (key) => {
         const [row] = await db

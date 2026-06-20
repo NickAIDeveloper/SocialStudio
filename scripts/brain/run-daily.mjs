@@ -74,8 +74,28 @@ async function syncAdInsights() {
   }
 }
 
+async function refreshIgTokens() {
+  // Proactively renew IG long-lived tokens BEFORE any brand work, so the
+  // snapshot + autopilot steps below run against a fresh token. This is the
+  // durable fix for "autopilot dies every week when the token expires".
+  try {
+    const out = await call('/api/meta/instagram/refresh-tokens', {});
+    console.log(
+      `[brain] ig-token refresh: status=${out.status} refreshed=${out.json?.refreshed ?? 0} skipped=${out.json?.skipped ?? 0} total=${out.json?.total ?? 0}`,
+    );
+    if (out.json?.failures?.length) {
+      for (const f of out.json.failures.slice(0, 5)) {
+        console.log(`    refresh failed: ${f.igUsername ?? f.id}`);
+      }
+    }
+  } catch (err) {
+    console.error('[brain] ig-token refresh failed:', err);
+  }
+}
+
 (async () => {
   const day = new Date().toISOString().slice(0, 10);
+  await refreshIgTokens();
   const brands = await listBrands();
   console.log(`[brain] daily run, ${brands.length} brands, day=${day}`);
 
