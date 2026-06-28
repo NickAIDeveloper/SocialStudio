@@ -51,7 +51,7 @@ export async function GET(req: Request): Promise<Response> {
     return NextResponse.json({ connected: false, channels: [], selected: null, error: 'token_decrypt_failed' });
   }
 
-  let channels: { id: string; name: string; service: string; organizationId: string; organizationName: string }[] = [];
+  let channels: { id: string; name: string; service: string; organizationId: string; organizationName: string; isDisconnected: boolean }[] = [];
   let listError: string | null = null;
   try {
     const orgs = await getOrganizationsAndChannels(apiKey);
@@ -63,6 +63,7 @@ export async function GET(req: Request): Promise<Response> {
           service: ch.service,
           organizationId: org.id,
           organizationName: org.name,
+          isDisconnected: ch.isDisconnected ?? false,
         });
       }
     }

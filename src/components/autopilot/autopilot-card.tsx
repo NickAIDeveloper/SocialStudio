@@ -11,6 +11,7 @@ interface ChannelEntry {
   service: string;
   organizationId: string;
   organizationName: string;
+  isDisconnected?: boolean;
 }
 
 interface DefaultChannelData {
@@ -78,6 +79,11 @@ function BufferChannelPicker({ brandId, brandHint }: { brandId: string; brandHin
     );
   }
 
+  const selectedChannel = data.selected
+    ? data.channels.find((c) => c.id === data.selected!.channelId)
+    : undefined;
+  const selectedDisconnected = selectedChannel?.isDisconnected ?? false;
+
   return (
     <div className="mt-3">
       <label className="text-xs text-(--muted) mb-1 block">
@@ -95,11 +101,17 @@ function BufferChannelPicker({ brandId, brandHint }: { brandId: string; brandHin
         <option value="" disabled>— pick a channel —</option>
         {data.channels.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.organizationName} · {c.name} ({c.service})
+            {c.organizationName} · {c.name} ({c.service}){c.isDisconnected ? ' ⚠ needs reconnect' : ''}
           </option>
         ))}
       </select>
-      {data.selected && (
+      {selectedDisconnected ? (
+        <div className="text-xs text-amber-300 bg-amber-950/30 border border-amber-900/50 rounded px-2 py-1.5 mt-1">
+          ⚠ {selectedChannel?.name ?? data.selected?.channelName} is disconnected in Buffer.
+          Scheduled posts will fail until you reconnect it at{' '}
+          <a href="https://publish.buffer.com" target="_blank" rel="noreferrer" className="underline">buffer.com</a>.
+        </div>
+      ) : data.selected && (
         <div className="text-xs text-(--success) mt-1">
           ✓ Posts will publish to {data.selected.channelName ?? data.selected.channelId}
         </div>
