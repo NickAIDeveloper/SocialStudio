@@ -72,7 +72,10 @@ vi.mock('@/lib/db/schema', () => ({
 }));
 vi.mock('drizzle-orm', () => ({ eq: vi.fn(), and: vi.fn() }));
 // Side-effect-free stubs for modules only reached on the success path.
-vi.mock('@/lib/buffer', () => ({ createPost: vi.fn() }));
+vi.mock('@/lib/buffer', () => ({
+  createPost: vi.fn(),
+  getOrganizationsAndChannels: vi.fn().mockResolvedValue([]),
+}));
 vi.mock('@/lib/encryption', () => ({ decrypt: vi.fn() }));
 vi.mock('@/lib/github-images', () => ({ uploadImageToGitHub: vi.fn() }));
 

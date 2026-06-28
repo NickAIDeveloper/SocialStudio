@@ -6,7 +6,7 @@ import { brands, autopilotSettings, posts, linkedAccounts, instagramAccounts } f
 import { verifyBrainSignature } from '@/lib/brain/auth';
 import { readBrandBrain } from '@/lib/brain/consume';
 import { computeNextRunAt, isDueNow, nextPostSlot, type Frequency } from '@/lib/autopilot/schedule';
-import { createPost } from '@/lib/buffer';
+import { createPost, getOrganizationsAndChannels } from '@/lib/buffer';
 import { decrypt } from '@/lib/encryption';
 import { uploadImageToGitHub } from '@/lib/github-images';
 import { ensureInstagramReadyImageUrl } from '@/lib/autopilot/buffer-image';
@@ -52,6 +52,23 @@ async function failAutopilot(params: {
     reason: params.reason,
     nextRunAt: next.toISOString(),
   });
+}
+
+// Pre-flight check: is the channel we're about to post to disconnected in Buffer?
+// Uses the resilient listing (top-level channels query). Best-effort only — if the
+// health lookup itself fails we return false so we still attempt the post rather
+// than blocking a possibly-healthy channel on a transient listing error.
+async function isSelectedChannelDisconnected(apiKey: string, channelId: string): Promise<boolean> {
+  try {
+    const orgs = await getOrganizationsAndChannels(apiKey);
+    for (const org of orgs) {
+      const ch = org.channels.find((c) => c.id === channelId);
+      if (ch) return ch.isDisconnected ?? false;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -281,6 +298,12 @@ export async function POST(req: Request): Promise<Response> {
         if (!settings.bufferChannelId || !settings.bufferOrganizationId) {
           postStatus = 'draft';
           lastError = 'buffer_channel_not_selected';
+        } else if (await isSelectedChannelDisconnected(apiKey, settings.bufferChannelId)) {
+          // Pre-flight health check: a disconnected channel (expired Instagram/
+          // Meta connection behind Buffer) would fail at publish time and leave a
+          // vague error. Surface an actionable message and skip the doomed push.
+          postStatus = 'draft';
+          lastError = 'buffer_channel_disconnected: reconnect this channel in Buffer (buffer.com) — its Instagram connection has expired.';
         } else {
           try {
             const fullText = `${caption}\n\n${hashtags}`.trim();

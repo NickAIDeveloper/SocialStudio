@@ -5,6 +5,11 @@ export interface BufferChannel {
   name: string;
   service: string;
   avatar: string;
+  // Health flags from Buffer. `isDisconnected` true means the underlying social
+  // connection (e.g. the Instagram/Meta token behind the channel) has lapsed and
+  // the user must reconnect the channel in Buffer before it can publish again.
+  isDisconnected?: boolean;
+  isLocked?: boolean;
 }
 
 export interface BufferOrganization {
@@ -88,24 +93,50 @@ async function bufferGraphQL<T>(apiKey: string, query: string, variables?: Recor
   return json.data as T;
 }
 
+// Resilient channel listing.
+//
+// We deliberately do NOT use the nested `account { organizations { channels } }`
+// resolver. Buffer returns FORBIDDEN ("Not authorized to access this resource")
+// on that nested `channels` field for some tokens, and because `channels` is a
+// non-null list, GraphQL null-propagation nulls the ENTIRE response — one bad
+// resolver took down channel loading for every brand at once.
+//
+// Instead we fetch orgs (no channels) and then the channels for each org via the
+// top-level `channels(input)` query, which is the supported path: it returns
+// disconnected channels as data (with `isDisconnected: true`) rather than
+// erroring, and a failure for one org is isolated so the others still load.
 export async function getOrganizationsAndChannels(apiKey: string): Promise<BufferOrganization[]> {
   const data = await bufferGraphQL<{
-    account: { organizations: BufferOrganization[] };
-  }>(apiKey, `{
-    account {
-      organizations {
-        id
-        name
-        channels {
+    account: { organizations: Array<{ id: string; name: string }> } | null;
+  }>(apiKey, `{ account { organizations { id name } } }`);
+
+  const orgs = data.account?.organizations ?? [];
+
+  const result: BufferOrganization[] = [];
+  for (const org of orgs) {
+    let channels: BufferChannel[] = [];
+    try {
+      const chData = await bufferGraphQL<{ channels: BufferChannel[] | null }>(
+        apiKey,
+        `{ channels(input: { organizationId: ${JSON.stringify(org.id)} }) {
           id
           name
           service
           avatar
-        }
-      }
+          isDisconnected
+          isLocked
+        } }`,
+      );
+      channels = chData.channels ?? [];
+    } catch (err) {
+      // Isolate a per-org failure: this org shows no channels, but the rest of
+      // the listing (and other brands) keep working. The selected channel is
+      // still cached in autopilotSettings, so posting is unaffected.
+      console.error(`Failed to load channels for Buffer org ${org.id}:`, err);
     }
-  }`);
-  return data.account.organizations;
+    result.push({ id: org.id, name: org.name, channels });
+  }
+  return result;
 }
 
 export async function createPost(apiKey: string, params: SchedulePostParams): Promise<BufferPost> {
