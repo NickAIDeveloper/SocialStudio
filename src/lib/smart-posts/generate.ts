@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { brands, scrapedPosts, posts } from '@/lib/db/schema';
 import { seedFromInsight, mergePerfectSeed } from '@/lib/smart-posts';
@@ -85,6 +85,25 @@ function contentTypeFromFormat(format: MetaOverrides['format']) {
   if (format === 'CAROUSEL') return 'carousel' as const;
   if (format === 'IMAGE') return 'quote' as const;
   return null;
+}
+
+// The pipeline can only ship single photos (SUPPORTED_FORMATS = ['IMAGE']), and
+// IMAGE used to map to a single caption framework ('quote' — contrarian one-liner),
+// so EVERY autopilot post came out as the same "Your X is Y" truth-bomb. These are
+// the copywriting frameworks that still work on a single image; we rotate through
+// them by the brand's post count so consecutive posts vary in structure (quote →
+// tip → community → promo) even though the visual format is fixed.
+export const IMAGE_FRAMEWORKS = ['quote', 'tip', 'community', 'promo'] as const;
+export type ImageFramework = (typeof IMAGE_FRAMEWORKS)[number];
+
+/**
+ * Deterministically picks a caption framework from the rotation given how many
+ * posts the brand already has. Stable for a given count; wraps around; falls
+ * back to the first framework for non-finite/negative input.
+ */
+export function rotateImageFramework(postCount: number): ImageFramework {
+  if (!Number.isFinite(postCount) || postCount < 0) return IMAGE_FRAMEWORKS[0];
+  return IMAGE_FRAMEWORKS[Math.floor(postCount) % IMAGE_FRAMEWORKS.length];
 }
 
 export interface GenerateFromSeedInput {
@@ -300,12 +319,24 @@ export async function generateFromSeed(
   if (metaOverrides) {
     const ct = contentTypeFromFormat(metaOverrides.format);
     if (ct) {
-      seed = { ...seed, contentType: ct };
+      // For the single-image format, rotate the caption framework across posts
+      // instead of always shipping 'quote' (the cause of the repetitive
+      // "Your X is Y" hooks). Format stays IMAGE; only the copywriting angle
+      // varies. Other formats keep their direct mapping.
+      let framework: typeof ct | ImageFramework = ct;
+      if (metaOverrides.format === 'IMAGE') {
+        const [row] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(posts)
+          .where(eq(posts.brandId, brandId));
+        framework = rotateImageFramework(row?.count ?? 0);
+      }
+      seed = { ...seed, contentType: framework };
       // Meta format replaces the insight-based framework pick — drop the stale
       // base contribution so "Why this works" doesn't say "picked carousel"
       // while the post is actually a reel.
       delete contributions['best-content-type'];
-      contributions['meta-format'] = `Meta format → ${metaOverrides.format}`;
+      contributions['meta-format'] = `Meta format → ${metaOverrides.format} (${framework})`;
     }
     if (metaOverrides.day && typeof metaOverrides.hour === 'number') {
       const hour = Math.max(0, Math.min(23, Math.floor(metaOverrides.hour)));

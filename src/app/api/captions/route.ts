@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq, and, desc } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { brands, scrapedAccounts, scrapedPosts, insightsCache } from '@/lib/db/schema';
+import { brands, scrapedAccounts, scrapedPosts, insightsCache, posts } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
 import { verifyBrainSignature } from '@/lib/brain/auth';
 import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
@@ -195,6 +195,32 @@ export async function POST(request: NextRequest) {
       console.error('[Captions] Non-critical error:', err instanceof Error ? err.message : err);
     }
 
+    // Anti-repetition memory: pull this brand's recent hooks so the model is
+    // forced to produce a STRUCTURALLY different one. Without this, every run
+    // echoed the same top pattern — the user saw "Your pace is hiding" 8 of 12
+    // posts. Images already enforce all-time no-reuse; text had none.
+    let recentHooksBlock = '';
+    if (brand) {
+      try {
+        const recent = await db
+          .select({ hookText: posts.hookText })
+          .from(posts)
+          .where(eq(posts.brandId, brand.id))
+          .orderBy(desc(posts.createdAt))
+          .limit(15);
+        const hooks = Array.from(
+          new Set(recent.map((r) => (r.hookText ?? '').trim()).filter(Boolean)),
+        );
+        if (hooks.length > 0) {
+          recentHooksBlock = `\n\nRECENTLY USED HOOKS — do NOT reuse any of these or a close variant. Your hook must be a clearly different opening structure (if these are dominated by one shape like "Your X is Y", pick a different shape entirely):\n${hooks
+            .map((h) => `- "${h}"`)
+            .join('\n')}`;
+        }
+      } catch (err) {
+        console.error('[Captions] recent-hooks fetch failed:', err instanceof Error ? err.message : err);
+      }
+    }
+
     // Build brand context from website and description
     let brandContext = '';
     if (brand) {
@@ -303,7 +329,8 @@ ${brainContext}
 ${brandVoiceContext}
 
 VARIATION SEED: ${variationSeed}. ${avoidTopics.length > 0 ? `AVOID these already-used themes: ${avoidTopics.slice(0, 5).join(', ')}.` : ''} Write from a completely fresh angle.
-${hookPattern ? `\nWINNING HOOK PATTERN (this brand's past top-performer): "${hookPattern}"\nYour hookText MUST echo the rhythm/structure of that winning hook — same emotional register, same sentence shape, same curiosity trigger. Do NOT copy it verbatim; riff on it with a fresh angle.\n` : ''}${captionLengthHint ? `\nTARGET CAPTION LENGTH: ${captionLengthHint === 'short' ? 'SHORT (40-80 words). Punchy, dense, no fluff.' : captionLengthHint === 'long' ? 'LONG (120-200 words). Expand with texture, examples, or narrative while staying scannable.' : 'MEDIUM (80-120 words). Balanced depth.'} This is driven by what has historically performed best for this account.\n` : ''}${captionPatternHint?.label ? `\nCAPTION PATTERN: Structure this caption using the "${captionPatternHint.label}" pattern — this pattern statistically outperforms on this account. ${captionPatternHint.type === 'lists' ? 'Use a numbered or bulleted list of concrete tips.' : captionPatternHint.type === 'questions' ? 'Open with a provocative question and weave more questions throughout.' : captionPatternHint.type === 'emotional' ? 'Lead with a raw emotional confession or feeling.' : captionPatternHint.type === 'stats' ? 'Anchor the hook around a concrete number or comparison (real numbers only — no fabrication).' : captionPatternHint.type === 'story' ? 'Use a micro-story arc: setup → turn → lesson.' : ''}\n` : ''}${toneHint === 'community' ? `\nTONE NUDGE: Engagement has been dipping — lean into COMMUNITY / relatable mode. Be vulnerable, specific, and invite a response in the CTA.\n` : ''}
+${recentHooksBlock}
+${hookPattern ? `\nHOOK INSPIRATION (one pattern that has worked for this brand): "${hookPattern}"\nUse it ONLY as a guide to emotional register — do NOT copy its sentence shape or structure. Deliberately VARY the hook form from post to post and across the RECENTLY USED HOOKS above: rotate between a provocative question, a concrete number/stat, a direct command, a raw confession, and a sharp metaphor. The hook you return must be structurally different from every recently used hook.\n` : ''}${captionLengthHint ? `\nTARGET CAPTION LENGTH: ${captionLengthHint === 'short' ? 'SHORT (40-80 words). Punchy, dense, no fluff.' : captionLengthHint === 'long' ? 'LONG (120-200 words). Expand with texture, examples, or narrative while staying scannable.' : 'MEDIUM (80-120 words). Balanced depth.'} This is driven by what has historically performed best for this account.\n` : ''}${captionPatternHint?.label ? `\nCAPTION PATTERN: Structure this caption using the "${captionPatternHint.label}" pattern — this pattern statistically outperforms on this account. ${captionPatternHint.type === 'lists' ? 'Use a numbered or bulleted list of concrete tips.' : captionPatternHint.type === 'questions' ? 'Open with a provocative question and weave more questions throughout.' : captionPatternHint.type === 'emotional' ? 'Lead with a raw emotional confession or feeling.' : captionPatternHint.type === 'stats' ? 'Anchor the hook around a concrete number or comparison (real numbers only — no fabrication).' : captionPatternHint.type === 'story' ? 'Use a micro-story arc: setup → turn → lesson.' : ''}\n` : ''}${toneHint === 'community' ? `\nTONE NUDGE: Engagement has been dipping — lean into COMMUNITY / relatable mode. Be vulnerable, specific, and invite a response in the CTA.\n` : ''}
 
 SCROLL-STOPPING HOOK RULES (this is the most important part):
 - The hookText appears as large text overlaid on the image. It MUST be 3-6 words max.
