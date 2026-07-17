@@ -238,7 +238,9 @@ export const IG_MEDIA_METRICS_FEED = [
   'reach',
   'likes',
   'comments',
-  'saves',
+  // IG requires the metric name `saved`, NOT `saves`. Sending `saves` 400s the
+  // whole request, zeroing out reach too (see snapshot-ig.ts + getMetric).
+  'saved',
   'shares',
   'total_interactions',
   'views',

@@ -36,7 +36,11 @@ export const METRIC_KEYS: MetricKey[] = ['reach', 'views', 'likes', 'comments', 
 export function getMetric(post: IgMediaItem, key: MetricKey): number | null {
   if (key === 'likes' && typeof post.like_count === 'number') return post.like_count;
   if (key === 'comments' && typeof post.comments_count === 'number') return post.comments_count;
-  const row = post.insights.find((r) => r.name === key);
+  // IG's API names the saves metric "saved" in both request and response; our
+  // internal key is "saves". Match both so real IG data parses (and the older
+  // "saves"-named test fixtures keep working).
+  const names = key === 'saves' ? ['saved', 'saves'] : [key];
+  const row = post.insights.find((r) => names.includes(r.name));
   const raw = row?.values?.[0]?.value;
   if (typeof raw === 'number') return raw;
   return null;
