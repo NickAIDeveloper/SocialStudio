@@ -9,15 +9,93 @@ import {
   scrapedPosts,
   brainSnapshots,
   metaInsightsCache,
+  posts,
+  postAnalytics,
 } from '@/lib/db/schema';
 import { verifyBrainSignature } from '@/lib/brain/auth';
 import { snapshotIg } from '@/lib/brain/snapshot-ig';
+import { matchMediaToPosts } from '@/lib/brain/attribution';
+import type { IgMediaItem, IgInsightRow } from '@/lib/meta/ig-analytics';
 import { snapshotAds } from '@/lib/brain/snapshot-ads';
 import { snapshotCompetitor } from '@/lib/brain/snapshot-competitor';
 import { decrypt } from '@/lib/encryption';
 import { getFreshIgToken } from '@/lib/meta/ig-token';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Attributes each recent published autopilot post's real Instagram performance
+ * (reach/saves/engagement) back to its post row, so the angle leaderboard can
+ * learn which angles win for THIS account. Matches OUR posts to IG media by
+ * caption (no IG media id is stored anywhere). Upserts one postAnalytics row per
+ * matched post. Returns the number attributed.
+ */
+async function attributePostPerformance(
+  brand: { id: string; userId: string },
+  payload: { media: unknown[]; insightsByMediaId: Record<string, unknown> },
+): Promise<number> {
+  const mediaItems: IgMediaItem[] = (payload.media as Array<Record<string, unknown>>).map((m) => ({
+    id: String(m.id),
+    caption: typeof m.caption === 'string' ? m.caption : undefined,
+    media_type: typeof m.media_type === 'string' ? m.media_type : 'IMAGE',
+    timestamp: typeof m.timestamp === 'string' ? m.timestamp : undefined,
+    like_count: typeof m.like_count === 'number' ? m.like_count : undefined,
+    comments_count: typeof m.comments_count === 'number' ? m.comments_count : undefined,
+    insights:
+      (payload.insightsByMediaId[String(m.id)] as { data?: IgInsightRow[] } | undefined)?.data ?? [],
+  }));
+
+  const ourPosts = await db
+    .select({
+      id: posts.id,
+      caption: posts.caption,
+      publishedAt: posts.publishedAt,
+      scheduledAt: posts.scheduledAt,
+      createdAt: posts.createdAt,
+    })
+    .from(posts)
+    .where(and(eq(posts.brandId, brand.id), eq(posts.source, 'autopilot')))
+    .orderBy(desc(posts.createdAt))
+    .limit(60);
+
+  const forMatch = ourPosts.map((p) => ({
+    id: p.id,
+    caption: p.caption,
+    // IG media timestamp ≈ when it actually posted; prefer publishedAt, then the
+    // scheduled slot, then generation time as the disambiguation anchor.
+    publishedAt: p.publishedAt ?? p.scheduledAt ?? p.createdAt ?? null,
+  }));
+
+  const attributions = matchMediaToPosts(mediaItems, forMatch);
+  for (const a of attributions) {
+    await db
+      .insert(postAnalytics)
+      .values({
+        postId: a.postId,
+        userId: brand.userId,
+        reach: a.metrics.reach,
+        saves: a.metrics.saves,
+        likes: a.metrics.likes,
+        comments: a.metrics.comments,
+        shares: a.metrics.shares,
+      })
+      .onConflictDoUpdate({
+        target: postAnalytics.postId,
+        set: {
+          reach: a.metrics.reach,
+          saves: a.metrics.saves,
+          likes: a.metrics.likes,
+          comments: a.metrics.comments,
+          shares: a.metrics.shares,
+          fetchedAt: new Date(),
+        },
+      });
+  }
+  console.log(
+    `[snapshot/ig] attributed ${attributions.length}/${ourPosts.length} autopilot posts for brand ${brand.id}`,
+  );
+  return attributions.length;
+}
 
 interface Body {
   runId: string;
@@ -64,6 +142,11 @@ export async function POST(req: Request): Promise<Response> {
     // Refresh-before-read so the daily snapshot also keeps the token alive.
     const { token: igToken } = await getFreshIgToken(igAcct);
 
+    // Captured from persist() so we can attribute post performance after the
+    // snapshot without re-fetching media. persist() always fires (cache hit,
+    // partial, and success paths).
+    let igPayload: { media: unknown[]; insightsByMediaId: Record<string, unknown> } | null = null;
+
     const result = await snapshotIg({
       brandId,
       userId: brand.userId,
@@ -104,6 +187,7 @@ export async function POST(req: Request): Promise<Response> {
           });
       },
       persist: async (payload) => {
+        igPayload = payload as { media: unknown[]; insightsByMediaId: Record<string, unknown> };
         await db
           .insert(brainSnapshots)
           .values({
@@ -116,6 +200,25 @@ export async function POST(req: Request): Promise<Response> {
           .onConflictDoNothing();
       },
     });
+
+    // Close the feedback loop: attribute each published autopilot post's REAL
+    // Instagram reach/saves back to the `angle` that produced it, so generation
+    // can favour the angles that actually win. Non-fatal — attribution must
+    // never break the snapshot.
+    if (igPayload) {
+      try {
+        const attributed = await attributePostPerformance(
+          { id: brand.id, userId: brand.userId },
+          igPayload,
+        );
+        return NextResponse.json({ ...result, attributed });
+      } catch (err) {
+        console.error(
+          '[snapshot/ig] attribution failed (non-fatal):',
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
 
     return NextResponse.json(result);
   }

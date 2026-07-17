@@ -5,6 +5,7 @@ import {
   pickLruAngle,
   buildCreativeBrief,
   getAngle,
+  aggregateAngleScores,
   type AngleId,
 } from '../creative-angles';
 import { classifyHookAngle } from '../hook-variety';
@@ -113,5 +114,47 @@ describe('variety guarantee', () => {
 
   it('classifyHookAngle round-trips the collapsed family to myth (feeds the rotation)', () => {
     expect(classifyHookAngle('Your pace is hiding')).toBe('myth');
+  });
+});
+
+describe('aggregateAngleScores', () => {
+  it('averages reach + weighted saves per angle, ignoring unknown/null angles', () => {
+    const scores = aggregateAngleScores([
+      { angle: 'question', reach: 100, saves: 0 },
+      { angle: 'question', reach: 300, saves: 0 }, // avg 200
+      { angle: 'story', reach: 100, saves: 5 },    // 100 + 20*5 = 200
+      { angle: null, reach: 9999, saves: 9999 },   // ignored
+      { angle: 'not-an-angle', reach: 9999, saves: 0 }, // ignored
+    ]);
+    expect(scores.question).toBe(200);
+    expect(scores.story).toBe(200);
+    // null-angle and unknown-angle rows are ignored: only real angles are keys.
+    expect(Object.keys(scores).sort()).toEqual(['question', 'story']);
+  });
+
+  it('is empty when there is no data (loop is a no-op until postAnalytics fills)', () => {
+    expect(aggregateAngleScores([])).toEqual({});
+  });
+});
+
+describe('pickLruAngle with performance scores', () => {
+  it('breaks a tie among equally-stale angles toward the higher performer', () => {
+    // Cold start: all angles equally stale. Give one a real score.
+    const chosen = pickLruAngle([], 0, { scores: { metaphor: 5000 } });
+    expect(chosen.id).toBe('metaphor');
+  });
+
+  it('never re-picks a recently-used angle even if it scored highest (variety wins)', () => {
+    // 'metaphor' is the most recent (index 0) => not a stale candidate, so its
+    // huge score cannot bring it back. LRU dominates.
+    const recent: AngleId[] = ['metaphor'];
+    const chosen = pickLruAngle(recent, 0, { scores: { metaphor: 999999 } });
+    expect(chosen.id).not.toBe('metaphor');
+  });
+
+  it('falls back to the seed tie-break when no candidate has a positive score', () => {
+    const withScores = pickLruAngle([], 3, { scores: { question: 0 } });
+    const without = pickLruAngle([], 3);
+    expect(withScores.id).toBe(without.id);
   });
 });
