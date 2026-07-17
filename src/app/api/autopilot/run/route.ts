@@ -149,6 +149,7 @@ export async function POST(req: Request): Promise<Response> {
     caption?: string;
     hashtags?: string;
     hookText?: string;
+    angle?: string | null;
     sourceImageUrl?: string;
     imageDataUrl?: string;
     imageHash?: string | null;
@@ -196,6 +197,9 @@ export async function POST(req: Request): Promise<Response> {
   const caption = godPayload.caption ?? '';
   const hashtags = godPayload.hashtags ?? '';
   const hookText = godPayload.hookText ?? '';
+  // Creative angle the caption engine rotated to — persisted so the next run's
+  // LRU rotation is exact rather than re-inferred from hook text.
+  const angle = godPayload.angle ?? null;
   // sourceImageUrl: the raw stock photo god-mode picked from Pixabay.
   const sourceImageUrl = godPayload.sourceImageUrl ?? null;
   // imageHash: perceptual hash of the source photo. Persisted so future
@@ -345,6 +349,7 @@ export async function POST(req: Request): Promise<Response> {
       hashtags,
       hookText,
       contentType: 'tip',
+      angle,
       status: postStatus,
       scheduledAt,
       bufferPostId,

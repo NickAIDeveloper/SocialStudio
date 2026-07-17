@@ -7,7 +7,7 @@ import { verifyBrainSignature } from '@/lib/brain/auth';
 import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
 import { sanitizeCaption, sanitizeHook, sanitizeHashtags, reconcileCountClaim } from '@/lib/caption-engine';
 import { resolveHook } from '@/lib/smart-posts/hook-fallback';
-import { pickLruAngle, buildCreativeBrief, type CreativeAngle } from '@/lib/smart-posts/creative-angles';
+import { pickLruAngle, buildCreativeBrief, type CreativeAngle, type AngleId } from '@/lib/smart-posts/creative-angles';
 import {
   classifyHookAngle,
   dominantHookSkeleton,
@@ -215,19 +215,25 @@ export async function POST(request: NextRequest) {
     // echoed the same top pattern — the user saw "Your pace is hiding" 8 of 12
     // posts. Images already enforce all-time no-reuse; text had none.
     let recentHooksBlock = '';
-    let recentHooks: string[] = []; // de-duped — for the display block + angle inference
+    let recentHooks: string[] = []; // de-duped — for the display block
     let recentHooksRaw: string[] = []; // WITH repeats — for collapse detection (an exact
     // 8× repeat must not dedup down to count 1 and escape the skeleton ban)
+    let recentAngleIds: AngleId[] = []; // stored angle per recent post (newest first)
     if (brand) {
       try {
         const recent = await db
-          .select({ hookText: posts.hookText })
+          .select({ hookText: posts.hookText, angle: posts.angle })
           .from(posts)
           .where(eq(posts.brandId, brand.id))
           .orderBy(desc(posts.createdAt))
           .limit(15);
         recentHooksRaw = recent.map((r) => (r.hookText ?? '').trim()).filter(Boolean);
         recentHooks = Array.from(new Set(recentHooksRaw));
+        // Prefer the EXACT angle stored on each post; fall back to inferring it
+        // from the hook text only for legacy rows that predate the angle column.
+        recentAngleIds = recent
+          .map((r) => (r.angle as AngleId | null) ?? (r.hookText ? classifyHookAngle(r.hookText) : null))
+          .filter((a): a is AngleId => a !== null);
         if (recentHooks.length > 0) {
           recentHooksBlock = `\n\nRECENTLY USED HOOKS — do NOT reuse any of these or a close variant. Your hook must be a clearly different opening structure (if these are dominated by one shape like "Your X is Y", pick a different shape entirely):\n${recentHooks
             .map((h) => `- "${h}"`)
@@ -244,7 +250,6 @@ export async function POST(request: NextRequest) {
     // angles the recent posts already used from their hook text, pick the
     // stalest one, carry the winning hook's *techniques* forward (never its
     // words), and ban the overused sentence skeleton outright.
-    const recentAngleIds = recentHooks.map(classifyHookAngle);
     const chosenAngle: CreativeAngle = pickLruAngle(recentAngleIds, variationSeed);
     const bannedSkeleton = dominantHookSkeleton(recentHooksRaw);
     const bannedSkeletonHuman = bannedSkeleton ? skeletonToHuman(bannedSkeleton) : null;
@@ -467,6 +472,7 @@ Return ONLY valid JSON:
           hookText: fallbackReconciled.hookText,
           caption: fallbackReconciled.caption,
         }),
+        angle: chosenAngle.id,
         source: 'cerebras-extracted',
       });
     }
@@ -541,6 +547,7 @@ Return ONLY valid JSON:
       caption: finalCaption,
       hashtags: finalHashtags,
       hookText: finalHook,
+      angle: chosenAngle.id,
       source: 'cerebras',
     });
   } catch (error) {
