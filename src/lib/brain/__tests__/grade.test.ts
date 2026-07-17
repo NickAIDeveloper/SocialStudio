@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildGradePrompt, parseGradeResponse, runGrade } from '../grade';
+import { buildGradePrompt, parseGradeResponse, runGrade, shouldHoldForQuality } from '../grade';
+import type { GradeReport } from '../grade';
 import type { BrainContext } from '../types';
 
 const brain: BrainContext = {
@@ -70,5 +71,31 @@ describe('runGrade', () => {
     const llmCall = vi.fn(async () => { throw new Error('boom'); });
     const r = await runGrade({ brain, draft }, { llmCall });
     expect(r.score).toBe(0);
+  });
+});
+
+describe('shouldHoldForQuality (autopilot gate)', () => {
+  const report = (score: number): GradeReport => ({ score, strengths: [], weaknesses: [], suggestions: [] });
+
+  it('holds a real low-but-nonzero (scrap-band) score', () => {
+    expect(shouldHoldForQuality(report(3))).toBe(true);
+    expect(shouldHoldForQuality(report(4))).toBe(true);
+  });
+
+  it('does NOT hold a publishable score', () => {
+    expect(shouldHoldForQuality(report(5))).toBe(false);
+    expect(shouldHoldForQuality(report(7))).toBe(false);
+  });
+
+  it('FAILS OPEN on an inconclusive/grader-unavailable score of 0', () => {
+    // runGrade returns score 0 when the grader LLM itself failed — a grader
+    // outage must never stop autopilot from posting.
+    expect(shouldHoldForQuality(report(0))).toBe(false);
+    expect(shouldHoldForQuality(report(-1))).toBe(false);
+  });
+
+  it('respects a custom bar', () => {
+    expect(shouldHoldForQuality(report(6), 7)).toBe(true);
+    expect(shouldHoldForQuality(report(7), 7)).toBe(false);
   });
 });
