@@ -685,7 +685,6 @@ export async function generateFromSeed(
   // hook-fallback.ts.
   const hookText = resolveHook({
     hookText: captionPayload.hookText,
-    hookPattern: seed.hookPattern,
     caption: captionPayload.caption,
   });
   const renderBrand: Brand =

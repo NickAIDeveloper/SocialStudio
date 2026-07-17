@@ -118,6 +118,11 @@ async function generateFallback(opts: {
     cronSecret: opts.cronSecret,
     igUserId: opts.igUserId,
     learningIds: opts.learningIds,
+    // The pipeline only ships single photos. Pass the IMAGE format even on the
+    // fallback path so caption-framework rotation still runs — without this the
+    // fallback silently defaulted to 'quote' every time, reinforcing the
+    // contrarian-one-liner collapse.
+    metaOverrides: { format: 'IMAGE' },
   });
   if (!outcome.ok) {
     return NextResponse.json(
