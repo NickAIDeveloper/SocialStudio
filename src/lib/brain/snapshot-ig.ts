@@ -18,7 +18,10 @@ export interface SnapshotIgInput {
 const IG_API_BASE = 'https://graph.instagram.com';
 const MEDIA_FIELDS =
   'id,caption,media_type,media_product_type,timestamp,like_count,comments_count,permalink,thumbnail_url,media_url';
-const PER_POST_METRICS = ['reach', 'views', 'likes', 'comments', 'saves', 'shares'];
+// NOTE: the saves metric MUST be requested as `saved` — IG's API rejects
+// `saves` and a single bad metric 400s the ENTIRE insights call, which silently
+// zeroed out reach for every post (the brain ran blind to reach). See getMetric.
+const PER_POST_METRICS = ['reach', 'views', 'likes', 'comments', 'saved', 'shares'];
 
 function cacheKeyFor(day: string, igUserId: string): string {
   return `brain:ig:${igUserId}:${day}`;
