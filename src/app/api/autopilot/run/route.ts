@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { brands, autopilotSettings, posts, linkedAccounts, instagramAccounts } from '@/lib/db/schema';
 import { verifyBrainSignature } from '@/lib/brain/auth';
 import { readBrandBrain } from '@/lib/brain/consume';
-import { runGrade, shouldHoldForQuality } from '@/lib/brain/grade';
+import { runGrade, shouldHoldForQuality, type GradeReport } from '@/lib/brain/grade';
 import { cerebrasChatCompletion } from '@/lib/cerebras';
 import { computeNextRunAt, isDueNow, nextPostSlot, type Frequency } from '@/lib/autopilot/schedule';
 import { createPost } from '@/lib/buffer';
@@ -147,7 +147,7 @@ export async function POST(req: Request): Promise<Response> {
 
   const sig = createHmac('sha256', process.env.BRAIN_CRON_SECRET!).update(godBody).digest('hex');
 
-  let godPayload: {
+  type GodPayload = {
     caption?: string;
     hashtags?: string;
     hookText?: string;
@@ -160,42 +160,89 @@ export async function POST(req: Request): Promise<Response> {
     godModeFellBack?: boolean;
   };
 
-  try {
-    const godRes = await fetch(`${baseUrl}/api/smart-posts/god-mode`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-brain-signature': sig,
-      },
-      body: godBody,
-    });
-
-    if (!godRes.ok) {
-      const errText = await godRes.text().catch(() => '');
-      const errorCode = `god_mode_${godRes.status}`;
-      return failAutopilot({
-        brandId,
-        frequency: settings.frequency as Frequency,
-        bestSlot: brain?.formula?.bestSlot ?? null,
-        now,
-        reason: errorCode,
-        detail: `${errorCode}: ${errText.slice(0, 200)}`,
-      });
-    }
-
-    godPayload = (await godRes.json()) as typeof godPayload;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return failAutopilot({
+  const fail = (reason: string, detail?: string) =>
+    failAutopilot({
       brandId,
       frequency: settings.frequency as Frequency,
       bestSlot: brain?.formula?.bestSlot ?? null,
       now,
-      reason: 'god_mode_fetch_failed',
-      detail: `god_mode_fetch_failed: ${msg}`,
+      reason,
+      ...(detail ? { detail } : {}),
     });
+
+  // One full god-mode generation (fresh copy + image). Returns the payload, or a
+  // ready-to-return failAutopilot Response when the call itself fails.
+  const generateOnce = async (): Promise<
+    { ok: true; payload: GodPayload } | { ok: false; res: Promise<Response> }
+  > => {
+    try {
+      const godRes = await fetch(`${baseUrl}/api/smart-posts/god-mode`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-brain-signature': sig },
+        body: godBody,
+      });
+      if (!godRes.ok) {
+        const errText = await godRes.text().catch(() => '');
+        const errorCode = `god_mode_${godRes.status}`;
+        return { ok: false, res: fail(errorCode, `${errorCode}: ${errText.slice(0, 200)}`) };
+      }
+      return { ok: true, payload: (await godRes.json()) as GodPayload };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { ok: false, res: fail('god_mode_fetch_failed', `god_mode_fetch_failed: ${msg}`) };
+    }
+  };
+
+  const gradeDraft = async (cap: string, hook: string): Promise<GradeReport | null> => {
+    try {
+      return await runGrade(
+        { brain, draft: { caption: cap, hookText: hook } },
+        {
+          llmCall: (system, user) =>
+            cerebrasChatCompletion(
+              [
+                { role: 'system', content: system },
+                { role: 'user', content: user },
+              ],
+              { temperature: 0.2, maxTokens: 400 },
+            ),
+        },
+      );
+    } catch (err) {
+      console.warn('[autopilot] quality gate errored (fail-open):', err instanceof Error ? err.message : err);
+      return null; // fail open — a grader outage must never block posting
+    }
+  };
+
+  // Generate up to N times, keeping the highest-graded draft. Regenerating a
+  // low-quality post (rather than only holding it) means autopilot still ships a
+  // GOOD post on an off day instead of skipping. Each attempt is a full god-mode
+  // run, so cap at 2 to bound cost/latency; we stop early the moment a draft
+  // clears the quality bar (or the grader is unavailable → fail open).
+  const MAX_ATTEMPTS = 2;
+  let best: { payload: GodPayload; grade: GradeReport | null } | null = null;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const gen = await generateOnce();
+    if (!gen.ok) {
+      if (attempt === 0) return gen.res; // hard failure on the first try — surface it
+      break; // a later regeneration failed — keep the best we already have
+    }
+    const cap = gen.payload.caption ?? '';
+    const hook = gen.payload.hookText ?? '';
+    if (!cap || !hook) continue; // empty generation — unusable, try again
+
+    const grade = await gradeDraft(cap, hook);
+    const score = grade?.score ?? -1;
+    const bestScore = best?.grade?.score ?? -1;
+    if (!best || score > bestScore) best = { payload: gen.payload, grade };
+
+    if (!grade || !shouldHoldForQuality(grade)) break; // good enough / fail-open
+    console.warn(`[autopilot] ${brandId} attempt ${attempt + 1} scored ${grade.score}/10 — regenerating`);
   }
 
+  if (!best) return fail('empty_generation');
+
+  const godPayload = best.payload;
   const caption = godPayload.caption ?? '';
   const hashtags = godPayload.hashtags ?? '';
   const hookText = godPayload.hookText ?? '';
@@ -213,46 +260,16 @@ export async function POST(req: Request): Promise<Response> {
   // GitHub first. Falls back to sourceImageUrl if upload fails.
   const imageDataUrl = godPayload.imageDataUrl ?? null;
 
-  if (!caption || !hookText) {
-    return failAutopilot({
-      brandId,
-      frequency: settings.frequency as Frequency,
-      bestSlot: brain?.formula?.bestSlot ?? null,
-      now,
-      reason: 'empty_generation',
-    });
-  }
+  if (!caption || !hookText) return fail('empty_generation');
 
-  // Quality gate: grade the generated post and HOLD slop as a draft instead of
-  // auto-publishing it. This is the same grader the manual "Grade" button uses —
-  // previously it graded nothing on the autopilot path. Fail-open: a grader
-  // hiccup must never stop autopilot from posting (see shouldHoldForQuality).
+  // After N attempts, if the BEST draft is STILL slop, hold it as a draft rather
+  // than auto-publishing. Fail-open when the grade is unavailable.
   let qualityHeld = false;
   let qualityReason: string | null = null;
-  try {
-    const grade = await runGrade(
-      { brain, draft: { caption, hookText } },
-      {
-        llmCall: (system, user) =>
-          cerebrasChatCompletion(
-            [
-              { role: 'system', content: system },
-              { role: 'user', content: user },
-            ],
-            { temperature: 0.2, maxTokens: 400 },
-          ),
-      },
-    );
-    if (shouldHoldForQuality(grade)) {
-      qualityHeld = true;
-      qualityReason = `held_low_quality: scored ${grade.score}/10${grade.weaknesses[0] ? ` — ${grade.weaknesses[0]}` : ''}`;
-      console.warn(`[autopilot] holding ${brandId} post as draft — ${qualityReason}`);
-    }
-  } catch (err) {
-    console.warn(
-      '[autopilot] quality gate errored, publishing anyway (fail-open):',
-      err instanceof Error ? err.message : err,
-    );
+  if (best.grade && shouldHoldForQuality(best.grade)) {
+    qualityHeld = true;
+    qualityReason = `held_low_quality: best of ${MAX_ATTEMPTS} scored ${best.grade.score}/10${best.grade.weaknesses[0] ? ` — ${best.grade.weaknesses[0]}` : ''}`;
+    console.warn(`[autopilot] holding ${brandId} post as draft — ${qualityReason}`);
   }
 
   // Upload the composited image to GitHub to get a public URL for Buffer.
