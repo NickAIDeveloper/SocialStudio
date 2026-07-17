@@ -127,6 +127,7 @@ export function getAngle(id: AngleId): CreativeAngle {
 export function pickLruAngle(
   recentAngleIds: readonly (AngleId | null | undefined)[] = [],
   seed = 0,
+  opts: { scores?: Partial<Record<AngleId, number>> } = {},
 ): CreativeAngle {
   // Distance since last use: index in the newest-first list. Not found => Infinity.
   const distance = (id: AngleId): number => {
@@ -146,9 +147,50 @@ export function pickLruAngle(
       candidates.push(angle);
     }
   }
+
+  // Explore/exploit: LRU staleness ALWAYS dominates (guarantees variety — a
+  // recently-used angle can never be re-picked), so performance only breaks ties
+  // AMONG the equally-stale candidates. This lets angles that actually earned
+  // reach/saves for this account win the coin-flip, without ever collapsing back
+  // onto one shape. With no scores (or all candidates tied at 0) it degrades to
+  // the pure seed tie-break.
+  let pool = candidates;
+  const scores = opts.scores;
+  if (scores && candidates.length > 1) {
+    const scoreOf = (a: CreativeAngle) => scores[a.id] ?? 0;
+    const topScore = Math.max(...candidates.map(scoreOf));
+    if (topScore > 0) pool = candidates.filter((a) => scoreOf(a) === topScore);
+  }
+
   // Deterministic tie-break. `seed` is a non-negative integer in callers.
-  const idx = ((Math.floor(seed) % candidates.length) + candidates.length) % candidates.length;
-  return candidates[idx];
+  const idx = ((Math.floor(seed) % pool.length) + pool.length) % pool.length;
+  return pool[idx];
+}
+
+/**
+ * Aggregates real per-post performance into a per-angle score for the LRU
+ * tie-break. Score = average of (reach + a heavy weight on saves) across a
+ * brand's attributed posts for each angle — reach is distribution, saves are the
+ * strongest intent signal on Instagram. Rows with an unknown/null angle are
+ * ignored. Empty result when there's no attributed data yet (loop stays a no-op
+ * until the attribution writer has populated postAnalytics).
+ */
+export function aggregateAngleScores(
+  rows: readonly { angle: string | null; reach: number | null; saves: number | null }[],
+): Partial<Record<AngleId, number>> {
+  const sums = new Map<AngleId, { total: number; n: number }>();
+  for (const r of rows) {
+    if (!r.angle || !ANGLE_IDS.includes(r.angle as AngleId)) continue;
+    const id = r.angle as AngleId;
+    const value = (r.reach ?? 0) + 20 * (r.saves ?? 0);
+    const cur = sums.get(id) ?? { total: 0, n: 0 };
+    cur.total += value;
+    cur.n += 1;
+    sums.set(id, cur);
+  }
+  const out: Partial<Record<AngleId, number>> = {};
+  for (const [id, { total, n }] of sums) out[id] = n > 0 ? total / n : 0;
+  return out;
 }
 
 /**

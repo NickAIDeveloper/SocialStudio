@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq, and, desc } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { brands, scrapedAccounts, scrapedPosts, insightsCache, posts } from '@/lib/db/schema';
+import { brands, scrapedAccounts, scrapedPosts, insightsCache, posts, postAnalytics } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
 import { verifyBrainSignature } from '@/lib/brain/auth';
 import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
 import { sanitizeCaption, sanitizeHook, sanitizeHashtags, reconcileCountClaim } from '@/lib/caption-engine';
 import { resolveHook } from '@/lib/smart-posts/hook-fallback';
-import { pickLruAngle, buildCreativeBrief, type CreativeAngle, type AngleId } from '@/lib/smart-posts/creative-angles';
+import { pickLruAngle, buildCreativeBrief, aggregateAngleScores, type CreativeAngle, type AngleId } from '@/lib/smart-posts/creative-angles';
 import {
   classifyHookAngle,
   dominantHookSkeleton,
@@ -244,13 +244,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Angle performance leaderboard: real reach/saves attributed to each angle
+    // (postAnalytics, filled by the daily attribution writer from IG insights).
+    // Feeds pickLruAngle's tie-break so proven angles win the coin-flip among
+    // equally-stale candidates. Empty until data exists — then the loop compounds.
+    let angleScores: Partial<Record<AngleId, number>> = {};
+    if (brand) {
+      try {
+        const perfRows = await db
+          .select({ angle: posts.angle, reach: postAnalytics.reach, saves: postAnalytics.saves })
+          .from(posts)
+          .innerJoin(postAnalytics, eq(postAnalytics.postId, posts.id))
+          .where(and(eq(posts.brandId, brand.id), eq(posts.source, 'autopilot')));
+        angleScores = aggregateAngleScores(perfRows);
+      } catch (err) {
+        console.error('[Captions] angle-performance fetch failed:', err instanceof Error ? err.message : err);
+      }
+    }
+
     // Creative-angle engine: instead of cloning the brand's top-performing hook
     // (which caused the "Your pace is hiding" mode collapse — see
     // creative-angles.ts), rotate to a least-recently-used angle. We infer the
     // angles the recent posts already used from their hook text, pick the
-    // stalest one, carry the winning hook's *techniques* forward (never its
-    // words), and ban the overused sentence skeleton outright.
-    const chosenAngle: CreativeAngle = pickLruAngle(recentAngleIds, variationSeed);
+    // stalest one (performance breaks ties toward proven winners), carry the
+    // winning hook's *techniques* forward (never its words), and ban the overused
+    // sentence skeleton outright.
+    const chosenAngle: CreativeAngle = pickLruAngle(recentAngleIds, variationSeed, { scores: angleScores });
     const bannedSkeleton = dominantHookSkeleton(recentHooksRaw);
     const bannedSkeletonHuman = bannedSkeleton ? skeletonToHuman(bannedSkeleton) : null;
     const winningTechniques = hookPattern ? hookTechniques(hookPattern) : [];

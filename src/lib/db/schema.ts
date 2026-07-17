@@ -170,9 +170,12 @@ export const posts = pgTable('posts', {
 
 export const postAnalytics = pgTable('post_analytics', {
   id: uuid('id').primaryKey().defaultRandom(),
+  // One analytics row per post — unique so the daily attribution writer can
+  // upsert (onConflictDoUpdate) fresh metrics as reach accrues over time.
   postId: uuid('post_id')
     .notNull()
-    .references(() => posts.id, { onDelete: 'cascade' }),
+    .references(() => posts.id, { onDelete: 'cascade' })
+    .unique(),
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
@@ -180,6 +183,10 @@ export const postAnalytics = pgTable('post_analytics', {
   comments: integer('comments').default(0),
   shares: integer('shares').default(0),
   impressions: integer('impressions').default(0),
+  // Real distribution/engagement signals for the angle-attribution loop —
+  // matched back from Instagram media insights. See lib/brain/attribution.ts.
+  reach: integer('reach').default(0),
+  saves: integer('saves').default(0),
   fetchedAt: timestamp('fetched_at', { mode: 'date' }).defaultNow(),
 });
 
