@@ -5,6 +5,8 @@ import { db } from '@/lib/db';
 import { brands, autopilotSettings, posts, linkedAccounts, instagramAccounts } from '@/lib/db/schema';
 import { verifyBrainSignature } from '@/lib/brain/auth';
 import { readBrandBrain } from '@/lib/brain/consume';
+import { runGrade, shouldHoldForQuality } from '@/lib/brain/grade';
+import { cerebrasChatCompletion } from '@/lib/cerebras';
 import { computeNextRunAt, isDueNow, nextPostSlot, type Frequency } from '@/lib/autopilot/schedule';
 import { createPost } from '@/lib/buffer';
 import { decrypt } from '@/lib/encryption';
@@ -221,6 +223,38 @@ export async function POST(req: Request): Promise<Response> {
     });
   }
 
+  // Quality gate: grade the generated post and HOLD slop as a draft instead of
+  // auto-publishing it. This is the same grader the manual "Grade" button uses —
+  // previously it graded nothing on the autopilot path. Fail-open: a grader
+  // hiccup must never stop autopilot from posting (see shouldHoldForQuality).
+  let qualityHeld = false;
+  let qualityReason: string | null = null;
+  try {
+    const grade = await runGrade(
+      { brain, draft: { caption, hookText } },
+      {
+        llmCall: (system, user) =>
+          cerebrasChatCompletion(
+            [
+              { role: 'system', content: system },
+              { role: 'user', content: user },
+            ],
+            { temperature: 0.2, maxTokens: 400 },
+          ),
+      },
+    );
+    if (shouldHoldForQuality(grade)) {
+      qualityHeld = true;
+      qualityReason = `held_low_quality: scored ${grade.score}/10${grade.weaknesses[0] ? ` — ${grade.weaknesses[0]}` : ''}`;
+      console.warn(`[autopilot] holding ${brandId} post as draft — ${qualityReason}`);
+    }
+  } catch (err) {
+    console.warn(
+      '[autopilot] quality gate errored, publishing anyway (fail-open):',
+      err instanceof Error ? err.message : err,
+    );
+  }
+
   // Upload the composited image to GitHub to get a public URL for Buffer.
   let processedImageUrl: string | null = null;
   if (imageDataUrl) {
@@ -262,7 +296,7 @@ export async function POST(req: Request): Promise<Response> {
   let postStatus: 'draft' | 'scheduled' = 'draft';
   let lastError: string | null = null;
 
-  if (settings.mode === 'auto' && scheduledAt) {
+  if (settings.mode === 'auto' && scheduledAt && !qualityHeld) {
     const [link] = await db
       .select()
       .from(linkedAccounts)
@@ -307,6 +341,12 @@ export async function POST(req: Request): Promise<Response> {
         }
       }
     }
+  }
+
+  // Slop held back: surface why so the dashboard shows "held for review" instead
+  // of a silent draft. The post is still saved (below) as a reviewable draft.
+  if (qualityHeld && !lastError) {
+    lastError = qualityReason;
   }
 
   // Final no-reuse backstop. generateFromSeed already filters and JIT-rechecks

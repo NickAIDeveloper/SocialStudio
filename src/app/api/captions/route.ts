@@ -371,6 +371,12 @@ VARIATION SEED: ${variationSeed}. ${avoidTopics.length > 0 ? `AVOID these alread
 ${recentHooksBlock}
 ${creativeBrief}${captionLengthHint ? `\nTARGET CAPTION LENGTH: ${captionLengthHint === 'short' ? 'SHORT (40-80 words). Punchy, dense, no fluff.' : captionLengthHint === 'long' ? 'LONG (120-200 words). Expand with texture, examples, or narrative while staying scannable.' : 'MEDIUM (80-120 words). Balanced depth.'} This is driven by what has historically performed best for this account.\n` : ''}${captionPatternHint?.label ? `\nCAPTION PATTERN: Structure this caption using the "${captionPatternHint.label}" pattern — this pattern statistically outperforms on this account. ${captionPatternHint.type === 'lists' ? 'Use a numbered or bulleted list of concrete tips.' : captionPatternHint.type === 'questions' ? 'Open with a provocative question and weave more questions throughout.' : captionPatternHint.type === 'emotional' ? 'Lead with a raw emotional confession or feeling.' : captionPatternHint.type === 'stats' ? 'Anchor the hook around a concrete number or comparison (real numbers only — no fabrication).' : captionPatternHint.type === 'story' ? 'Use a micro-story arc: setup → turn → lesson.' : ''}\n` : ''}${toneHint === 'community' ? `\nTONE NUDGE: Engagement has been dipping — lean into COMMUNITY / relatable mode. Be vulnerable, specific, and invite a response in the CTA.\n` : ''}
 
+SPECIFICITY — THE ANTI-SLOP RULE (as important as the hook):
+- The post MUST contain at least ONE concrete, specific, verifiable element: a real number, a named ${brandName} feature, a concrete step, or a specific micro-moment or example. Generic motivation with no specifics is a hard reject.
+- It must say something only ${brandName} (or someone who genuinely knows this niche) could say. If any other brand in this space could post it verbatim, rewrite it.
+- BANNED generic filler (never use these): "in today's world", "let's dive in", "game changer", "take it to the next level", "unlock your potential", "the secret to success", "elevate your", "we've got you covered", "level up", "that's where we come in", "in a world where".
+- Choose the concrete over the abstract every time: "log a 42 minute 10K" beats "improve your times"; "reshapes the lesson the moment you get stressed" beats "personalized learning".
+
 SCROLL-STOPPING HOOK RULES (this is the most important part):
 - The hookText appears as large text overlaid on the image. It MUST be 3-6 words max.
 - It must create an irresistible curiosity gap, a bold contrarian claim, or a pattern interrupt.

@@ -29,8 +29,9 @@ Your job: return a 0-10 score and 3-5 short, specific bullets.
 
 Rules:
 - Score is calibrated: 7+ means publishable, 9+ means strong match to brain, 4 or below means scrap and regenerate.
+- ANTI-SLOP (most important): a draft that makes NO specific, verifiable, brand-specific claim — no real number, no concrete product feature, no concrete example or micro-story — and could be posted verbatim by ANY brand in this niche is generic "AI slop". Score it 4 or below no matter how polished it reads. Reward drafts that say something only THIS brand could say.
 - Strengths: what aligns well. Cite SPECIFIC parts of the draft.
-- Weaknesses: what's misaligned with the Formula. Be concrete.
+- Weaknesses: what's misaligned with the Formula, or where it's generic/vague. Be concrete.
 - Suggestions: actionable rewrites. Don't be vague. "Tighten hook to 5 words" beats "make hook punchier."
 - If the draft duplicates a closing CTA the brand has used heavily, flag it as fatigue risk.
 - Reply with ONLY a valid JSON object matching the schema. No prose outside the JSON.`;
@@ -51,6 +52,19 @@ Return JSON in this exact shape:
 }`;
 
   return { system, user };
+}
+
+/**
+ * Autopilot quality gate: should this graded post be HELD as a draft instead of
+ * auto-published? Fails OPEN — `runGrade` returns score 0 with no strengths when
+ * the grader LLM itself failed (see the fallback in runGrade), and a genuine 0
+ * is rare and ambiguous, so score ≤ 0 never blocks. Only a real low-but-nonzero
+ * score (the calibrated "4 or below = scrap and regenerate" band) holds. This
+ * guarantees a grader outage can never stop autopilot from posting.
+ */
+export function shouldHoldForQuality(report: GradeReport, bar = 5): boolean {
+  if (report.score <= 0) return false; // inconclusive / grader unavailable → fail open
+  return report.score < bar;
 }
 
 const REPAIR_STRIP = /^[^{]*|[^}]*$/g;
