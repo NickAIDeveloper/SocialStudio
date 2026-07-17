@@ -7,6 +7,14 @@ import { verifyBrainSignature } from '@/lib/brain/auth';
 import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
 import { sanitizeCaption, sanitizeHook, sanitizeHashtags, reconcileCountClaim } from '@/lib/caption-engine';
 import { resolveHook } from '@/lib/smart-posts/hook-fallback';
+import { pickLruAngle, buildCreativeBrief, type CreativeAngle } from '@/lib/smart-posts/creative-angles';
+import {
+  classifyHookAngle,
+  dominantHookSkeleton,
+  hookTechniques,
+  hookMatchesSkeleton,
+  skeletonToHuman,
+} from '@/lib/smart-posts/hook-variety';
 
 export async function POST(request: NextRequest) {
   try {
@@ -200,6 +208,7 @@ export async function POST(request: NextRequest) {
     // echoed the same top pattern — the user saw "Your pace is hiding" 8 of 12
     // posts. Images already enforce all-time no-reuse; text had none.
     let recentHooksBlock = '';
+    let recentHooks: string[] = [];
     if (brand) {
       try {
         const recent = await db
@@ -208,11 +217,11 @@ export async function POST(request: NextRequest) {
           .where(eq(posts.brandId, brand.id))
           .orderBy(desc(posts.createdAt))
           .limit(15);
-        const hooks = Array.from(
+        recentHooks = Array.from(
           new Set(recent.map((r) => (r.hookText ?? '').trim()).filter(Boolean)),
         );
-        if (hooks.length > 0) {
-          recentHooksBlock = `\n\nRECENTLY USED HOOKS — do NOT reuse any of these or a close variant. Your hook must be a clearly different opening structure (if these are dominated by one shape like "Your X is Y", pick a different shape entirely):\n${hooks
+        if (recentHooks.length > 0) {
+          recentHooksBlock = `\n\nRECENTLY USED HOOKS — do NOT reuse any of these or a close variant. Your hook must be a clearly different opening structure (if these are dominated by one shape like "Your X is Y", pick a different shape entirely):\n${recentHooks
             .map((h) => `- "${h}"`)
             .join('\n')}`;
         }
@@ -220,6 +229,23 @@ export async function POST(request: NextRequest) {
         console.error('[Captions] recent-hooks fetch failed:', err instanceof Error ? err.message : err);
       }
     }
+
+    // Creative-angle engine: instead of cloning the brand's top-performing hook
+    // (which caused the "Your pace is hiding" mode collapse — see
+    // creative-angles.ts), rotate to a least-recently-used angle. We infer the
+    // angles the recent posts already used from their hook text, pick the
+    // stalest one, carry the winning hook's *techniques* forward (never its
+    // words), and ban the overused sentence skeleton outright.
+    const recentAngleIds = recentHooks.map(classifyHookAngle);
+    const chosenAngle: CreativeAngle = pickLruAngle(recentAngleIds, variationSeed);
+    const bannedSkeleton = dominantHookSkeleton(recentHooks);
+    const bannedSkeletonHuman = bannedSkeleton ? skeletonToHuman(bannedSkeleton) : null;
+    const winningTechniques = hookPattern ? hookTechniques(hookPattern) : [];
+    const creativeBrief = buildCreativeBrief({
+      angle: chosenAngle,
+      winningTechniques,
+      bannedSkeletonHuman,
+    });
 
     // Build brand context from website and description
     let brandContext = '';
@@ -330,7 +356,7 @@ ${brandVoiceContext}
 
 VARIATION SEED: ${variationSeed}. ${avoidTopics.length > 0 ? `AVOID these already-used themes: ${avoidTopics.slice(0, 5).join(', ')}.` : ''} Write from a completely fresh angle.
 ${recentHooksBlock}
-${hookPattern ? `\nHOOK INSPIRATION (one pattern that has worked for this brand): "${hookPattern}"\nUse it ONLY as a guide to emotional register — do NOT copy its sentence shape or structure. Deliberately VARY the hook form from post to post and across the RECENTLY USED HOOKS above: rotate between a provocative question, a concrete number/stat, a direct command, a raw confession, and a sharp metaphor. The hook you return must be structurally different from every recently used hook.\n` : ''}${captionLengthHint ? `\nTARGET CAPTION LENGTH: ${captionLengthHint === 'short' ? 'SHORT (40-80 words). Punchy, dense, no fluff.' : captionLengthHint === 'long' ? 'LONG (120-200 words). Expand with texture, examples, or narrative while staying scannable.' : 'MEDIUM (80-120 words). Balanced depth.'} This is driven by what has historically performed best for this account.\n` : ''}${captionPatternHint?.label ? `\nCAPTION PATTERN: Structure this caption using the "${captionPatternHint.label}" pattern — this pattern statistically outperforms on this account. ${captionPatternHint.type === 'lists' ? 'Use a numbered or bulleted list of concrete tips.' : captionPatternHint.type === 'questions' ? 'Open with a provocative question and weave more questions throughout.' : captionPatternHint.type === 'emotional' ? 'Lead with a raw emotional confession or feeling.' : captionPatternHint.type === 'stats' ? 'Anchor the hook around a concrete number or comparison (real numbers only — no fabrication).' : captionPatternHint.type === 'story' ? 'Use a micro-story arc: setup → turn → lesson.' : ''}\n` : ''}${toneHint === 'community' ? `\nTONE NUDGE: Engagement has been dipping — lean into COMMUNITY / relatable mode. Be vulnerable, specific, and invite a response in the CTA.\n` : ''}
+${creativeBrief}${captionLengthHint ? `\nTARGET CAPTION LENGTH: ${captionLengthHint === 'short' ? 'SHORT (40-80 words). Punchy, dense, no fluff.' : captionLengthHint === 'long' ? 'LONG (120-200 words). Expand with texture, examples, or narrative while staying scannable.' : 'MEDIUM (80-120 words). Balanced depth.'} This is driven by what has historically performed best for this account.\n` : ''}${captionPatternHint?.label ? `\nCAPTION PATTERN: Structure this caption using the "${captionPatternHint.label}" pattern — this pattern statistically outperforms on this account. ${captionPatternHint.type === 'lists' ? 'Use a numbered or bulleted list of concrete tips.' : captionPatternHint.type === 'questions' ? 'Open with a provocative question and weave more questions throughout.' : captionPatternHint.type === 'emotional' ? 'Lead with a raw emotional confession or feeling.' : captionPatternHint.type === 'stats' ? 'Anchor the hook around a concrete number or comparison (real numbers only — no fabrication).' : captionPatternHint.type === 'story' ? 'Use a micro-story arc: setup → turn → lesson.' : ''}\n` : ''}${toneHint === 'community' ? `\nTONE NUDGE: Engagement has been dipping — lean into COMMUNITY / relatable mode. Be vulnerable, specific, and invite a response in the CTA.\n` : ''}
 
 SCROLL-STOPPING HOOK RULES (this is the most important part):
 - The hookText appears as large text overlaid on the image. It MUST be 3-6 words max.
@@ -427,10 +453,10 @@ Return ONLY valid JSON:
         success: true,
         caption: fallbackReconciled.caption,
         hashtags: sanitizeHashtags((hashtagsMatch || []).join(' ')),
-        // Guard against an empty extracted hook crashing the renderer.
+        // Guard against an empty extracted hook crashing the renderer. Falls
+        // back to the fresh caption, never the stale top-post opener.
         hookText: resolveHook({
           hookText: fallbackReconciled.hookText,
-          hookPattern,
           caption: fallbackReconciled.caption,
         }),
         source: 'cerebras-extracted',
@@ -499,10 +525,45 @@ Return ONLY valid JSON:
     finalHook = reconciled.hookText;
     finalCaption = reconciled.caption;
 
+    // Hard variety guard: if the model STILL returned a hook matching the
+    // overused skeleton (rare once the angle brief is in place), regenerate just
+    // the hook — one short extra call, fired ONLY on collapse — with the banned
+    // shape spelled out. This is the belt to the prompt's suspenders, the text
+    // analogue of the image pHash guard.
+    if (bannedSkeleton && hookMatchesSkeleton(finalHook, bannedSkeleton)) {
+      try {
+        const regen = await cerebrasChatCompletion(
+          [
+            {
+              role: 'system',
+              content:
+                'You write 3-6 word scroll-stopping Instagram overlay hooks. Reply with ONLY the hook text — no quotes, no JSON, no trailing punctuation.',
+            },
+            {
+              role: 'user',
+              content: `Caption:\n${finalCaption}\n\nWrite a NEW 3-6 word overlay hook for this caption using the "${chosenAngle.label}" angle (${chosenAngle.hookGuidance}). It MUST NOT match the shape "${bannedSkeletonHuman}" and must be structurally different from these recent hooks: ${recentHooks
+                .slice(0, 8)
+                .map((h) => `"${h}"`)
+                .join(', ')}. Return only the hook.`,
+            },
+          ],
+          { temperature: 1.0, maxTokens: 40 },
+        );
+        const candidate = sanitizeHook((regen.split('\n').find(Boolean) ?? '').replace(/^["'\s]+|["'\s]+$/g, ''));
+        if (candidate && !hookMatchesSkeleton(candidate, bannedSkeleton)) {
+          finalHook = candidate;
+        }
+      } catch (err) {
+        console.error('[Captions] hook regeneration failed:', err instanceof Error ? err.message : err);
+      }
+    }
+
     // Never return an empty hookText: the model occasionally omits it, and an
     // empty overlay crashes the downstream image renderer. Derive one from the
-    // caption as a last resort. See hook-fallback.ts.
-    finalHook = resolveHook({ hookText: finalHook, hookPattern, caption: finalCaption });
+    // FRESH caption as a last resort — NOT from hookPattern, which is the stale
+    // top-post opener that used to make the fallback repeat "Your pace is
+    // hiding". See hook-fallback.ts.
+    finalHook = resolveHook({ hookText: finalHook, caption: finalCaption });
 
     return NextResponse.json({
       success: true,

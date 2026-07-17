@@ -35,18 +35,22 @@ export function deriveHookFromCaption(caption?: string | null): string {
 
 /**
  * Returns a guaranteed-non-empty overlay hook. Precedence: explicit hookText →
- * brand's winning hookPattern → first sentence of the caption → a non-empty
- * constant. Each candidate is trimmed and only used when truthy, so an empty
- * string never slips through to the renderer (the bug this fixes).
+ * first sentence of the (fresh) caption → a non-empty constant. Each candidate
+ * is trimmed and only used when truthy, so an empty string never slips through
+ * to the renderer (the bug this originally fixed).
+ *
+ * NOTE: the brand's winning `hookPattern` was DELIBERATELY removed from this
+ * chain. It is the stale top-post opener ("Your pace is hiding"); using it as a
+ * fallback made every hook-less generation deterministically repeat that line —
+ * a driver of the mode collapse. Falling back to the fresh caption keeps the
+ * overlay on-topic without reintroducing the repeat.
  */
 export function resolveHook(parts: {
   hookText?: string | null;
-  hookPattern?: string | null;
   caption?: string | null;
 }): string {
   const candidates = [
     parts.hookText,
-    parts.hookPattern,
     deriveHookFromCaption(parts.caption),
   ];
   for (const candidate of candidates) {

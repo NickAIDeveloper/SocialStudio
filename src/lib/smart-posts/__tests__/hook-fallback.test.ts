@@ -14,20 +14,21 @@ describe('resolveHook', () => {
     expect(out.length).toBeGreaterThan(0);
   });
 
-  it('falls through whitespace-only hookText', () => {
-    expect(resolveHook({ hookText: '   ', hookPattern: 'Stop doing this' })).toBe('Stop doing this');
+  it('falls through whitespace-only hookText to the caption-derived hook', () => {
+    expect(resolveHook({ hookText: '   ', caption: 'Stop doing this. It helps.' })).toBe('Stop doing this');
   });
 
-  it('precedence: hookText > hookPattern > caption-derived > "Save this"', () => {
-    expect(resolveHook({ hookText: 'A', hookPattern: 'B', caption: 'C sentence.' })).toBe('A');
-    expect(resolveHook({ hookText: '', hookPattern: 'B', caption: 'C sentence.' })).toBe('B');
-    expect(resolveHook({ hookText: '', hookPattern: '', caption: 'C sentence.' })).toBe('C sentence');
+  it('precedence: hookText > caption-derived > "Save this" (hookPattern is NOT a candidate)', () => {
+    expect(resolveHook({ hookText: 'A', caption: 'C sentence.' })).toBe('A');
+    // The stale top-post opener must NEVER be reintroduced via a fallback, so an
+    // empty hookText derives from the fresh caption, not from any brand pattern.
+    expect(resolveHook({ hookText: '', caption: 'C sentence.' })).toBe('C sentence');
   });
 
   it('NEVER returns empty — last resort is a non-empty constant', () => {
     expect(resolveHook({})).toBe('Save this');
-    expect(resolveHook({ hookText: '', hookPattern: '', caption: '' })).toBe('Save this');
-    expect(resolveHook({ hookText: null, hookPattern: undefined, caption: '   ' })).toBe('Save this');
+    expect(resolveHook({ hookText: '', caption: '' })).toBe('Save this');
+    expect(resolveHook({ hookText: null, caption: '   ' })).toBe('Save this');
   });
 
   it('handles a caption that is only emoji/punctuation by falling to the constant', () => {
