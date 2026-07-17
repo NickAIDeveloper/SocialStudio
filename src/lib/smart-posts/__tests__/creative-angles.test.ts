@@ -82,6 +82,9 @@ describe('buildCreativeBrief', () => {
     // The forced-echo instruction that caused the collapse must be gone.
     expect(brief).not.toContain('MUST echo');
     expect(brief).not.toContain('same sentence shape');
+    // The angle must be declared authoritative over any conflicting content-type
+    // hook style (e.g. the 'quote' type's hardcoded "truth bomb").
+    expect(brief).toContain('ANGLE governs the hook');
   });
 
   it('omits the ban line when there is no dominant skeleton', () => {

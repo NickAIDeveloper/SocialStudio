@@ -16,6 +16,13 @@ import {
   skeletonToHuman,
 } from '@/lib/smart-posts/hook-variety';
 
+// This route can make a SECOND Cerebras call (the hard variety guard regenerates
+// the hook when it still matches the banned skeleton). Give the function an
+// explicit budget so the guard's extra round-trip has headroom instead of racing
+// the platform default. god-mode (the caller) is 90s; captions is a separate
+// function invocation with its own timeout.
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     let userId: string | null = null;
@@ -208,7 +215,9 @@ export async function POST(request: NextRequest) {
     // echoed the same top pattern — the user saw "Your pace is hiding" 8 of 12
     // posts. Images already enforce all-time no-reuse; text had none.
     let recentHooksBlock = '';
-    let recentHooks: string[] = [];
+    let recentHooks: string[] = []; // de-duped — for the display block + angle inference
+    let recentHooksRaw: string[] = []; // WITH repeats — for collapse detection (an exact
+    // 8× repeat must not dedup down to count 1 and escape the skeleton ban)
     if (brand) {
       try {
         const recent = await db
@@ -217,9 +226,8 @@ export async function POST(request: NextRequest) {
           .where(eq(posts.brandId, brand.id))
           .orderBy(desc(posts.createdAt))
           .limit(15);
-        recentHooks = Array.from(
-          new Set(recent.map((r) => (r.hookText ?? '').trim()).filter(Boolean)),
-        );
+        recentHooksRaw = recent.map((r) => (r.hookText ?? '').trim()).filter(Boolean);
+        recentHooks = Array.from(new Set(recentHooksRaw));
         if (recentHooks.length > 0) {
           recentHooksBlock = `\n\nRECENTLY USED HOOKS — do NOT reuse any of these or a close variant. Your hook must be a clearly different opening structure (if these are dominated by one shape like "Your X is Y", pick a different shape entirely):\n${recentHooks
             .map((h) => `- "${h}"`)
@@ -238,7 +246,7 @@ export async function POST(request: NextRequest) {
     // words), and ban the overused sentence skeleton outright.
     const recentAngleIds = recentHooks.map(classifyHookAngle);
     const chosenAngle: CreativeAngle = pickLruAngle(recentAngleIds, variationSeed);
-    const bannedSkeleton = dominantHookSkeleton(recentHooks);
+    const bannedSkeleton = dominantHookSkeleton(recentHooksRaw);
     const bannedSkeletonHuman = bannedSkeleton ? skeletonToHuman(bannedSkeleton) : null;
     const winningTechniques = hookPattern ? hookTechniques(hookPattern) : [];
     const creativeBrief = buildCreativeBrief({
@@ -468,43 +476,6 @@ Return ONLY valid JSON:
     const hashtagStr = (rawHashtags.match(/#\w+/g) || [])
       .slice(0, 5)
       .join('\n');
-
-    // Aggressively clean all AI output artifacts
-    const cleanText = (s: string, isCaption = false) => {
-      let cleaned = String(s)
-        .replace(/\\n/g, '\n')                    // fix escaped newlines
-        .replace(/\s*[—–]{1,3}\s*/g, ' ')        // strip em/en dashes
-        .replace(/\*\*/g, '')                     // strip markdown bold
-        .replace(/^["']+|["']+$/g, '')            // strip wrapping quotes
-        .replace(/^(caption|hook|hookText)\s*:\s*/i, '')  // strip key prefixes
-        .trim();
-      if (isCaption) {
-        // Strip ALL trailing JSON-like content
-        cleaned = cleaned.replace(/,?\s*["']?hashtags?["']?\s*:[\s\S]*$/i, '').trim();
-        cleaned = cleaned.replace(/,?\s*["']?hookText["']?\s*:[\s\S]*$/i, '').trim();
-        cleaned = cleaned.replace(/,\s*$/, '');
-        // Strip any remaining hashtags from caption body
-        cleaned = cleaned.replace(/#\w+/g, '').trim();
-        // Insert line breaks before numbered steps ONLY after sentence-ending punctuation
-        // (the old lowercase-letter variant mangled sentences like "zone 3. Most runners").
-        cleaned = cleaned.replace(/([.!?])\s*(\d+)\.\s/g, '$1\n$2. ');
-        // Normalize whitespace
-        cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
-        cleaned = cleaned.replace(/  +/g, ' ');
-      } else {
-        // For hooks: single line, no artifacts
-        cleaned = cleaned.replace(/\n/g, ' ');
-        cleaned = cleaned.replace(/\s+\d+\.?\s*$/, '');  // strip trailing "1." or "1"
-        cleaned = cleaned.replace(/,?\s*hashtags?.*$/i, '');  // strip hashtags leak
-        cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
-        // Max 60 chars
-        if (cleaned.length > 60) {
-          const space = cleaned.lastIndexOf(' ', 60);
-          cleaned = space > 10 ? cleaned.substring(0, space) : cleaned.substring(0, 60);
-        }
-      }
-      return cleaned;
-    };
 
     // Final sanitization pass using universal sanitizers
     let finalCaption = sanitizeCaption(String(parsed.caption ?? ''));

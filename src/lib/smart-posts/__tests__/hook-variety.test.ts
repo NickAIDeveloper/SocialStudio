@@ -83,6 +83,29 @@ describe('dominantHookSkeleton', () => {
   it('ignores empty/emoji hooks', () => {
     expect(dominantHookSkeleton(['', '🔥', null, undefined])).toBeNull();
   });
+
+  it('excludes degenerate all-wildcard skeletons (punchy hooks are not a collapse)', () => {
+    // "Stop chasing splits", "Ditch perfect form", "Mile 18 legs gone" all -> "*".
+    // These are varied command/story hooks, not a repeated SHAPE — must not ban.
+    expect(
+      dominantHookSkeleton(['Stop chasing splits', 'Ditch perfect form', 'Mile 18 legs gone']),
+    ).toBeNull();
+  });
+
+  it('still detects a structured collapse when punchy hooks are mixed in', () => {
+    const mixed = [
+      'Your pace is hiding',
+      'Your form is broken',
+      'Your race plan is wrong',
+      'Stop chasing splits', // degenerate "*", excluded from the pool
+    ];
+    expect(dominantHookSkeleton(mixed)).toBe('your * is *');
+  });
+
+  it('counts exact repeats (raw list) so an 8x identical hook is caught', () => {
+    const raw = Array.from({ length: 8 }, () => 'Your pace is hiding');
+    expect(dominantHookSkeleton(raw)).toBe('your * is *');
+  });
 });
 
 describe('classifyHookAngle', () => {

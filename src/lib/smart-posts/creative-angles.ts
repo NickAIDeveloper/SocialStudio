@@ -36,9 +36,11 @@ export interface CreativeAngle {
 }
 
 // Brand-agnostic — every angle works for running (PaceBrain) and learning
-// (Affectly). `contrarian` is kept but sits LAST so LRU rotation reaches it only
-// after the nine fresher shapes: it is the exact form that fatigued, so it must
-// never dominate again.
+// (Affectly). `contrarian` is the exact shape that fatigued, so it sits LAST: on
+// a COLD start (no recent history) pickLruAngle tie-breaks by array order, so a
+// later position means it is chosen last. Once history exists, LRU ranks purely
+// by recency-distance — there the real safeguard is that the collapsed "Your X
+// is Y" hooks classify to `myth`, which is then de-prioritised as recently-used.
 export const CREATIVE_ANGLES: readonly CreativeAngle[] = [
   {
     id: 'question',
@@ -171,6 +173,12 @@ export function buildCreativeBrief(opts: {
   lines.push(`CAPTION APPROACH: ${angle.captionGuidance}`);
   lines.push(
     'Bring a genuinely NEW topic, metaphor, and piece of information every time — new hook, new specifics, new image subject — while keeping the same underlying techniques that make the top posts land.',
+  );
+  // The per-CONTENT-TYPE guide elsewhere in the prompt hardcodes its own HOOK
+  // STYLE (e.g. the 'quote' type says "a truth bomb" — the exact fatigued shape).
+  // Make this angle win so that guidance can't drag the hook back to the collapse.
+  lines.push(
+    'This ANGLE governs the hook shape. If any CONTENT TYPE or framework guidance elsewhere suggests a different hook style, follow THIS angle instead.',
   );
   if (bannedSkeletonHuman) {
     lines.push(

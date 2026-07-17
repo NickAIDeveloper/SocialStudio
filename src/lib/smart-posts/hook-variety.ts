@@ -71,7 +71,14 @@ export function dominantHookSkeleton(
   opts: { minShare?: number; minCount?: number } = {},
 ): string | null {
   const { minShare = 0.34, minCount = 3 } = opts;
-  const skeletons = hooks.map(hookSkeleton).filter((s) => s.length > 0);
+  // Only STRUCTURED skeletons can be "dominant". A bare "*" (any all-content-word
+  // hook like "Stop chasing splits" / "Mile 18 legs gone") carries no reusable
+  // shape — those are exactly the varied punchy hooks the command/story angles
+  // produce. Banning "*" would render as a meaningless "___" and over-fire the
+  // regeneration guard, so degenerate skeletons are excluded from the pool.
+  const skeletons = hooks
+    .map(hookSkeleton)
+    .filter((s) => s.length > 0 && s.split(' ').some((t) => t !== '*'));
   if (skeletons.length === 0) return null;
 
   const counts = new Map<string, number>();
