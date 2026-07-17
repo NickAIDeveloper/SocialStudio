@@ -141,6 +141,11 @@ export const posts = pgTable('posts', {
   hashtags: text('hashtags'),
   hookText: text('hook_text'),
   contentType: varchar('content_type', { length: 20 }),
+  // Creative angle (question/stat/story/myth/…) chosen by the LRU rotation in
+  // /api/captions. Persisted so the next generation can rotate EXACTLY off the
+  // recent angles instead of re-inferring them from hook text. Null on legacy
+  // rows — inference (classifyHookAngle) is the fallback. See creative-angles.ts.
+  angle: varchar('angle', { length: 20 }),
   overlayStyle: varchar('overlay_style', { length: 20 }),
   textPosition: varchar('text_position', { length: 10 }),
   fontSize: integer('font_size').default(80),

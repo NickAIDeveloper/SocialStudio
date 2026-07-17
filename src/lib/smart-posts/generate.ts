@@ -161,6 +161,9 @@ export interface GenerateFromSeedResult {
   caption: string;
   hashtags: string;
   hookText: string;
+  /** Creative angle chosen by /api/captions — persisted on the post row so the
+   *  next generation's LRU rotation is exact rather than inferred from text. */
+  angle: string | null;
   seed: unknown;
   suggestedPostTime: unknown;
   scheduledAt: string | null;
@@ -416,6 +419,7 @@ export async function generateFromSeed(
     caption?: string;
     hashtags?: string;
     hookText?: string;
+    angle?: string;
   };
 
   // Build a concrete scene fallback rather than the bare brand name / description
@@ -834,6 +838,7 @@ export async function generateFromSeed(
       caption: captionPayload.caption ?? '',
       hashtags: captionPayload.hashtags ?? '',
       hookText: hookText.slice(0, 60),
+      angle: captionPayload.angle ?? null,
       seed,
       suggestedPostTime: seed.suggestedPostTime,
       scheduledAt,
