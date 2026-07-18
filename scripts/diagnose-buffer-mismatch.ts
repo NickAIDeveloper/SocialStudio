@@ -99,25 +99,25 @@ async function fetchAllPostIds(apiKey: string, orgId: string): Promise<Map<strin
       continue;
     }
 
-    // What orgs/channels does this token actually see?
-    let orgs;
-    try {
-      orgs = await getOrganizationsAndChannels(apiKey);
-    } catch (e) {
-      console.log(`  ! getOrganizationsAndChannels failed: ${e instanceof Error ? e.message : e}\n`);
-      continue;
-    }
+    // What orgs/channels does this token actually see? (Non-fatal: the nested
+    // organizations.channels resolver can return FORBIDDEN; that must not stop
+    // the decisive post-existence check below, which uses a different query.)
     const liveChannelIds = new Set<string>();
-    console.log('  Buffer orgs/channels visible to this token:');
-    for (const o of orgs) {
-      console.log(`    org ${o.id} "${o.name}"`);
-      for (const c of o.channels) {
-        liveChannelIds.add(c.id);
-        console.log(`      channel ${c.id} "${c.name}" (${c.service})`);
+    try {
+      const orgs = await getOrganizationsAndChannels(apiKey);
+      console.log('  Buffer orgs/channels visible to this token:');
+      for (const o of orgs) {
+        console.log(`    org ${o.id} "${o.name}"`);
+        for (const c of o.channels) {
+          liveChannelIds.add(c.id);
+          console.log(`      channel ${c.id} "${c.name}" (${c.service})`);
+        }
       }
+      const cfgChannelLive = settings?.bufferChannelId ? liveChannelIds.has(settings.bufferChannelId) : false;
+      console.log(`  configured channel ${settings?.bufferChannelId} live in Buffer? ${cfgChannelLive ? 'YES' : 'NO  <-- STALE/MISMATCH'}`);
+    } catch (e) {
+      console.log(`  ! channel listing unavailable (${e instanceof Error ? e.message : e}) — proceeding to post-existence check anyway`);
     }
-    const cfgChannelLive = settings?.bufferChannelId ? liveChannelIds.has(settings.bufferChannelId) : false;
-    console.log(`  configured channel ${settings?.bufferChannelId} live in Buffer? ${cfgChannelLive ? 'YES' : 'NO  <-- STALE/MISMATCH'}`);
 
     // Pull all post ids Buffer currently knows for the configured org.
     const bufferPosts = settings?.bufferOrganizationId

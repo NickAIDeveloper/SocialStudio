@@ -13,6 +13,7 @@ const {
   state,
   verifyBrainSignatureFn,
   readBrandBrainFn,
+  reconcileFn,
   dbSelectFn,
   dbUpdateFn,
   updateSetFn,
@@ -45,11 +46,13 @@ const {
 
   const verifyBrainSignatureFn = vi.fn().mockResolvedValue(true);
   const readBrandBrainFn = vi.fn().mockResolvedValue(null);
+  const reconcileFn = vi.fn().mockResolvedValue({ checked: 0, published: 0, failed: 0 });
 
   return {
     state,
     verifyBrainSignatureFn,
     readBrandBrainFn,
+    reconcileFn,
     dbSelectFn,
     dbUpdateFn,
     updateSetFn,
@@ -60,6 +63,7 @@ const {
 vi.mock('@/auth', () => ({ auth: vi.fn().mockResolvedValue(null) }));
 vi.mock('@/lib/brain/auth', () => ({ verifyBrainSignature: verifyBrainSignatureFn }));
 vi.mock('@/lib/brain/consume', () => ({ readBrandBrain: readBrandBrainFn }));
+vi.mock('@/lib/autopilot/reconcile', () => ({ reconcileAutopilotStatuses: reconcileFn }));
 vi.mock('@/lib/db', () => ({
   db: { select: dbSelectFn, update: dbUpdateFn, insert: vi.fn() },
 }));
@@ -120,6 +124,7 @@ describe('POST /api/autopilot/run — failure-path visibility (Fix 2)', () => {
     dbUpdateFn.mockReturnValue({ set: updateSetFn });
     verifyBrainSignatureFn.mockResolvedValue(true);
     readBrandBrainFn.mockResolvedValue(null);
+    reconcileFn.mockResolvedValue({ checked: 0, published: 0, failed: 0 });
   });
 
   afterEach(() => {
@@ -144,6 +149,32 @@ describe('POST /api/autopilot/run — failure-path visibility (Fix 2)', () => {
     expect((payload.nextRunAt as Date).getTime()).toBeGreaterThan(Date.now());
     // lastRunAt must NOT be overwritten on a failure (still = last success).
     expect(payload).not.toHaveProperty('lastRunAt');
+  });
+
+  it('reconciles the brand against Buffer even when NOT due to post (the stale-status fix)', async () => {
+    // Brand is enabled but not due: nextRunAt is in the future. This is exactly
+    // the case that left "sent" posts stuck at "scheduled" — the cron returned
+    // not_due without ever reconciling, and only the queue page reconciled.
+    state.settingsRows = [
+      {
+        brandId: BRAND_ID,
+        enabled: true,
+        mode: 'auto',
+        frequency: 'every_other_day',
+        nextRunAt: new Date(Date.now() + 86_400_000),
+        lastRunAt: new Date(Date.now() - 86_400_000),
+        totalGenerated: 5,
+      },
+    ];
+
+    const res = await POST(makeReq());
+    const json = await res.json();
+
+    // Still skips posting (correctly not due) ...
+    expect(json.status).toBe('skipped');
+    expect(json.reason).toBe('not_due');
+    // ... but reconciliation ran for this brand regardless.
+    expect(reconcileFn).toHaveBeenCalledWith(BRAND_ID);
   });
 
   it('god_mode non-2xx: persists verbose detail but returns a short reason code, and advances nextRunAt', async () => {
