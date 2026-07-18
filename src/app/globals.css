@@ -94,7 +94,10 @@
   --line-strong: rgba(255, 255, 255, 0.12);
   --txt: #F7F7F8;
   --muted: #8A8F98;
-  --muted-2: #6B7178;
+  /* Lifted from #6B7178 (~3.5:1) so small secondary text clears WCAG 4.5:1 on
+     --bg while staying a step below --muted. Reserve for genuinely secondary
+     text; use --muted for primary body copy. */
+  --muted-2: #808690;
   --violet: #8B5CF6;
   --violet-bright: #A78BFA;
   --violet-deep: #6D28D9;
@@ -154,8 +157,24 @@
     background: rgba(139, 92, 246, 0.3);
   }
   *:focus-visible {
-    @apply outline-none ring-2 ring-violet-500/50 ring-offset-2;
+    @apply outline-none ring-2 ring-ring/50 ring-offset-2;
     --tw-ring-offset-color: var(--bg);
+  }
+}
+
+/* Respect users who ask the OS to minimize motion: neutralize animations,
+   transitions, and smooth scrolling app-wide. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -174,6 +193,16 @@ body::before {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 16px;
+}
+/* Frosted translucent card. Previously referenced on ~9 components but never
+   defined, so those cards rendered with no background. Tokenized bg + border so
+   the whole app's "glass" cards share one treatment. */
+.glass-card {
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 .surface-glow { position: relative; overflow: hidden; }
 .surface-glow::before {
