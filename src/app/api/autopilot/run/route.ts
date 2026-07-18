@@ -19,6 +19,10 @@ import {
 } from '@/lib/smart-posts/url-dedup';
 
 export const dynamic = 'force-dynamic';
+// The best-of-N quality loop can make up to TWO sequential god-mode calls (each
+// itself ~90s) plus two grade calls on a low-quality day, so give this route a
+// real ceiling instead of the platform default.
+export const maxDuration = 300;
 
 // Shared failure exit for the cron run. Before this existed, every early-return
 // failure path left `nextRunAt` frozen and `lastError` null, so a stuck brand
@@ -171,9 +175,12 @@ export async function POST(req: Request): Promise<Response> {
     });
 
   // One full god-mode generation (fresh copy + image). Returns the payload, or a
-  // ready-to-return failAutopilot Response when the call itself fails.
+  // PLAIN failure descriptor. It must NOT call fail()/failAutopilot itself —
+  // failAutopilot writes to autopilotSettings, and a failure result can be
+  // discarded (e.g. a 2nd-attempt failure the loop drops), so the side effect
+  // must be produced only by the caller on the path that actually returns it.
   const generateOnce = async (): Promise<
-    { ok: true; payload: GodPayload } | { ok: false; res: Promise<Response> }
+    { ok: true; payload: GodPayload } | { ok: false; reason: string; detail: string }
   > => {
     try {
       const godRes = await fetch(`${baseUrl}/api/smart-posts/god-mode`, {
@@ -184,12 +191,12 @@ export async function POST(req: Request): Promise<Response> {
       if (!godRes.ok) {
         const errText = await godRes.text().catch(() => '');
         const errorCode = `god_mode_${godRes.status}`;
-        return { ok: false, res: fail(errorCode, `${errorCode}: ${errText.slice(0, 200)}`) };
+        return { ok: false, reason: errorCode, detail: `${errorCode}: ${errText.slice(0, 200)}` };
       }
       return { ok: true, payload: (await godRes.json()) as GodPayload };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      return { ok: false, res: fail('god_mode_fetch_failed', `god_mode_fetch_failed: ${msg}`) };
+      return { ok: false, reason: 'god_mode_fetch_failed', detail: `god_mode_fetch_failed: ${msg}` };
     }
   };
 
@@ -221,10 +228,14 @@ export async function POST(req: Request): Promise<Response> {
   // clears the quality bar (or the grader is unavailable → fail open).
   const MAX_ATTEMPTS = 2;
   let best: { payload: GodPayload; grade: GradeReport | null } | null = null;
+  let lastFailure: { reason: string; detail: string } | null = null;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const gen = await generateOnce();
     if (!gen.ok) {
-      if (attempt === 0) return gen.res; // hard failure on the first try — surface it
+      // Only NOW do we produce the failAutopilot side effect, and only when we
+      // actually return it — never for a discarded later-attempt failure.
+      if (attempt === 0) return fail(gen.reason, gen.detail); // hard failure on the first try
+      lastFailure = { reason: gen.reason, detail: gen.detail };
       break; // a later regeneration failed — keep the best we already have
     }
     const cap = gen.payload.caption ?? '';
@@ -240,7 +251,7 @@ export async function POST(req: Request): Promise<Response> {
     console.warn(`[autopilot] ${brandId} attempt ${attempt + 1} scored ${grade.score}/10 — regenerating`);
   }
 
-  if (!best) return fail('empty_generation');
+  if (!best) return fail(lastFailure?.reason ?? 'empty_generation', lastFailure?.detail);
 
   const godPayload = best.payload;
   const caption = godPayload.caption ?? '';

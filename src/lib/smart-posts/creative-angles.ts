@@ -36,11 +36,11 @@ export interface CreativeAngle {
 }
 
 // Brand-agnostic — every angle works for running (PaceBrain) and learning
-// (Affectly). `contrarian` is the exact shape that fatigued, so it sits LAST: on
-// a COLD start (no recent history) pickLruAngle tie-breaks by array order, so a
-// later position means it is chosen last. Once history exists, LRU ranks purely
-// by recency-distance — there the real safeguard is that the collapsed "Your X
-// is Y" hooks classify to `myth`, which is then de-prioritised as recently-used.
+// (Affectly). `contrarian` is the exact shape that fatigued, so it sits LAST by
+// convention. NOTE the cold-start tie-break is by a RANDOM seed, so array
+// position gives contrarian no real protection — the actual safeguard is that
+// once history exists the collapsed "Your X is Y" hooks classify to `myth`,
+// which LRU then de-prioritises as recently-used.
 export const CREATIVE_ANGLES: readonly CreativeAngle[] = [
   {
     id: 'question',

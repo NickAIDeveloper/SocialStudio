@@ -21,7 +21,7 @@ const MEDIA_FIELDS =
 // NOTE: the saves metric MUST be requested as `saved` — IG's API rejects
 // `saves` and a single bad metric 400s the ENTIRE insights call, which silently
 // zeroed out reach for every post (the brain ran blind to reach). See getMetric.
-const PER_POST_METRICS = ['reach', 'views', 'likes', 'comments', 'saved', 'shares'];
+export const PER_POST_METRICS = ['reach', 'views', 'likes', 'comments', 'saved', 'shares'];
 
 function cacheKeyFor(day: string, igUserId: string): string {
   return `brain:ig:${igUserId}:${day}`;
@@ -104,7 +104,11 @@ export async function snapshotIg(input: SnapshotIgInput): Promise<SnapshotRespon
     const url = `${IG_API_BASE}/${item.id}/insights?metric=${PER_POST_METRICS.join(',')}&access_token=${input.accessToken}`;
     const res = await fetchWithRetry(fetcher, url);
     if (!res.ok) {
-      // Non-fatal: skip this post. Brain still useful.
+      // Non-fatal: skip this post — but LOG it. A blanket failure here (e.g. a
+      // rejected metric in PER_POST_METRICS, exactly what the saves→saved bug
+      // was) would otherwise silently zero every metric with zero signal.
+      const body = await res.text().catch(() => '');
+      console.warn(`[snapshot/ig] insights ${res.status} for media ${item.id} (skipped): ${body.slice(0, 200)}`);
       continue;
     }
     insightsByMediaId[item.id] = await res.json();
@@ -119,9 +123,22 @@ export async function snapshotIg(input: SnapshotIgInput): Promise<SnapshotRespon
     }
   }
 
+  // If EVERY per-post insights call failed, reach/saves are silently zero for the
+  // whole account — the class of bug the saves→saved fix addressed. Surface it as
+  // partial (not a healthy "ok"), and report insights coverage (processed), NOT
+  // the media count, so an all-failed run can't masquerade as fully sampled.
+  const allInsightsFailed = media.length > 0 && processed === 0;
+  if (allInsightsFailed) {
+    console.error(
+      `[snapshot/ig] ALL ${media.length} insights calls failed — reach/saves will be zero. Likely a rejected metric in PER_POST_METRICS.`,
+    );
+  }
+
   const payload = { media, insightsByMediaId };
   await input.cacheWrite(cacheKey, payload);
   await input.persist?.(payload);
 
-  return { status: 'ok', sampleSize: media.length };
+  return allInsightsFailed
+    ? { status: 'partial', reason: 'insights_all_failed', sampleSize: 0 }
+    : { status: 'ok', sampleSize: processed };
 }

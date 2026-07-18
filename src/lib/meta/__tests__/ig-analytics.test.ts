@@ -28,3 +28,14 @@ describe('getMetric saves/saved aliasing', () => {
     expect(getMetric(withInsight('reach', 250), 'reach')).toBe(250);
   });
 });
+
+describe('IG per-post metric constants (regression guard for the saves->saved bug)', () => {
+  it("request the metric as 'saved', never 'saves' — a single bad metric 400s the whole insights call", async () => {
+    const { IG_MEDIA_METRICS_FEED } = await import('../instagram-client');
+    const { PER_POST_METRICS } = await import('../../brain/snapshot-ig');
+    for (const list of [IG_MEDIA_METRICS_FEED, PER_POST_METRICS]) {
+      expect(list).toContain('saved');
+      expect(list).not.toContain('saves');
+    }
+  });
+});
