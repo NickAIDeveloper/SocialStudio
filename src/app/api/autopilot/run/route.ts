@@ -9,6 +9,7 @@ import { runGrade, shouldHoldForQuality, keepBetterDraft, shouldStopGenerating, 
 import type { AngleId } from '@/lib/smart-posts/creative-angles';
 import { cerebrasChatCompletion } from '@/lib/cerebras';
 import { computeNextRunAt, isDueNow, nextPostSlot, type Frequency } from '@/lib/autopilot/schedule';
+import { reconcileAutopilotStatuses } from '@/lib/autopilot/reconcile';
 import { createPost } from '@/lib/buffer';
 import { decrypt } from '@/lib/encryption';
 import { uploadImageToGitHub } from '@/lib/github-images';
@@ -99,6 +100,14 @@ export async function POST(req: Request): Promise<Response> {
   if (!settings) {
     return NextResponse.json({ status: 'skipped', reason: 'autopilot_not_configured' });
   }
+
+  // Pull Buffer's ground truth onto this brand's rows on EVERY run — before the
+  // disabled/not-due gates below — so a post Buffer already sent flips from
+  // "scheduled" to "published" even on days this brand isn't due to post. This
+  // is the durable fix for stale status: reconciliation used to run only when
+  // the queue page was opened, so brands the user didn't actively view kept
+  // showing "Scheduled" forever despite Buffer having sent them. Never throws.
+  await reconcileAutopilotStatuses(brandId);
 
   const now = new Date();
   const force = searchParams.get('force') === '1';
