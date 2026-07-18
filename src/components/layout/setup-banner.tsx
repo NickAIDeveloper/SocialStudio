@@ -22,23 +22,24 @@ export function SetupBanner() {
   useEffect(() => {
     void Promise.allSettled([
       fetch('/api/brands').then((r) => r.ok ? r.json() : null),
-      fetch('/api/buffer?action=channels').then((r) => ({ ok: r.ok })),
-      // Image source = any connected stock-photo / image-gen provider. This is
-      // the same signal the onboarding wizard uses; the old /api/image-source
-      // endpoint was never implemented and 404'd on every page load.
+      // Both Buffer and the image source are read from linked-accounts — the
+      // source of truth for "connected". We deliberately do NOT probe
+      // /api/buffer?action=channels for this: channel listing can fail
+      // (org/channel not selected, token re-auth, the nested-resolver FORBIDDEN
+      // bug) while Buffer is genuinely connected, which wrongly showed
+      // "Connect Buffer" on a connected account.
       fetch('/api/linked-accounts').then((r) => r.ok ? r.json() : null),
     ]).then((results) => {
       const brandsRes = results[0].status === 'fulfilled' ? results[0].value as { brands?: Array<{ instagramHandle?: string | null }> } | null : null;
-      const bufferRes = results[1].status === 'fulfilled' ? results[1].value as { ok: boolean } : { ok: false };
-      const linkedRes = results[2].status === 'fulfilled' ? results[2].value as { success?: boolean; data?: Array<{ provider: string }> } | null : null;
-      const imageProviders = new Set(['pixabay', 'unsplash', 'pexels', 'gemini_images']);
-      const hasImageSource = Boolean(
-        linkedRes?.success && linkedRes.data?.some((a) => imageProviders.has(a.provider)),
+      const linkedRes = results[1].status === 'fulfilled' ? results[1].value as { success?: boolean; data?: Array<{ provider: string }> } | null : null;
+      const providers = new Set(
+        linkedRes?.success && linkedRes.data ? linkedRes.data.map((a) => a.provider) : [],
       );
+      const imageProviders = ['pixabay', 'unsplash', 'pexels', 'gemini_images'];
       setState({
         hasBrandWithIg: Boolean(brandsRes?.brands?.some((b) => b.instagramHandle)),
-        hasBuffer: bufferRes.ok,
-        hasImageSource,
+        hasBuffer: providers.has('buffer'),
+        hasImageSource: imageProviders.some((p) => providers.has(p)),
         loaded: true,
       });
     });
