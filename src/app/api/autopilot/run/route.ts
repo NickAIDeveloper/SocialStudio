@@ -5,7 +5,8 @@ import { db } from '@/lib/db';
 import { brands, autopilotSettings, posts, linkedAccounts, instagramAccounts } from '@/lib/db/schema';
 import { verifyBrainSignature } from '@/lib/brain/auth';
 import { readBrandBrain } from '@/lib/brain/consume';
-import { runGrade, shouldHoldForQuality, type GradeReport } from '@/lib/brain/grade';
+import { runGrade, shouldHoldForQuality, keepBetterDraft, shouldStopGenerating, type GradeReport } from '@/lib/brain/grade';
+import type { AngleId } from '@/lib/smart-posts/creative-angles';
 import { cerebrasChatCompletion } from '@/lib/cerebras';
 import { computeNextRunAt, isDueNow, nextPostSlot, type Frequency } from '@/lib/autopilot/schedule';
 import { createPost } from '@/lib/buffer';
@@ -155,7 +156,7 @@ export async function POST(req: Request): Promise<Response> {
     caption?: string;
     hashtags?: string;
     hookText?: string;
-    angle?: string | null;
+    angle?: AngleId | null;
     sourceImageUrl?: string;
     imageDataUrl?: string;
     imageHash?: string | null;
@@ -243,12 +244,11 @@ export async function POST(req: Request): Promise<Response> {
     if (!cap || !hook) continue; // empty generation — unusable, try again
 
     const grade = await gradeDraft(cap, hook);
-    const score = grade?.score ?? -1;
-    const bestScore = best?.grade?.score ?? -1;
-    if (!best || score > bestScore) best = { payload: gen.payload, grade };
+    best = keepBetterDraft(best, { payload: gen.payload, grade });
 
-    if (!grade || !shouldHoldForQuality(grade)) break; // good enough / fail-open
-    console.warn(`[autopilot] ${brandId} attempt ${attempt + 1} scored ${grade.score}/10 — regenerating`);
+    if (shouldStopGenerating(grade)) break; // good enough, or grader down (fail open)
+    // Reached only when grade is a real low score (shouldStopGenerating false).
+    console.warn(`[autopilot] ${brandId} attempt ${attempt + 1} scored ${grade?.score}/10 — regenerating`);
   }
 
   if (!best) return fail(lastFailure?.reason ?? 'empty_generation', lastFailure?.detail);

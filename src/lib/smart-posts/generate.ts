@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import type { AngleId } from './creative-angles';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { brands, scrapedPosts, posts } from '@/lib/db/schema';
@@ -163,7 +164,7 @@ export interface GenerateFromSeedResult {
   hookText: string;
   /** Creative angle chosen by /api/captions — persisted on the post row so the
    *  next generation's LRU rotation is exact rather than inferred from text. */
-  angle: string | null;
+  angle: AngleId | null;
   seed: unknown;
   suggestedPostTime: unknown;
   scheduledAt: string | null;
@@ -838,7 +839,9 @@ export async function generateFromSeed(
       caption: captionPayload.caption ?? '',
       hashtags: captionPayload.hashtags ?? '',
       hookText: hookText.slice(0, 60),
-      angle: captionPayload.angle ?? null,
+      // The value is an AngleId at the source (captions/route chosenAngle.id); it
+      // just crossed HTTP as a string, so narrow it back at this boundary.
+      angle: (captionPayload.angle ?? null) as AngleId | null,
       seed,
       suggestedPostTime: seed.suggestedPostTime,
       scheduledAt,

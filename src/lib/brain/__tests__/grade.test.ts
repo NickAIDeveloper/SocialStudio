@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildGradePrompt, parseGradeResponse, runGrade, shouldHoldForQuality } from '../grade';
+import { buildGradePrompt, parseGradeResponse, runGrade, shouldHoldForQuality, keepBetterDraft, shouldStopGenerating } from '../grade';
 import type { GradeReport } from '../grade';
 import type { BrainContext } from '../types';
 
@@ -74,28 +74,57 @@ describe('runGrade', () => {
   });
 });
 
-describe('shouldHoldForQuality (autopilot gate)', () => {
-  const report = (score: number): GradeReport => ({ score, strengths: [], weaknesses: [], suggestions: [] });
+const rep = (score: number, graded = true): GradeReport => ({ score, graded, strengths: [], weaknesses: [], suggestions: [] });
 
+describe('shouldHoldForQuality (autopilot gate)', () => {
   it('holds a real low-but-nonzero (scrap-band) score', () => {
-    expect(shouldHoldForQuality(report(3))).toBe(true);
-    expect(shouldHoldForQuality(report(4))).toBe(true);
+    expect(shouldHoldForQuality(rep(3))).toBe(true);
+    expect(shouldHoldForQuality(rep(4))).toBe(true);
+  });
+
+  it('holds a GENUINE 0/10 (worst slop) — no longer let through', () => {
+    expect(shouldHoldForQuality(rep(0, true))).toBe(true);
   });
 
   it('does NOT hold a publishable score', () => {
-    expect(shouldHoldForQuality(report(5))).toBe(false);
-    expect(shouldHoldForQuality(report(7))).toBe(false);
+    expect(shouldHoldForQuality(rep(5))).toBe(false);
+    expect(shouldHoldForQuality(rep(7))).toBe(false);
   });
 
-  it('FAILS OPEN on an inconclusive/grader-unavailable score of 0', () => {
-    // runGrade returns score 0 when the grader LLM itself failed — a grader
-    // outage must never stop autopilot from posting.
-    expect(shouldHoldForQuality(report(0))).toBe(false);
-    expect(shouldHoldForQuality(report(-1))).toBe(false);
+  it('FAILS OPEN only when the grader was UNAVAILABLE (graded:false)', () => {
+    // A grader outage must never stop autopilot from posting — but only the
+    // outage, not a real low score.
+    expect(shouldHoldForQuality(rep(0, false))).toBe(false);
+    expect(shouldHoldForQuality(rep(3, false))).toBe(false);
   });
 
   it('respects a custom bar', () => {
-    expect(shouldHoldForQuality(report(6), 7)).toBe(true);
-    expect(shouldHoldForQuality(report(7), 7)).toBe(false);
+    expect(shouldHoldForQuality(rep(6), 7)).toBe(true);
+    expect(shouldHoldForQuality(rep(7), 7)).toBe(false);
+  });
+});
+
+describe('keepBetterDraft / shouldStopGenerating (best-of-N reducer)', () => {
+  it('keeps the higher-scored draft regardless of order', () => {
+    const a = { payload: 'a', grade: rep(3) };
+    const b = { payload: 'b', grade: rep(7) };
+    expect(keepBetterDraft(a, b).payload).toBe('b');
+    expect(keepBetterDraft(b, a).payload).toBe('b');
+  });
+
+  it('treats an ungraded (null) candidate as worst, but keeps it when nothing better exists', () => {
+    const ungraded = { payload: 'x', grade: null };
+    expect(keepBetterDraft(null, ungraded).payload).toBe('x');
+    expect(keepBetterDraft({ payload: 'good', grade: rep(6) }, ungraded).payload).toBe('good');
+  });
+
+  it('stops on a good score, regenerates on a real low score', () => {
+    expect(shouldStopGenerating(rep(7))).toBe(true);
+    expect(shouldStopGenerating(rep(3))).toBe(false);
+  });
+
+  it('stops (fails open) when the grader is unavailable', () => {
+    expect(shouldStopGenerating(null)).toBe(true);
+    expect(shouldStopGenerating(rep(2, false))).toBe(true);
   });
 });
