@@ -17,17 +17,13 @@ function mockFetch(brandsOk: boolean, bufferOk: boolean, imageSourceOk: boolean)
         { status: 200 },
       ));
     }
-    if (u.startsWith('/api/buffer')) {
-      return Promise.resolve(new Response('{}', { status: bufferOk ? 200 : 401 }));
-    }
     if (u.startsWith('/api/linked-accounts')) {
-      return Promise.resolve(new Response(
-        JSON.stringify({
-          success: true,
-          data: imageSourceOk ? [{ provider: 'pexels' }] : [],
-        }),
-        { status: 200 },
-      ));
+      // Buffer AND the image source are both read from linked-accounts now —
+      // the source of truth for "connected".
+      const data: Array<{ provider: string }> = [];
+      if (bufferOk) data.push({ provider: 'buffer' });
+      if (imageSourceOk) data.push({ provider: 'pexels' });
+      return Promise.resolve(new Response(JSON.stringify({ success: true, data }), { status: 200 }));
     }
     return Promise.resolve(new Response('{}', { status: 404 }));
   }) as typeof fetch;
@@ -52,5 +48,13 @@ describe('SetupBanner', () => {
     expect(await screen.findByText(/Add brand with Instagram handle/)).toBeInTheDocument();
     expect(screen.getByText(/Connect Buffer/)).toBeInTheDocument();
     expect(screen.getByText(/Pick an image source/)).toBeInTheDocument();
+  });
+
+  it('does NOT show "Connect Buffer" when Buffer is connected (the bug)', async () => {
+    // Buffer connected (linked account present), image source missing.
+    mockFetch(true, true, false);
+    render(<SetupBanner />);
+    expect(await screen.findByText(/Pick an image source/)).toBeInTheDocument();
+    expect(screen.queryByText(/Connect Buffer/)).not.toBeInTheDocument();
   });
 });
