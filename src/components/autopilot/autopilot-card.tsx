@@ -235,6 +235,8 @@ export function AutopilotCard({ brandId, brandName }: Props) {
           <label className="relative inline-flex items-center cursor-pointer">
             <input
               type="checkbox"
+              role="switch"
+              aria-label="Enable autopilot"
               className="sr-only peer"
               checked={s.enabled}
               onChange={(e) => patch({ enabled: e.target.checked })}

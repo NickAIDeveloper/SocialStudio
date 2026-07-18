@@ -35,12 +35,12 @@ export function BrainBadge({ brandId }: Props) {
         className="text-xs px-2 py-1 rounded bg-(--violet-12) text-(--violet-bright) border border-(--violet-24)"
         title="Click to view brand brain"
       >
-        🧠 Brain v{data.brain.briefVersion} · {rel(data.brain.generatedAt)}
+        🧠 Brain · {rel(data.brain.generatedAt)}
       </button>
       {open && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setOpen(false)}>
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-auto p-6" onClick={(e) => e.stopPropagation()}>
-            <pre className="whitespace-pre-wrap text-sm font-sans">{data.brain.briefMd}</pre>
+          <div className="surface-card rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <pre className="whitespace-pre-wrap text-sm font-sans text-(--txt)">{data.brain.briefMd}</pre>
           </div>
         </div>
       )}
