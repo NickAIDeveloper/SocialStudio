@@ -8,6 +8,8 @@ export interface GradeInput {
 
 export interface GradeReport {
   score: number;          // 0-10
+  graded: boolean;        // false ONLY when the grader was unavailable (LLM down /
+                          // unparseable) — distinguishes a real 0/10 from "no signal"
   strengths: string[];    // 1-3 short bullets
   weaknesses: string[];   // 1-3 short bullets
   suggestions: string[];  // 1-3 short, concrete, actionable bullets
@@ -63,8 +65,32 @@ Return JSON in this exact shape:
  * guarantees a grader outage can never stop autopilot from posting.
  */
 export function shouldHoldForQuality(report: GradeReport, bar = 5): boolean {
-  if (report.score <= 0) return false; // inconclusive / grader unavailable → fail open
-  return report.score < bar;
+  if (!report.graded) return false; // grader unavailable → fail open (never block)
+  return report.score < bar; // a REAL low score (incl. a genuine 0) is held
+}
+
+/**
+ * Keeps the higher-graded of two draft candidates. An ungraded candidate
+ * (grade === null, grader unavailable) scores -1 so any real grade beats it, and
+ * the first ungraded draft is retained when nothing better exists. Pure — the
+ * best-of-N generation loop composes this per attempt.
+ */
+export function keepBetterDraft<T>(
+  best: { payload: T; grade: GradeReport | null } | null,
+  candidate: { payload: T; grade: GradeReport | null },
+): { payload: T; grade: GradeReport | null } {
+  const bestScore = best?.grade?.score ?? -1;
+  const candidateScore = candidate.grade?.score ?? -1;
+  return !best || candidateScore > bestScore ? candidate : best;
+}
+
+/**
+ * Whether the best-of-N loop should STOP generating after this attempt: stop
+ * once a draft is good enough to ship, OR the grader is unavailable (fail open —
+ * never burn extra generations trying to grade when grading is down).
+ */
+export function shouldStopGenerating(grade: GradeReport | null, bar = 5): boolean {
+  return !grade || !shouldHoldForQuality(grade, bar);
 }
 
 const REPAIR_STRIP = /^[^{]*|[^}]*$/g;
@@ -82,6 +108,7 @@ export function parseGradeResponse(raw: string): GradeReport | null {
     const score = Math.max(0, Math.min(10, parsed.score));
     return {
       score,
+      graded: true,
       strengths: Array.isArray(parsed.strengths) ? parsed.strengths.slice(0, 5) : [],
       weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses.slice(0, 5) : [],
       suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.slice(0, 5) : [],
@@ -113,6 +140,7 @@ export async function runGrade(
   // Deterministic fallback: empty report so caller can render "grade unavailable"
   return {
     score: 0,
+    graded: false, // grader unavailable — shouldHoldForQuality fails open on this
     strengths: [],
     weaknesses: ['Could not generate grade'],
     suggestions: ['Try regenerating the post and grading again'],
