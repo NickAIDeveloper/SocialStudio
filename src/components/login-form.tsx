@@ -41,7 +41,9 @@ export function LoginForm() {
   return (
     <div className="w-full max-w-md">
       <div className="mb-8 text-center">
-        <Image src="/logo-goviraleza.png" alt="GoViraleza" width={52} height={36} className="mx-auto mb-2 rounded-lg" />
+        <Link href="/" className="inline-block" aria-label="GoViraleza home">
+          <Image src="/logo-goviraleza.png" alt="GoViraleza" width={52} height={36} className="mx-auto mb-2 rounded-lg" />
+        </Link>
         <h1 className="text-2xl font-bold text-(--txt)">Welcome back</h1>
         <p className="mt-1 text-sm text-(--muted)">
           Sign in to GoViraleza
@@ -53,7 +55,7 @@ export function LoginForm() {
         className="surface-card rounded-2xl p-6 backdrop-blur-sm"
       >
         {error && (
-          <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <div role="alert" className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
             {error}
           </div>
         )}
@@ -67,7 +69,9 @@ export function LoginForm() {
           </label>
           <input
             id="email"
+            name="email"
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -85,7 +89,9 @@ export function LoginForm() {
           </label>
           <input
             id="password"
+            name="password"
             type="password"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -95,7 +101,7 @@ export function LoginForm() {
         </div>
 
         <div className="flex justify-end">
-          <Link href="/forgot-password" className="text-xs text-(--muted) hover:text-(--violet-bright) transition-colors">
+          <Link href="/forgot-password" className="-mr-1 rounded px-1 py-1 text-sm text-(--muted) hover:text-(--violet-bright) transition-colors">
             Forgot password?
           </Link>
         </div>
@@ -103,7 +109,7 @@ export function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-(--violet) px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="w-full rounded-lg bg-(--violet) px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {loading ? 'Signing in...' : 'Sign in'}
         </button>
