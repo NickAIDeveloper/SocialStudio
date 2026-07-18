@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import HealthScore from '@/components/health-score';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -891,20 +892,40 @@ function StepAnalyzing({
 
 // ── Step 5: Ready ────────────────────────────────────────────────────────────
 
-function StepReady({
+// The three steps of the product loop, shown on the finale so a new user knows
+// what happens after they close the wizard. Kept in one place so the copy is
+// easy to tweak.
+const HOW_IT_WORKS: Array<{ title: string; body: string }> = [
+  {
+    title: 'Autopilot learns your brand nightly',
+    body: 'It studies your account and competitors to learn what resonates.',
+  },
+  {
+    title: 'It drafts varied, quality-gated posts',
+    body: 'Every draft passes an anti-slop check for fresh hooks, angles, and images — no repeats.',
+  },
+  {
+    title: 'It schedules them to Buffer',
+    body: 'You review and watch the results roll in.',
+  },
+];
+
+export function StepReady({
   brandName,
   toolsConnected,
-  competitorsTracked,
-  onComplete,
+  onExplore,
+  onSetupAutopilot,
 }: {
   brandName: string;
   toolsConnected: number;
-  competitorsTracked: number;
-  onComplete: () => void;
+  // Dismiss the wizard and stay where they are ("I'll explore on my own").
+  onExplore: () => void;
+  // Finish onboarding, then take them to /autopilot to set it up.
+  onSetupAutopilot: () => void;
 }) {
   return (
-    <div className="space-y-6 text-center">
-      <div className="mb-6">
+    <div className="space-y-6">
+      <div className="text-center mb-2">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-(--violet-12)">
           <svg
             className="h-8 w-8 text-(--violet-bright)"
@@ -918,37 +939,45 @@ function StepReady({
         </div>
         <h2 className="text-2xl font-bold text-white">You&apos;re ready!</h2>
         <p className="text-sm text-(--muted) mt-1">
-          Your workspace is set up and ready to go
+          {brandName ? `${brandName} is set up` : 'Your workspace is set up'}
+          {toolsConnected > 0 ? ` · ${toolsConnected} tool${toolsConnected === 1 ? '' : 's'} connected` : ''}
         </p>
       </div>
 
-      <div className="space-y-3">
-        <div className="rounded-lg border border-white/5 bg-(--surface)/40 p-4 text-left">
-          <p className="text-xs text-(--muted) uppercase tracking-wider">Brand</p>
-          <p className="text-sm font-medium text-(--txt) mt-1">{brandName || 'Not set'}</p>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg border border-white/5 bg-(--surface)/40 p-4 text-left">
-            <p className="text-xs text-(--muted) uppercase tracking-wider">Tools</p>
-            <p className="text-sm font-medium text-(--txt) mt-1">
-              {toolsConnected} connected
-            </p>
-          </div>
-          <div className="rounded-lg border border-white/5 bg-(--surface)/40 p-4 text-left">
-            <p className="text-xs text-(--muted) uppercase tracking-wider">Competitors</p>
-            <p className="text-sm font-medium text-(--txt) mt-1">
-              {competitorsTracked} tracked
-            </p>
-          </div>
-        </div>
+      {/* How it works — the product loop, so they know what happens next. */}
+      <div className="rounded-2xl border border-white/5 bg-(--surface)/40 p-5">
+        <p className="text-xs font-semibold uppercase tracking-wider text-(--muted) mb-4">
+          Here&apos;s how it works
+        </p>
+        <ol className="space-y-4">
+          {HOW_IT_WORKS.map((step, i) => (
+            <li key={step.title} className="flex gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-(--violet-12) text-xs font-semibold text-(--violet-bright)">
+                {i + 1}
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-(--txt)">{step.title}</p>
+                <p className="text-xs text-(--muted) mt-0.5">{step.body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
 
-      <button
-        onClick={onComplete}
-        className="w-full rounded-lg bg-(--violet) py-3 text-sm font-semibold text-white transition hover:bg-(--violet-bright)"
-      >
-        Go to Dashboard
-      </button>
+      <div className="space-y-2">
+        <button
+          onClick={onSetupAutopilot}
+          className="w-full rounded-lg bg-(--violet) py-3 text-sm font-semibold text-white transition hover:bg-(--violet-bright)"
+        >
+          Set up Autopilot &rarr;
+        </button>
+        <button
+          onClick={onExplore}
+          className="w-full text-center text-sm text-(--muted) hover:text-(--txt) transition py-1"
+        >
+          I&apos;ll explore on my own
+        </button>
+      </div>
     </div>
   );
 }
@@ -956,18 +985,19 @@ function StepReady({
 // ── Main Wizard ──────────────────────────────────────────────────────────────
 
 export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
+  const router = useRouter();
   const [step, setStep] = useState<StepNumber>(1);
   const [brand, setBrand] = useState<BrandData>({
     id: '',
     name: '',
     slug: '',
-    primaryColor: '#14b8a6',
-    secondaryColor: '#0d9488',
+    primaryColor: '#8B5CF6',
+    secondaryColor: '#A78BFA',
     instagramHandle: '',
     logoUrl: '',
     description: '',
   });
-  const [competitorCount, setCompetitorCount] = useState(0);
+  const [, setCompetitorCount] = useState(0);
   const [toolsConnected, setToolsConnected] = useState(0);
   const [, setAnalyticsResult] = useState<AnalyticsResult | null>(null);
 
@@ -1014,6 +1044,13 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     }
     onComplete();
   }, [onComplete]);
+
+  // Finale primary CTA: finish onboarding, then drop them on /autopilot to set
+  // it up — that's where the value (and their results) live.
+  const handleSetupAutopilot = useCallback(async () => {
+    await handleComplete();
+    router.push('/autopilot');
+  }, [handleComplete, router]);
 
   return (
     <div className="fixed inset-0 bg-(--bg)/95 z-50 flex items-center justify-center p-4">
@@ -1065,8 +1102,8 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             <StepReady
               brandName={brand.name}
               toolsConnected={toolsConnected}
-              competitorsTracked={competitorCount}
-              onComplete={handleComplete}
+              onExplore={handleComplete}
+              onSetupAutopilot={handleSetupAutopilot}
             />
           )}
         </div>
