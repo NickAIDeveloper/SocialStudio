@@ -91,9 +91,17 @@ async function attributePostPerformance(
         },
       });
   }
-  console.log(
-    `[snapshot/ig] attributed ${attributions.length}/${ourPosts.length} autopilot posts for brand ${brand.id}`,
-  );
+  if (attributions.length === 0 && ourPosts.length > 0) {
+    // A healthy run matches most posts; 0/N means the caption-match join almost
+    // certainly regressed (captionMatchKey normalization, or IG payload shape).
+    console.warn(
+      `[snapshot/ig] attributed 0/${ourPosts.length} posts for brand ${brand.id} — caption match likely regressed`,
+    );
+  } else {
+    console.log(
+      `[snapshot/ig] attributed ${attributions.length}/${ourPosts.length} autopilot posts for brand ${brand.id}`,
+    );
+  }
   return attributions.length;
 }
 
@@ -143,8 +151,10 @@ export async function POST(req: Request): Promise<Response> {
     const { token: igToken } = await getFreshIgToken(igAcct);
 
     // Captured from persist() so we can attribute post performance after the
-    // snapshot without re-fetching media. persist() always fires (cache hit,
-    // partial, and success paths).
+    // snapshot without re-fetching media. persist() fires on cache-hit, full
+    // success, and the post-processing partial path; it is SKIPPED on media-fetch
+    // failure and the pre-insights rate-limit bail — in which case igPayload stays
+    // null and attribution is safely skipped by the `if (igPayload)` guard below.
     let igPayload: { media: unknown[]; insightsByMediaId: Record<string, unknown> } | null = null;
 
     const result = await snapshotIg({
