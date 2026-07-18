@@ -439,9 +439,9 @@ export function SmartPostsDashboard() {
     if (generating) return 'Composing your perfect post';
     if (godModeReady) {
       const handleLabel = selectedIgHandle ?? ig ?? '';
-      return `Generate god-mode post for @${handleLabel}`;
+      return `Generate optimized post for @${handleLabel}`;
     }
-    if (metaOverrides) return 'Generate with Analytics seed';
+    if (metaOverrides) return 'Generate from Analytics';
     return 'Generate Perfect Post';
   })();
 
@@ -787,7 +787,7 @@ function MetaSeedBanner({ overrides }: { overrides: MetaOverrides }) {
   if (overrides.pattern)
     chips.push({ label: 'Pattern', value: overrides.pattern.slice(0, 50) });
   if (overrides.preset)
-    chips.push({ label: 'Seed', value: overrides.preset.slice(0, 60) });
+    chips.push({ label: 'Preset', value: overrides.preset.slice(0, 60) });
 
   return (
     <div className="mt-4 rounded-lg border border-fuchsia-400/30 bg-fuchsia-500/10 p-3">
