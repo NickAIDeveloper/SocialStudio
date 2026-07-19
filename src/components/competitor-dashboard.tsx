@@ -391,7 +391,7 @@ export function CompetitorDashboard() {
     <div className="space-y-6">
       {/* Account picker */}
       {brands.length > 1 && (
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           {brands.filter(b => b.instagramHandle).map(b => (
             <button
               key={b.id}

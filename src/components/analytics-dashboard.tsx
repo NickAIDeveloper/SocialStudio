@@ -653,7 +653,7 @@ export default function AnalyticsDashboard() {
 
       {/* Account selector */}
       {brands.length > 1 && (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {brands.filter(b => b.instagramHandle).map(b => (
             <button
               key={b.id}
@@ -742,7 +742,7 @@ export default function AnalyticsDashboard() {
                       <p className="text-xs text-(--muted)">@{profile.handle}</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-5 gap-3">
+                  <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
                     <div className="text-center">
                       <p className="text-xl font-bold text-(--txt)">{profile.followers.toLocaleString()}</p>
                       <p className="text-[10px] text-(--muted) mt-1">Followers</p>

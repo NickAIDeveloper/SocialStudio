@@ -65,44 +65,44 @@ export function HeroCard({
       </div>
       {error && <div className="text-xs text-(--pink)/80">{error}</div>}
       {top && (
-        <div className="flex gap-4">
-          {thumb && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={thumb} alt="" className="h-20 w-20 rounded-lg object-cover border border-white/10" />
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="text-sm text-white font-medium line-clamp-2">
-              {top.caption?.slice(0, 120) || '(no caption)'}
-            </div>
-            <div className="text-[11px] text-white/50 mt-1">
-              <FormatBadge format={top.format} /> · reach{' '}
-              <span className="text-(--cyan) font-semibold">
-                {formatNumber(top.reach ?? undefined)}
-              </span>
-              {medians.reach && top.reach && (
-                <span className="ml-1">({(top.reach / medians.reach).toFixed(1)}× median)</span>
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <div className="flex gap-4 flex-1 min-w-0">
+            {thumb && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={thumb} alt="" className="h-20 w-20 rounded-lg object-cover border border-white/10 shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="text-sm text-white font-medium line-clamp-2">
+                {top.caption?.slice(0, 120) || '(no caption)'}
+              </div>
+              <div className="text-[11px] text-white/50 mt-1">
+                <FormatBadge format={top.format} /> · reach{' '}
+                <span className="text-(--cyan) font-semibold">
+                  {formatNumber(top.reach ?? undefined)}
+                </span>
+                {medians.reach && top.reach && (
+                  <span className="ml-1">({(top.reach / medians.reach).toFixed(1)}× median)</span>
+                )}
+              </div>
+              {analysis?.verdict && (
+                <p className="text-sm text-white/90 mt-2 leading-snug">{analysis.verdict}</p>
+              )}
+              {analysis?.suggestion && (
+                <p className="text-xs text-amber-200/80 mt-1">
+                  <span className="font-semibold">Next: </span>
+                  {analysis.suggestion}
+                </p>
               )}
             </div>
-            {analysis?.verdict && (
-              <p className="text-sm text-white/90 mt-2 leading-snug">{analysis.verdict}</p>
-            )}
-            {analysis?.suggestion && (
-              <p className="text-xs text-amber-200/80 mt-1">
-                <span className="font-semibold">Next: </span>
-                {analysis.suggestion}
-              </p>
-            )}
           </div>
-          <div className="shrink-0 flex flex-col gap-2">
-            {analysis?.makeMorePrompt && (
-              <a
-                href={`/smart-posts?preset=${encodeURIComponent(analysis.makeMorePrompt)}`}
-                className="whitespace-nowrap rounded-lg bg-gradient-to-r from-(--violet) to-(--violet-deep) px-3 py-2 text-xs font-medium text-white hover:opacity-90"
-              >
-                Make more like this
-              </a>
-            )}
-          </div>
+          {analysis?.makeMorePrompt && (
+            <a
+              href={`/smart-posts?preset=${encodeURIComponent(analysis.makeMorePrompt)}`}
+              className="w-full sm:w-auto sm:shrink-0 text-center rounded-lg bg-gradient-to-r from-(--violet) to-(--violet-deep) px-3 py-2 text-xs font-medium text-white hover:opacity-90"
+            >
+              Make more like this
+            </a>
+          )}
         </div>
       )}
     </div>
