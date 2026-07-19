@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { ChevronDown } from 'lucide-react';
 import { PerformancePage } from '@/components/performance/performance-page';
 import { CompetitorDashboard } from '@/components/competitor-dashboard';
 import { AnalyzeTabs, readTab } from './analyze-tabs';
@@ -27,11 +28,12 @@ export function AnalyzePage() {
       />
       {brandId && <BrainPanel brandId={brandId} />}
       {latest && <InsightFeed result={latest} />}
-      <details className="group rounded-2xl border border-(--line) bg-(--surface)">
-        <summary className="cursor-pointer list-none px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-(--muted-2) hover:text-(--muted)">
-          Detailed views (legacy)
+      <details open className="group rounded-2xl border border-(--line) bg-(--surface)">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium text-(--txt) hover:bg-white/[0.02]">
+          <span>Detailed analytics</span>
+          <ChevronDown className="h-4 w-4 text-(--muted) transition-transform group-open:rotate-180" />
         </summary>
-        <div className="space-y-6 p-4">
+        <div className="space-y-6 p-4 pt-0">
           <AnalyzeTabs />
           {tab === 'you' && <PerformancePage />}
           {tab === 'competitors' && <CompetitorDashboard />}
