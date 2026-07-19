@@ -1052,12 +1052,27 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     router.push('/autopilot');
   }, [handleComplete, router]);
 
-  return (
-    <div className="fixed inset-0 bg-(--bg)/95 z-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
-        <ProgressDots current={step} total={TOTAL_STEPS} />
+  // Escape dismisses the wizard, same as "Skip for now".
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') void handleComplete();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleComplete]);
 
-        <div className="glass-card rounded-2xl border border-white/5 p-8 relative overflow-hidden">
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-(--bg)/95">
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="w-full max-w-lg">
+          <ProgressDots current={step} total={TOTAL_STEPS} />
+
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Set up your workspace"
+            className="glass-card rounded-2xl border border-white/5 p-8 relative overflow-hidden"
+          >
           {/* Skip for now link */}
           <button
             onClick={handleComplete}
@@ -1106,6 +1121,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               onSetupAutopilot={handleSetupAutopilot}
             />
           )}
+          </div>
         </div>
       </div>
     </div>
