@@ -1,9 +1,15 @@
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
+
 export const metadata = { title: 'Data Deletion | GoViraleza' };
 
 export default function DataDeletionPage() {
   return (
     <div className="min-h-screen bg-(--bg) text-(--muted)">
       <div className="mx-auto max-w-3xl px-6 py-20">
+        <Link href="/" className="mb-8 inline-flex items-center gap-1.5 text-sm text-(--muted) transition-colors hover:text-(--txt)">
+          <ArrowLeft className="h-4 w-4" /> Back to home
+        </Link>
         <h1 className="text-3xl font-bold text-(--txt) mb-2">Data Deletion Instructions</h1>
         <p className="text-sm text-(--muted-2) mb-12">Last updated: April 16, 2026</p>
 

@@ -790,14 +790,14 @@ function MetaSeedBanner({ overrides }: { overrides: MetaOverrides }) {
     chips.push({ label: 'Preset', value: overrides.preset.slice(0, 60) });
 
   return (
-    <div className="mt-4 rounded-lg border border-fuchsia-400/30 bg-fuchsia-500/10 p-3">
+    <div className="mt-4 rounded-lg border border-(--pink)/30 bg-(--pink)/10 p-3">
       <div className="flex items-center gap-2">
-        <Sparkles className="h-3.5 w-3.5 text-fuchsia-300" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-fuchsia-200">
+        <Sparkles className="h-3.5 w-3.5 text-(--pink)" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-(--pink)">
           Seeded from Analytics
         </span>
       </div>
-      <p className="mt-1 text-xs text-white/80">
+      <p className="mt-1 text-xs text-(--muted)">
         These Meta learnings will be merged into your brand insights when you
         generate.
       </p>
@@ -805,9 +805,9 @@ function MetaSeedBanner({ overrides }: { overrides: MetaOverrides }) {
         {chips.map((c) => (
           <span
             key={c.label}
-            className="rounded-full border border-fuchsia-400/30 bg-black/30 px-2 py-0.5 text-[11px] text-fuchsia-100"
+            className="rounded-full border border-(--pink)/30 bg-(--surface-2) px-2 py-0.5 text-[11px] text-(--txt)"
           >
-            <span className="opacity-60">{c.label}:</span> {c.value}
+            <span className="text-(--muted)">{c.label}:</span> {c.value}
           </span>
         ))}
       </div>
