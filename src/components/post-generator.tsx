@@ -159,6 +159,8 @@ export function PostGenerator() {
   const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null);
   const [processedCarouselUrls, setProcessedCarouselUrls] = useState<(string | null)[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const imageSelectorRef = useRef<ImageSourceSelectorHandle>(null);
 
   // Carousel state
@@ -447,7 +449,7 @@ export function PostGenerator() {
         }
       }
     } catch {
-      // Image search failed, user can manually search
+      setGenerateError("Couldn't load an image automatically — search for one below.");
     } finally {
       randomGeneratingRef.current = false;
     }
@@ -790,11 +792,40 @@ export function PostGenerator() {
         }
       }
     } catch {
-      // Image search failed, user can manually search
+      setGenerateError("Couldn't load an image automatically — search for one below.");
     } finally {
       randomGeneratingRef.current = false;
     }
   }, [apiBrands]);
+
+  // Button-facing wrappers: give the async generate flows a visible loading
+  // state (disable + "Generating…"), block double-submits, and surface a
+  // failure the internal try/catches otherwise swallow.
+  const handleGenerateCaption = useCallback(async () => {
+    if (isGenerating) return;
+    setGenerateError(null);
+    setIsGenerating(true);
+    try {
+      await generateCaption();
+    } catch {
+      setGenerateError('Something went wrong while generating. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [isGenerating, generateCaption]);
+
+  const handleRandomGenerate = useCallback(async () => {
+    if (isGenerating) return;
+    setGenerateError(null);
+    setIsGenerating(true);
+    try {
+      await randomGenerate();
+    } catch {
+      setGenerateError('Something went wrong while generating. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [isGenerating, randomGenerate]);
 
   // Auto-reprocess image ONLY when user manually changes overlay settings
   // Uses a generation timestamp to skip reprocessing for 3 seconds after any generation
@@ -853,11 +884,15 @@ export function PostGenerator() {
 
         {/* Random Generator */}
         <Button
-          onClick={randomGenerate}
-          className="cta-violet w-full h-11 text-sm font-semibold active:scale-[0.98] transition-all duration-200"
+          onClick={handleRandomGenerate}
+          disabled={isGenerating}
+          className="cta-violet w-full h-11 text-sm font-semibold active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Random Generator — Viral Post
+          {isGenerating ? 'Generating…' : 'Surprise me'}
         </Button>
+        {generateError && (
+          <p role="alert" className="text-sm text-red-400">{generateError}</p>
+        )}
 
         {/* Brand, Content Type, Logo Position */}
         <div className="glass-card p-5 space-y-4">
@@ -951,11 +986,12 @@ export function PostGenerator() {
                 );
               })()}
               <Button
-                onClick={generateCaption}
+                onClick={handleGenerateCaption}
                 size="sm"
-                className="cta-violet h-8 text-xs font-medium active:scale-[0.98] transition-all duration-200"
+                disabled={isGenerating}
+                className="cta-violet h-8 text-xs font-medium active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Generate
+                {isGenerating ? 'Generating…' : 'Generate'}
               </Button>
             </div>
           </div>
