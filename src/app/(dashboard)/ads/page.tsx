@@ -100,7 +100,7 @@ export default function AdsPage() {
         </p>
         <a
           href="/api/meta/oauth/start"
-          className="mt-4 inline-block rounded-2xl bg-(--violet) px-4 py-2 text-sm font-medium text-white"
+          className="btn-primary mt-4"
         >
           Connect Meta ad account
         </a>

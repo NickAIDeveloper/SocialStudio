@@ -789,7 +789,7 @@ export function BatchGallery() {
           <button
             onClick={() => void generateBatch()}
             disabled={isGenerating}
-            className="px-5 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-(--violet) to-(--violet-deep) hover:from-(--violet-bright) hover:to-(--violet) text-white shadow-lg transition-all disabled:opacity-60 flex items-center gap-2"
+            className="cta-violet disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isGenerating ? (
               <>
