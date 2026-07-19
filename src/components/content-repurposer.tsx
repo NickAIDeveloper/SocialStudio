@@ -161,8 +161,8 @@ export function ContentRepurposer() {
 
               {post.hookText && (
                 <div className="flex items-start gap-2">
-                  <Type className="h-3.5 w-3.5 text-purple-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm font-semibold text-purple-300">{post.hookText}</p>
+                  <Type className="h-3.5 w-3.5 text-(--violet-bright) mt-0.5 flex-shrink-0" />
+                  <p className="text-sm font-semibold text-(--violet-bright)">{post.hookText}</p>
                 </div>
               )}
 

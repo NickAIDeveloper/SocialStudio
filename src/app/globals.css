@@ -238,3 +238,25 @@ body::before {
   background: rgba(255, 255, 255, 0.04); color: var(--txt);
   border: 1px solid var(--line-strong); cursor: pointer;
 }
+
+/* Canonical in-app buttons — codify the dominant hand-rolled rounded-lg violet
+   pattern so every screen shares one primary/secondary. ~44px tall for touch. */
+.btn-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 0.75rem 1.25rem; border-radius: var(--radius);
+  font-size: 14px; font-weight: 500; line-height: 1.25;
+  background: var(--violet); color: #fff; border: none; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-primary:hover { background: var(--violet-bright); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 0.75rem 1.25rem; border-radius: var(--radius);
+  font-size: 14px; font-weight: 500; line-height: 1.25;
+  background: var(--surface-2); color: var(--txt);
+  border: 1px solid var(--line-strong); cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-secondary:hover { background: var(--surface); }
+.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
