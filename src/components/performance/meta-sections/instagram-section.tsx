@@ -396,6 +396,30 @@ export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps
     null
   );
 
+  // Turn raw Meta/IG Graph error strings (e.g. `IG Graph error 500 on
+  // /me/media: {"error":{...}}`) into plain language a user can act on, instead
+  // of dumping the API's technical message into the UI.
+  const friendlyIgError = (raw: string): string => {
+    const s = raw.toLowerCase();
+    if (
+      s.includes('session has expired') ||
+      s.includes('validating access token') ||
+      s.includes('oauthexception') ||
+      s.includes('"code":190')
+    ) {
+      return 'Your Instagram connection has expired. Please reconnect below.';
+    }
+    if (
+      s.includes('graph error') ||
+      s.includes('/me/media') ||
+      s.includes('unknown error') ||
+      /http 5\d\d/.test(s)
+    ) {
+      return "Couldn't load Instagram data right now. Please try again in a moment, or reconnect below.";
+    }
+    return raw;
+  };
+
   // Controlled (prop-driven) vs uncontrolled (standalone) selection.
   const isControlled = igUserId !== undefined;
   const selectedIg = isControlled ? (igUserId ?? null) : internalSelectedIg;
@@ -422,7 +446,7 @@ export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps
     } catch (err) {
       setIgMessage({
         type: 'error',
-        text: err instanceof Error ? err.message : 'Failed to load IG accounts',
+        text: friendlyIgError(err instanceof Error ? err.message : 'Failed to load IG accounts'),
       });
     } finally {
       setLoading(false);
@@ -443,7 +467,7 @@ export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps
     } catch (err) {
       setIgMessage({
         type: 'error',
-        text: err instanceof Error ? err.message : 'Failed to load insights',
+        text: friendlyIgError(err instanceof Error ? err.message : 'Failed to load insights'),
       });
     } finally {
       setInsightsLoading(false);
@@ -454,7 +478,7 @@ export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps
     const connected = searchParams.get('igConnected');
     const err = searchParams.get('igError');
     if (connected) setIgMessage({ type: 'success', text: `Connected @${connected}` });
-    else if (err) setIgMessage({ type: 'error', text: err });
+    else if (err) setIgMessage({ type: 'error', text: friendlyIgError(err) });
     fetchAccounts();
   }, [fetchAccounts, searchParams]);
 
@@ -478,7 +502,7 @@ export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps
     } catch (err) {
       setIgMessage({
         type: 'error',
-        text: err instanceof Error ? err.message : 'Disconnect failed',
+        text: friendlyIgError(err instanceof Error ? err.message : 'Disconnect failed'),
       });
     }
   }
