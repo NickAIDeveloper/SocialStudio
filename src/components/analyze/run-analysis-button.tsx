@@ -56,20 +56,22 @@ export function RunAnalysisButton({ brandId, igUserId, onComplete }: RunAnalysis
 
   return (
     <div className="rounded-2xl border border-(--violet-24) bg-gradient-to-br from-(--violet-12) to-(--surface) p-5">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-(--violet-12)">
-          <Sparkles className="h-5 w-5 text-(--violet-bright)" />
-        </div>
-        <div className="flex-1">
-          <h2 className="text-base font-semibold text-(--txt)">Run Full Analysis</h2>
-          <p className="mt-0.5 text-sm text-(--muted)">
-            One-tap refresh of your insights, deep profile, competitor benchmarks, and health delta.
-          </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        <div className="flex flex-1 items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-(--violet-12)">
+            <Sparkles className="h-5 w-5 text-(--violet-bright)" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-base font-semibold text-(--txt)">Run Full Analysis</h2>
+            <p className="mt-0.5 text-sm text-(--muted)">
+              One-tap refresh of your insights, deep profile, competitor benchmarks, and health delta.
+            </p>
+          </div>
         </div>
         <button
           onClick={() => void handleClick()}
           disabled={running}
-          className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-(--violet) px-4 py-2 text-sm font-semibold text-white hover:bg-(--violet-bright) disabled:opacity-60"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-(--violet) px-4 py-2 text-sm font-semibold text-white hover:bg-(--violet-bright) disabled:opacity-60 sm:w-auto sm:shrink-0"
         >
           {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {running ? 'Running...' : 'Run Full Analysis'}

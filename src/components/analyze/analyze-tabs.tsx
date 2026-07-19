@@ -41,11 +41,12 @@ export function AnalyzeTabs() {
   );
 
   return (
-    <div
-      role="tablist"
-      aria-label="Analyze sections"
-      className="inline-flex items-center gap-1 rounded-xl border border-(--line) bg-(--surface) p-1"
-    >
+    <div className="overflow-x-auto">
+      <div
+        role="tablist"
+        aria-label="Analyze sections"
+        className="inline-flex w-max items-center gap-1 rounded-xl border border-(--line) bg-(--surface) p-1"
+      >
       {TABS.map((tab) => {
         const Icon = tab.icon;
         const isActive = active === tab.id;
@@ -67,6 +68,7 @@ export function AnalyzeTabs() {
           </button>
         );
       })}
+      </div>
     </div>
   );
 }
