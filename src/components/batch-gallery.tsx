@@ -737,7 +737,7 @@ export function BatchGallery() {
             value={batchContentType}
             onChange={(e) => { setBatchContentType(e.target.value as ContentType | 'mixed'); batchContentTypeRef.current = e.target.value as ContentType | 'mixed'; }}
             disabled={isGenerating}
-            className="h-9 rounded-lg bg-(--surface-2) border border-(--line) text-(--txt) text-sm px-3 focus:outline-none focus:ring-1 focus:ring-(--violet) disabled:opacity-50"
+            className="h-9 select-field"
           >
             <option value="mixed">Mixed Content</option>
             <option value="promo">Promo</option>
@@ -751,7 +751,7 @@ export function BatchGallery() {
             value={batchEffect}
             onChange={(e) => { setBatchEffect(e.target.value as ImageEffect | 'random'); batchEffectRef.current = e.target.value as ImageEffect | 'random'; }}
             disabled={isGenerating}
-            className="h-9 rounded-lg bg-(--surface-2) border border-(--line) text-(--txt) text-sm px-3 focus:outline-none focus:ring-1 focus:ring-(--violet) disabled:opacity-50"
+            className="h-9 select-field"
           >
             <option value="random">Random Effects</option>
             <option value="none">Original</option>

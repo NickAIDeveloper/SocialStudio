@@ -260,3 +260,17 @@ body::before {
 }
 .btn-secondary:hover { background: var(--surface); }
 .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Canonical native <select> — one look across the app (was a spread of divergent
+   radii, bg tokens, off-token white/black, and focus treatments). Callers keep
+   layout utilities (w-full, flex-1, compact h-9) alongside this class. */
+.select-field {
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2); color: var(--txt);
+  padding: 0.5rem 0.75rem; font-size: 14px; line-height: 1.25;
+  cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.select-field:hover { border-color: var(--violet); }
+.select-field:focus { outline: none; border-color: var(--violet); box-shadow: 0 0 0 1px var(--violet); }
+.select-field:disabled { opacity: 0.5; cursor: not-allowed; }

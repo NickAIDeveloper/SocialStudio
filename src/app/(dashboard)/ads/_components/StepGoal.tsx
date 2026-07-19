@@ -102,7 +102,7 @@ export function StepGoal(props: {
       <div>
         <label className="mb-1 block text-sm font-medium text-(--muted)">Brand</label>
         <select value={props.brandId} onChange={(e) => props.setBrandId(e.target.value)}
-          className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)">
+          className="w-full select-field">
           {props.brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
       </div>
@@ -146,7 +146,7 @@ export function StepGoal(props: {
             <select
               value={applicationId}
               onChange={(e) => handleAppSelect(e.target.value)}
-              className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)"
+              className="w-full select-field"
             >
               <option value="">Select an app…</option>
               {apps.map((a) => (

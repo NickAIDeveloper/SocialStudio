@@ -114,7 +114,7 @@ export function ContentRepurposer() {
             value={selectedBrandSlug}
             onChange={(e) => setSelectedBrandSlug(e.target.value)}
             disabled={loading}
-            className="rounded-lg border border-(--line) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) focus:outline-none focus:ring-2 focus:ring-(--violet) disabled:opacity-50"
+            className="select-field"
           >
             {brands.map((b) => (
               <option key={b.id} value={b.slug}>

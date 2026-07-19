@@ -155,7 +155,7 @@ export function CompareSection() {
           id="compare-competitor"
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          className="rounded-lg border border-(--line) bg-(--bg) px-3 py-1.5 text-sm text-(--txt) focus:border-(--violet) focus:outline-none"
+          className="select-field"
         >
           {competitors.map((c) => (
             <option key={c.id} value={c.id}>@{c.handle}</option>

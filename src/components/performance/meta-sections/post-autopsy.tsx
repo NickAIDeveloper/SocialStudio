@@ -67,7 +67,7 @@ export function PostAutopsy({
             setSelectedId(e.target.value);
             setResult(null);
           }}
-          className="flex-1 rounded-lg bg-black/30 border border-white/10 px-3 py-1.5 text-sm text-white"
+          className="flex-1 select-field"
         >
           {posts.map((p) => (
             <option key={p.id} value={p.id}>

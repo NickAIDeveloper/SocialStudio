@@ -162,7 +162,7 @@ export function StepAudience(props: {
           <select
             value=""
             onChange={(e) => { addCountry(e.target.value); e.currentTarget.value = ''; }}
-            className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)"
+            className="w-full select-field"
           >
             <option value="">Add a country…</option>
             {COUNTRIES_SORTED.map((c) => (
@@ -242,7 +242,7 @@ export function StepAudience(props: {
       <div className="grid grid-cols-3 gap-3">
         <Labeled label="Gender">
           <select value={targeting.gender} onChange={(e) => set('gender', e.target.value as AdTargeting['gender'])}
-            className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)">
+            className="w-full select-field">
             <option value="all">All</option><option value="male">Male</option><option value="female">Female</option>
           </select>
         </Labeled>

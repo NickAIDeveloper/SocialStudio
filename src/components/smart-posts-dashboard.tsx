@@ -458,7 +458,7 @@ export function SmartPostsDashboard() {
           <select
             value={brandId}
             onChange={(e) => setBrand(e.target.value || null)}
-            className="rounded-lg border border-(--line) bg-(--surface-2) px-3 py-1.5 text-sm text-(--txt) focus:border-(--violet) focus:outline-none"
+            className="select-field"
           >
             {brandList.length === 0 && <option value="">No brands</option>}
             {brandList.map((b) => {

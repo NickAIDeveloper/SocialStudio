@@ -61,14 +61,14 @@ export function StepReview(props: {
         <div>
           <label className="mb-1 block text-sm font-medium text-(--muted)">Ad account</label>
           <select value={adAccountId} onChange={(e) => setAdAccountId(e.target.value)}
-            className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)">
+            className="w-full select-field">
             {props.adAccounts.map((a) => <option key={a.id} value={a.id}>{a.name ?? a.id}{a.currency ? ` (${a.currency})` : ''}</option>)}
           </select>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-(--muted)">Facebook Page</label>
           <select value={pageId} onChange={(e) => setPageId(e.target.value)}
-            className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)">
+            className="w-full select-field">
             {props.pages.map((p) => <option key={p.id} value={p.id}>{p.name ?? p.id}</option>)}
           </select>
         </div>
