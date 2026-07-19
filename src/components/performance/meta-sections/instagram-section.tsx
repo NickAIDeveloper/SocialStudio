@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { friendlyIgError } from '@/lib/meta/friendly-error';
 import {
   computeBenchmarks,
   computeFormatPerformance,
@@ -396,29 +397,6 @@ export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps
     null
   );
 
-  // Turn raw Meta/IG Graph error strings (e.g. `IG Graph error 500 on
-  // /me/media: {"error":{...}}`) into plain language a user can act on, instead
-  // of dumping the API's technical message into the UI.
-  const friendlyIgError = (raw: string): string => {
-    const s = raw.toLowerCase();
-    if (
-      s.includes('session has expired') ||
-      s.includes('validating access token') ||
-      s.includes('oauthexception') ||
-      s.includes('"code":190')
-    ) {
-      return 'Your Instagram connection has expired. Please reconnect below.';
-    }
-    if (
-      s.includes('graph error') ||
-      s.includes('/me/media') ||
-      s.includes('unknown error') ||
-      /http 5\d\d/.test(s)
-    ) {
-      return "Couldn't load Instagram data right now. Please try again in a moment, or reconnect below.";
-    }
-    return raw;
-  };
 
   // Controlled (prop-driven) vs uncontrolled (standalone) selection.
   const isControlled = igUserId !== undefined;
