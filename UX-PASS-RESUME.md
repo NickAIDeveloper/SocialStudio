@@ -77,12 +77,30 @@ compare-section / deep-profile data branches render error/empty states on the pr
 fixed layouts — reconnect IG to pixel-check them. Fixes are pure responsive Tailwind classes,
 build-clean.
 
-## OPEN / REMAINING (audit backlog, non-blocking)
+## Audit backlog — DONE (commits `0740caa`, `0926ba0`, 2026-07-19)
 
-- **C2 full rollout**: migrate the ~remaining inline buttons onto `.btn-primary`/`.btn-secondary`;
-  eventually retire the barely-used `ui/*` primitives.
-- **C8**: de-dupe the two `insight-card` components.
-- Native `<select>` → consistent styling.
+- **C8 — insight-card dedupe** ✓ The two files weren't real duplicates (a data-viz card vs a
+  selectable learnings card). `src/components/insight-card.tsx` (data-viz `InsightCard`) had **zero
+  JSX usages** — every remaining `InsightCard` reference is the *type* from `@/lib/health-score`.
+  Deleted the dead file; `InsightCardView` (`analyze/insights/insight-card.tsx`) stays.
+- **Retire barely-used `ui/*` primitives** ✓ Deleted `ui/avatar`, `ui/sheet`, `ui/tabs` (0 consumers,
+  no cross-imports). Remaining `ui/*` all have ≥1 consumer.
+- **Native `<select>` consistency** ✓ Added a canonical `.select-field` to `globals.css` and migrated
+  all 21 native selects (fixing off-token `bg-black/30 border-white/10 text-white` in meta-hub +
+  post-autopsy; converging divergent radii/padding/focus). Layout utilities preserved per instance.
+
+### Deliberate non-goal: C2 blanket button migration
+
+The audit's "migrate the ~remaining inline buttons onto `.btn-primary`/`.btn-secondary`" was **not**
+done as a blanket sweep, on purpose. The *visual* inconsistency C2 targeted is already resolved
+(prior commits converged the divergent primaries + off-token purple/teal; a fresh scan finds **no**
+raw-color buttons left). What remains is pure DRY refactor with real regression risk — many buttons
+are intentionally bespoke (gradients, compact `h-9` rows next to `h-9` inputs, icon layouts) and
+`.btn-primary`'s ~44px height would break those rows. Left as optional future hygiene, not a
+consistency defect. `.btn-primary`/`.btn-secondary` remain available for new buttons.
+
+**The UX consistency pass (PR #27) is now complete** — all 8 Criticals cleared, mobile overflow +
+squeeze bug classes fixed, design-system cleanup done. Ready to merge.
 
 ### Immediate next fix (hero-card.tsx, already read — apply this)
 
