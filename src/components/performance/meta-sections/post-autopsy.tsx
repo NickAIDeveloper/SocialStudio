@@ -51,7 +51,7 @@ export function PostAutopsy({
         : 'text-amber-300';
 
   return (
-    <div className="rounded-2xl border border-white/5 bg-black/20 p-4 space-y-3">
+    <div className="rounded-2xl border border-white/5 bg-(--surface-2) p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h4 className="text-sm font-semibold text-white">Post autopsy</h4>
@@ -67,7 +67,7 @@ export function PostAutopsy({
             setSelectedId(e.target.value);
             setResult(null);
           }}
-          className="flex-1 rounded-lg bg-black/30 border border-white/10 px-3 py-1.5 text-sm text-white"
+          className="flex-1 select-field"
         >
           {posts.map((p) => (
             <option key={p.id} value={p.id}>
@@ -85,7 +85,7 @@ export function PostAutopsy({
       </div>
       {error && <div className="text-xs text-(--pink)/80">{error}</div>}
       {result && (
-        <div className="rounded-lg border border-white/10 bg-black/20 p-3 space-y-2">
+        <div className="rounded-lg border border-white/10 bg-(--surface-2) p-3 space-y-2">
           {result.verdict && (
             <div className={`text-[11px] uppercase tracking-wider font-semibold ${verdictColor}`}>
               Verdict: {result.verdict}

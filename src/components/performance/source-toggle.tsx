@@ -50,7 +50,7 @@ export function SourceToggle({
           value === 'scrape' ? activeBtn : inactiveBtn
         }`}
       >
-        Scrape
+        Public data
       </button>
     </div>
   );

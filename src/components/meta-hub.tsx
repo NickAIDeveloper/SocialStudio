@@ -339,7 +339,7 @@ function AdAccountSelector({
       <select
         value={selectedId ?? ''}
         onChange={(e) => onSelect(e.target.value)}
-        className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-white"
+        className="w-full select-field"
       >
         {adAccounts.map((a) => (
           <option key={a.id} value={a.id}>
@@ -448,7 +448,7 @@ function LabeledSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg bg-black/30 border border-white/10 px-3 py-1.5 text-sm text-white normal-case tracking-normal"
+        className="select-field normal-case tracking-normal"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>

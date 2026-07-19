@@ -211,7 +211,7 @@ export function BrandVoiceSettings() {
           <select
             value={tone}
             onChange={(e) => setTone(e.target.value)}
-            className="w-full rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
+            className="w-full select-field"
           >
             {TONE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -226,7 +226,7 @@ export function BrandVoiceSettings() {
           <select
             value={style}
             onChange={(e) => setStyle(e.target.value)}
-            className="w-full rounded-lg border border-(--line-strong) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) focus:outline-none focus:ring-2 focus:ring-(--violet)/50"
+            className="w-full select-field"
           >
             {STYLE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>

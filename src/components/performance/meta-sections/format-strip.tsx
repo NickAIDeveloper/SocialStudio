@@ -8,10 +8,10 @@ export function FormatStrip({ stats }: { stats: FormatStats[] }) {
   if (!hasData) return null;
   const top = stats.find((s) => s.sampleSize > 0);
   return (
-    <div className="rounded-2xl border border-white/5 bg-black/20 p-4 space-y-3">
+    <div className="rounded-2xl border border-white/5 bg-(--surface-2) p-4 space-y-3">
       <div className="flex items-baseline justify-between">
         <h4 className="text-sm font-semibold text-white">Format performance</h4>
-        <span className="text-[11px] text-white/40">median reach per post</span>
+        <span className="text-[11px] text-(--muted)">median reach per post</span>
       </div>
       <div className="grid grid-cols-3 gap-3">
         {stats.map((s) => (
@@ -22,12 +22,12 @@ export function FormatStrip({ stats }: { stats: FormatStats[] }) {
                 ? 'border-white/5 bg-black/10 opacity-60'
                 : s === top
                   ? 'border-(--success)/30 bg-(--success)/5'
-                  : 'border-white/10 bg-black/20'
+                  : 'border-white/10 bg-(--surface-2)'
             }`}
           >
             <div className="flex items-center justify-between">
               <FormatBadge format={s.format} />
-              <span className="text-[10px] text-white/40">n = {s.sampleSize}</span>
+              <span className="text-[10px] text-(--muted)">n = {s.sampleSize}</span>
             </div>
             <div className="mt-2 text-xl font-semibold text-white tabular-nums">
               {formatNumber(s.medianReach ?? undefined)}

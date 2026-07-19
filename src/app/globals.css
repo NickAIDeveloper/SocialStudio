@@ -94,7 +94,10 @@
   --line-strong: rgba(255, 255, 255, 0.12);
   --txt: #F7F7F8;
   --muted: #8A8F98;
-  --muted-2: #6B7178;
+  /* Lifted from #6B7178 (~3.5:1) so small secondary text clears WCAG 4.5:1 on
+     --bg while staying a step below --muted. Reserve for genuinely secondary
+     text; use --muted for primary body copy. */
+  --muted-2: #808690;
   --violet: #8B5CF6;
   --violet-bright: #A78BFA;
   --violet-deep: #6D28D9;
@@ -154,8 +157,24 @@
     background: rgba(139, 92, 246, 0.3);
   }
   *:focus-visible {
-    @apply outline-none ring-2 ring-violet-500/50 ring-offset-2;
+    @apply outline-none ring-2 ring-ring/50 ring-offset-2;
     --tw-ring-offset-color: var(--bg);
+  }
+}
+
+/* Respect users who ask the OS to minimize motion: neutralize animations,
+   transitions, and smooth scrolling app-wide. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -174,6 +193,16 @@ body::before {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 16px;
+}
+/* Frosted translucent card. Previously referenced on ~9 components but never
+   defined, so those cards rendered with no background. Tokenized bg + border so
+   the whole app's "glass" cards share one treatment. */
+.glass-card {
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 .surface-glow { position: relative; overflow: hidden; }
 .surface-glow::before {
@@ -209,3 +238,39 @@ body::before {
   background: rgba(255, 255, 255, 0.04); color: var(--txt);
   border: 1px solid var(--line-strong); cursor: pointer;
 }
+
+/* Canonical in-app buttons — codify the dominant hand-rolled rounded-lg violet
+   pattern so every screen shares one primary/secondary. ~44px tall for touch. */
+.btn-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 0.75rem 1.25rem; border-radius: var(--radius);
+  font-size: 14px; font-weight: 500; line-height: 1.25;
+  background: var(--violet); color: #fff; border: none; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-primary:hover { background: var(--violet-bright); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 0.75rem 1.25rem; border-radius: var(--radius);
+  font-size: 14px; font-weight: 500; line-height: 1.25;
+  background: var(--surface-2); color: var(--txt);
+  border: 1px solid var(--line-strong); cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-secondary:hover { background: var(--surface); }
+.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Canonical native <select> — one look across the app (was a spread of divergent
+   radii, bg tokens, off-token white/black, and focus treatments). Callers keep
+   layout utilities (w-full, flex-1, compact h-9) alongside this class. */
+.select-field {
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2); color: var(--txt);
+  padding: 0.5rem 0.75rem; font-size: 14px; line-height: 1.25;
+  cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.select-field:hover { border-color: var(--violet); }
+.select-field:focus { outline: none; border-color: var(--violet); box-shadow: 0 0 0 1px var(--violet); }
+.select-field:disabled { opacity: 0.5; cursor: not-allowed; }

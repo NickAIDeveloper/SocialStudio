@@ -43,7 +43,7 @@ export function BrainPanel({ brandId }: Props) {
         <button onClick={runNow} disabled={running} className="px-3 py-1.5 rounded bg-(--violet) text-white text-sm disabled:opacity-50">
           {running ? 'Running…' : 'Run now'}
         </button>
-        {error && <div className="text-xs text-red-600 mt-2">{error}</div>}
+        {error && <div className="text-xs text-red-400 mt-2">{error}</div>}
       </div>
     );
   }
@@ -52,20 +52,24 @@ export function BrainPanel({ brandId }: Props) {
   return (
     <div className="border border-(--line) rounded-2xl p-6 bg-(--surface)">
       <div className="flex items-center justify-between mb-3">
-        <div className="font-medium text-(--txt)">🧠 Brand Brain · v{data.brain.briefVersion}</div>
+        <div className="font-medium text-(--txt)">🧠 Brand Brain</div>
         <button onClick={runNow} disabled={running} className="text-sm px-3 py-1 rounded border border-(--line-strong) text-(--txt) disabled:opacity-50">
           {running ? 'Running…' : 'Run now'}
         </button>
       </div>
-      <div className="text-xs text-(--muted-2) mb-4">
-        Sources: {(['ig', 'ads', 'competitor_account'] as const).map((s) => (
-          <span key={s} className="mr-3">
-            {sources[s] === 'ok' ? '✓' : sources[s]?.startsWith('skipped') ? '—' : '⚠'} {s}
+      <div className="text-xs text-(--muted) mb-4">
+        Sources: {([
+          ['ig', 'Instagram'],
+          ['ads', 'Your ads'],
+          ['competitor_account', 'Competitors'],
+        ] as const).map(([key, label]) => (
+          <span key={key} className="mr-3">
+            {sources[key] === 'ok' ? '✓' : sources[key]?.startsWith('skipped') ? '—' : '⚠'} {label}
           </span>
         ))}
       </div>
       <pre className="whitespace-pre-wrap text-sm font-sans">{data.brain.briefMd}</pre>
-      {error && <div className="text-xs text-red-600 mt-2">{error}</div>}
+      {error && <div className="text-xs text-red-400 mt-2">{error}</div>}
     </div>
   );
 }

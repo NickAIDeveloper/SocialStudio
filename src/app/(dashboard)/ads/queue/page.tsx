@@ -84,7 +84,7 @@ export default function QueuedAdsPage() {
           <p className="text-sm text-(--muted)">No ads yet — create one in the builder.</p>
           <a
             href="/ads"
-            className="mt-4 inline-block rounded-2xl bg-(--violet) px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-(--violet-bright)"
+            className="btn-primary mt-4"
           >
             Create an ad
           </a>

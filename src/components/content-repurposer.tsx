@@ -114,7 +114,7 @@ export function ContentRepurposer() {
             value={selectedBrandSlug}
             onChange={(e) => setSelectedBrandSlug(e.target.value)}
             disabled={loading}
-            className="rounded-lg border border-(--line) bg-(--surface-2) px-4 py-2.5 text-sm text-(--txt) focus:outline-none focus:ring-2 focus:ring-(--violet) disabled:opacity-50"
+            className="select-field"
           >
             {brands.map((b) => (
               <option key={b.id} value={b.slug}>
@@ -161,8 +161,8 @@ export function ContentRepurposer() {
 
               {post.hookText && (
                 <div className="flex items-start gap-2">
-                  <Type className="h-3.5 w-3.5 text-purple-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm font-semibold text-purple-300">{post.hookText}</p>
+                  <Type className="h-3.5 w-3.5 text-(--violet-bright) mt-0.5 flex-shrink-0" />
+                  <p className="text-sm font-semibold text-(--violet-bright)">{post.hookText}</p>
                 </div>
               )}
 

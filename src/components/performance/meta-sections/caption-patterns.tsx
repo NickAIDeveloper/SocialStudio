@@ -51,7 +51,7 @@ export function CaptionPatterns({
   }
 
   return (
-    <div className="rounded-2xl border border-white/5 bg-black/20 p-4 space-y-3">
+    <div className="rounded-2xl border border-white/5 bg-(--surface-2) p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <h4 className="text-sm font-semibold text-white">Caption patterns</h4>
@@ -73,7 +73,7 @@ export function CaptionPatterns({
       {patterns && patterns.length > 0 && (
         <ul className="space-y-2">
           {patterns.map((p, i) => (
-            <li key={i} className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <li key={i} className="rounded-lg border border-white/10 bg-(--surface-2) p-3">
               <div className="text-sm font-semibold text-white">{p.label}</div>
               <div className="text-xs text-white/60 mt-1 italic">{p.evidence}</div>
               <div className="text-xs text-(--violet-bright) mt-1">→ {p.howToUse}</div>

@@ -36,7 +36,7 @@ export function BrandSelector({ value, onChange }: BrandSelectorProps) {
         disabled={loading}
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value || null)}
-        className="rounded-lg border border-(--line) bg-(--bg) px-3 py-1.5 text-sm text-(--txt) focus:border-(--violet) focus:outline-none disabled:opacity-50"
+        className="select-field"
       >
         <option value="">{loading ? 'Loading...' : brands.length === 0 ? 'No brands' : 'All brands'}</option>
         {brands.map((b) => (

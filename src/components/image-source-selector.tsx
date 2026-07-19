@@ -203,7 +203,7 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
             onClick={handleGenerate}
             disabled={isLoading || !aiPrompt.trim()}
             size="sm"
-            className="bg-(--violet) hover:bg-(--violet-deep) text-white h-9 px-4 text-sm"
+            className="bg-(--violet) hover:bg-(--violet-bright) text-white h-9 px-4 text-sm"
           >
             {isLoading ? 'Generating...' : 'Generate'}
           </Button>
@@ -223,7 +223,7 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
             onClick={() => handleSearch()}
             disabled={isLoading || !searchQuery.trim()}
             size="sm"
-            className="bg-(--violet) hover:bg-(--violet-deep) text-white h-9 px-4 shrink-0 text-sm"
+            className="bg-(--violet) hover:bg-(--violet-bright) text-white h-9 px-4 shrink-0 text-sm"
           >
             {isLoading ? 'Searching...' : 'Search'}
           </Button>

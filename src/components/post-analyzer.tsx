@@ -49,8 +49,8 @@ export function PostAnalyzer() {
   return (
     <div className="rounded-2xl border border-(--line) bg-(--surface) p-5 space-y-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
-          <Sparkles className="h-4 w-4 text-purple-400" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-(--violet)/10">
+          <Sparkles className="h-4 w-4 text-(--violet-bright)" />
         </div>
         <div>
           <h3 className="text-sm font-semibold text-(--txt) uppercase tracking-wider">
@@ -75,7 +75,7 @@ export function PostAnalyzer() {
         <button
           onClick={() => void handleAnalyze()}
           disabled={loading || !url.trim()}
-          className="flex items-center gap-2 rounded-lg bg-purple-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-primary"
         >
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -135,9 +135,9 @@ export function PostAnalyzer() {
           </div>
 
           {/* AI Analysis */}
-          <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-4 space-y-2">
+          <div className="rounded-lg border border-(--violet-24) bg-(--violet-08) p-4 space-y-2">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-purple-400" />
+              <Sparkles className="h-4 w-4 text-(--violet-bright)" />
               <h4 className="text-sm font-semibold text-(--txt)">AI Analysis</h4>
             </div>
             <div className="text-sm text-(--muted) leading-relaxed whitespace-pre-line">

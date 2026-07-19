@@ -56,6 +56,9 @@ function ProviderSection({
   };
 
   const handleDisconnect = async () => {
+    if (!window.confirm(`Disconnect ${label}? You'll need to re-enter your API key to reconnect.`)) {
+      return;
+    }
     setLoading(true);
     setMessage(null);
 

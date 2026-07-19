@@ -90,7 +90,7 @@ function BufferChannelPicker({ brandId, brandHint }: { brandId: string; brandHin
           const c = data.channels.find((x) => x.id === e.target.value);
           if (c) pick({ id: c.id, name: `${c.organizationName} · ${c.name} (${c.service})`, organizationId: c.organizationId });
         }}
-        className="w-full rounded-lg border border-(--line) bg-(--bg) px-3 py-1.5 text-sm text-(--txt) focus:border-(--violet) focus:outline-none disabled:opacity-50"
+        className="w-full select-field"
       >
         <option value="" disabled>— pick a channel —</option>
         {data.channels.map((c) => (
@@ -235,6 +235,8 @@ export function AutopilotCard({ brandId, brandName }: Props) {
           <label className="relative inline-flex items-center cursor-pointer">
             <input
               type="checkbox"
+              role="switch"
+              aria-label="Enable autopilot"
               className="sr-only peer"
               checked={s.enabled}
               onChange={(e) => patch({ enabled: e.target.checked })}
@@ -259,7 +261,7 @@ export function AutopilotCard({ brandId, brandName }: Props) {
             value={s.frequency}
             disabled={!s.enabled || saving}
             onChange={(e) => patch({ frequency: e.target.value as Settings['frequency'] })}
-            className="w-full rounded-lg border border-(--line) bg-(--bg) px-3 py-1.5 text-sm text-(--txt) focus:border-(--violet) focus:outline-none disabled:opacity-50"
+            className="w-full select-field"
           >
             {(Object.keys(FREQ_LABELS) as Settings['frequency'][]).map((k) => (
               <option key={k} value={k}>{FREQ_LABELS[k]}</option>
@@ -272,7 +274,7 @@ export function AutopilotCard({ brandId, brandName }: Props) {
             value={s.mode}
             disabled={!s.enabled || saving}
             onChange={(e) => patch({ mode: e.target.value as Settings['mode'] })}
-            className="w-full rounded-lg border border-(--line) bg-(--bg) px-3 py-1.5 text-sm text-(--txt) focus:border-(--violet) focus:outline-none disabled:opacity-50"
+            className="w-full select-field"
           >
             <option value="queue">Queue drafts (review before publish)</option>
             <option value="auto">Full auto (schedule directly to Buffer)</option>

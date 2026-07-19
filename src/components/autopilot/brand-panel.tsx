@@ -514,8 +514,17 @@ export function BrandPanel({ brandId, brandName }: { brandId: string; brandName:
   if (!data) {
     return (
       <div className="animate-pulse rounded-2xl border border-(--line) bg-(--surface)/40 p-5">
-        <div className="h-4 w-32 rounded bg-(--surface-2)" />
-        <div className="mt-3 h-3 w-48 rounded bg-(--surface-2)/60" />
+        <div className="flex items-center gap-3">
+          <div className="h-2.5 w-2.5 rounded-full bg-(--surface-2)" />
+          <div className="space-y-2">
+            <div className="h-4 w-32 rounded bg-(--surface-2)" />
+            <div className="h-3 w-24 rounded bg-(--surface-2)/60" />
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <div className="h-10 rounded-lg bg-(--surface-2)/50" />
+          <div className="h-10 rounded-lg bg-(--surface-2)/50" />
+        </div>
       </div>
     );
   }

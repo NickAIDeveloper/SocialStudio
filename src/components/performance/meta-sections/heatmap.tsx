@@ -17,10 +17,10 @@ export function Heatmap({
   const hourLabels = Array.from({ length: 24 }, (_, h) => h);
 
   return (
-    <div className="rounded-xl border border-white/5 bg-black/20 p-4 space-y-3">
+    <div className="rounded-xl border border-white/5 bg-(--surface-2) p-4 space-y-3">
       <div className="flex items-baseline justify-between">
         <h4 className="text-sm font-semibold text-white">Best post times</h4>
-        <span className="text-[11px] text-white/40">engagement heatmap · your local time</span>
+        <span className="text-[11px] text-(--muted)">engagement heatmap · your local time</span>
       </div>
       <div className="overflow-x-auto">
         <table className="text-[10px] border-separate border-spacing-[2px]">
@@ -28,7 +28,7 @@ export function Heatmap({
             <tr>
               <th className="w-8" />
               {hourLabels.map((h) => (
-                <th key={h} className="w-[14px] font-normal text-white/40 text-center">
+                <th key={h} className="w-[14px] font-normal text-(--muted) text-center">
                   {h % 3 === 0 ? shortHour(h) : ''}
                 </th>
               ))}

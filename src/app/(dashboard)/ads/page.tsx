@@ -100,7 +100,7 @@ export default function AdsPage() {
         </p>
         <a
           href="/api/meta/oauth/start"
-          className="mt-4 inline-block rounded-2xl bg-(--violet) px-4 py-2 text-sm font-medium text-white"
+          className="btn-primary mt-4"
         >
           Connect Meta ad account
         </a>
@@ -110,13 +110,13 @@ export default function AdsPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2 overflow-x-auto">
           {STEPS.map((s, i) => (
-            <div key={s} className="flex items-center gap-2">
-              <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${i <= step ? 'bg-(--violet) text-white' : 'bg-(--surface-2) text-(--muted)'}`}>{i + 1}</span>
-              <span className={`text-sm ${i === step ? 'text-(--txt)' : 'text-(--muted-2)'}`}>{s}</span>
-              {i < STEPS.length - 1 && <span className="mx-1 h-px w-8 bg-(--line-strong)" />}
+            <div key={s} className="flex shrink-0 items-center gap-2">
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${i <= step ? 'bg-(--violet) text-white' : 'bg-(--surface-2) text-(--muted)'}`}>{i + 1}</span>
+              <span className={`text-sm ${i === step ? 'text-(--txt)' : 'text-(--muted-2) hidden sm:inline'}`}>{s}</span>
+              {i < STEPS.length - 1 && <span className="mx-1 h-px w-4 shrink-0 bg-(--line-strong) sm:w-8" />}
             </div>
           ))}
         </div>

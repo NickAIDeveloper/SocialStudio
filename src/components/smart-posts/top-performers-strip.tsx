@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
+import { friendlyIgError } from '@/lib/meta/friendly-error';
 
 interface IgInsightRow {
   name: string;
@@ -104,7 +105,7 @@ export function TopPerformersStrip({ igUserId }: { igUserId: string }) {
   if (error) {
     return (
       <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 text-xs text-rose-200">
-        Couldn&apos;t load top performers: {error}
+        {friendlyIgError(error)}
       </div>
     );
   }

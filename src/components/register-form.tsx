@@ -61,7 +61,9 @@ export function RegisterForm() {
   return (
     <div className="w-full max-w-md">
       <div className="mb-8 text-center">
-        <Image src="/logo-goviraleza.png" alt="GoViraleza" width={52} height={36} className="mx-auto mb-2 rounded-lg" />
+        <Link href="/" className="inline-block" aria-label="GoViraleza home">
+          <Image src="/logo-goviraleza.png" alt="GoViraleza" width={52} height={36} className="mx-auto mb-2 rounded-lg" />
+        </Link>
         <h1 className="text-2xl font-bold text-(--txt)">Create an account</h1>
         <p className="mt-1 text-sm text-(--muted)">
           Get started with GoViraleza
@@ -73,7 +75,7 @@ export function RegisterForm() {
         className="surface-card rounded-2xl p-6 backdrop-blur-sm"
       >
         {error && (
-          <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <div role="alert" className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
             {error}
           </div>
         )}
@@ -87,7 +89,9 @@ export function RegisterForm() {
           </label>
           <input
             id="name"
+            name="name"
             type="text"
+            autoComplete="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
@@ -105,7 +109,9 @@ export function RegisterForm() {
           </label>
           <input
             id="email"
+            name="email"
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -123,19 +129,26 @@ export function RegisterForm() {
           </label>
           <input
             id="password"
+            name="password"
             type="password"
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            minLength={8}
+            aria-describedby="password-hint"
             placeholder="At least 8 characters"
             className="w-full rounded-lg border border-(--line) bg-(--surface-2) px-3 py-2 text-sm text-(--txt) placeholder-(--muted-2) outline-none transition-colors focus:border-(--violet) focus:ring-2 focus:ring-(--violet-24)"
           />
+          <p id="password-hint" className="mt-1.5 text-xs text-(--muted)">
+            Use at least 8 characters.
+          </p>
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-(--violet) px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="w-full rounded-lg bg-(--violet) px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {loading ? 'Creating account...' : 'Create account'}
         </button>

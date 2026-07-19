@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { friendlyIgError } from '@/lib/meta/friendly-error';
 import {
   computeBenchmarks,
   computeFormatPerformance,
@@ -110,7 +111,7 @@ function Sparkline({ data, label }: { data: number[]; label?: string }) {
       <svg width={60} height={16} className="text-(--cyan)">
         <polyline fill="none" stroke="currentColor" strokeWidth={1.5} points={points} />
       </svg>
-      {label && <span className="text-[10px] text-white/40 mt-0.5">{label}</span>}
+      {label && <span className="text-[10px] text-(--muted) mt-0.5">{label}</span>}
     </div>
   );
 }
@@ -135,10 +136,10 @@ function LearningChip({
   empty: string;
 }) {
   return (
-    <li className="rounded-lg border border-white/10 bg-black/20 p-2.5">
+    <li className="rounded-lg border border-white/10 bg-(--surface-2) p-2.5">
       <div className="text-[10px] uppercase tracking-wider text-white/50">{label}</div>
       <div
-        className={`mt-0.5 font-medium ${value ? 'text-white' : 'text-white/40'}`}
+        className={`mt-0.5 font-medium ${value ? 'text-white' : 'text-(--muted)'}`}
       >
         {value ?? empty}
       </div>
@@ -224,7 +225,7 @@ function ApplyAllLearningsCta({
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-white/5 bg-black/20 px-3 py-2">
+    <div className="rounded-lg border border-white/5 bg-(--surface-2) px-3 py-2">
       <div className="text-[11px] uppercase tracking-wider text-white/50">{label}</div>
       <div className="text-lg font-semibold text-white mt-0.5">{value}</div>
     </div>
@@ -321,7 +322,7 @@ function IgInsightsPanel({
         <div>
           <div className="flex items-baseline justify-between mb-2">
             <h4 className="text-sm font-semibold text-white">Recent posts</h4>
-            <span className="text-[11px] text-white/40">
+            <span className="text-[11px] text-(--muted)">
               color = vs your median · {benchmarks.sampleSize} posts
             </span>
           </div>
@@ -352,7 +353,7 @@ function IgInsightsPanel({
                         {m.caption?.slice(0, 60) || '(no caption)'}
                       </a>
                       {m.timestamp && (
-                        <div className="text-[11px] text-white/40">
+                        <div className="text-[11px] text-(--muted)">
                           {new Date(m.timestamp).toLocaleDateString()}
                         </div>
                       )}
@@ -396,6 +397,7 @@ export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps
     null
   );
 
+
   // Controlled (prop-driven) vs uncontrolled (standalone) selection.
   const isControlled = igUserId !== undefined;
   const selectedIg = isControlled ? (igUserId ?? null) : internalSelectedIg;
@@ -422,7 +424,7 @@ export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps
     } catch (err) {
       setIgMessage({
         type: 'error',
-        text: err instanceof Error ? err.message : 'Failed to load IG accounts',
+        text: friendlyIgError(err instanceof Error ? err.message : 'Failed to load IG accounts'),
       });
     } finally {
       setLoading(false);
@@ -443,7 +445,7 @@ export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps
     } catch (err) {
       setIgMessage({
         type: 'error',
-        text: err instanceof Error ? err.message : 'Failed to load insights',
+        text: friendlyIgError(err instanceof Error ? err.message : 'Failed to load insights'),
       });
     } finally {
       setInsightsLoading(false);
@@ -454,7 +456,7 @@ export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps
     const connected = searchParams.get('igConnected');
     const err = searchParams.get('igError');
     if (connected) setIgMessage({ type: 'success', text: `Connected @${connected}` });
-    else if (err) setIgMessage({ type: 'error', text: err });
+    else if (err) setIgMessage({ type: 'error', text: friendlyIgError(err) });
     fetchAccounts();
   }, [fetchAccounts, searchParams]);
 
@@ -478,7 +480,7 @@ export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps
     } catch (err) {
       setIgMessage({
         type: 'error',
-        text: err instanceof Error ? err.message : 'Disconnect failed',
+        text: friendlyIgError(err instanceof Error ? err.message : 'Disconnect failed'),
       });
     }
   }
@@ -529,7 +531,7 @@ export function InstagramSection({ igUserId, onSelectIg }: InstagramSectionProps
               className={`flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer ${
                 selectedIg === a.igUserId
                   ? 'border-(--violet)/40 bg-(--violet-12)'
-                  : 'border-white/5 bg-black/20 hover:border-white/15'
+                  : 'border-white/5 bg-(--surface-2) hover:border-white/15'
               }`}
               onClick={() => setSelectedIg(a.igUserId)}
             >

@@ -10,11 +10,11 @@ export default function SmartPostsPage() {
     <>
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-white">Smart Posts</h1>
-        <p className="text-sm text-white mt-1">
+        <p className="text-sm text-(--muted) mt-1">
           Recommendations from your real data. One click to generate a tailored post.
         </p>
       </div>
-      <Suspense fallback={<div className="text-sm text-white/70">Loading…</div>}>
+      <Suspense fallback={<div className="text-sm text-(--muted)">Loading…</div>}>
         <SmartPostsDashboard />
       </Suspense>
     </>
