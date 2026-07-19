@@ -52,16 +52,37 @@ C8 (de-dupe the two `insight-card` components), native `<select>` → consistent
 
 ---
 
-## OPEN / IN-PROGRESS — the reason we paused
+## RESOLVED (commit `a712f76`, 2026-07-19) — the squeeze bug class
 
-**New bug class the overflow diagnostic MISSED:** cramped mobile layouts where a non-stacking flex
-row squeezes a text column into a 1-word-per-line ribbon (and/or a button sits awkwardly "out of the
-tile"). These DON'T widen the page (text wraps), so `docW > vw` checks don't catch them.
+**The bug class the overflow diagnostic MISSED** (cramped non-stacking rows that squeeze a text
+column into a 1-word-per-line ribbon without widening the page) has been swept and fixed:
 
-**Concrete example (user-reported, screenshot):** the analyze **"What's working" HeroCard**
-(`src/components/performance/meta-sections/hero-card.tsx`). On mobile its `flex gap-4` row is
-[thumbnail] [text flex-1] [Make more like this button], which doesn't stack → the caption/verdict
-text crushes into a ~60px column.
+- **hero-card**: row now `flex-col sm:flex-row`; thumbnail+text stay a sub-row, "Make more like
+  this" drops to a full-width button below on mobile.
+- **compare-section**: the 3-col You-vs-competitor table scrolls (`min-w-[480px]` inside
+  `overflow-x-auto`) instead of crushing long values like "Format mix".
+- **analytics-dashboard**: profile-stats `grid-cols-3 sm:grid-cols-5` (was fixed 5-col ~57px/col);
+  account selector `flex-wrap`.
+- **competitor-dashboard**: account picker `flex-wrap`.
+
+**Swept and cleared (no fix needed):** deep-profile-section (tables in `overflow-x-auto`,
+`sm:grid-cols-*`), heatmap (scroll container), brand-panel header (`sm:grid-cols-[200px_1fr_auto]`),
+competitor you-vs-them table (`overflow-x-auto` + `hidden sm/md` columns), format-strip / PostHighlight
+/ AdDashboardCard (short numeric grids), ads StepCreative/StepAudience & more-options-dialog (image
+thumbnail grids / short form fields), post-generator grids (`grid-cols-3 sm:grid-cols-5`). None
+produce the ribbon. Build-verified (`next build` ✓).
+
+**NOT live-verified on preview:** the account's IG long-lived token is expired, so hero-card /
+compare-section / deep-profile data branches render error/empty states on the preview rather than the
+fixed layouts — reconnect IG to pixel-check them. Fixes are pure responsive Tailwind classes,
+build-clean.
+
+## OPEN / REMAINING (audit backlog, non-blocking)
+
+- **C2 full rollout**: migrate the ~remaining inline buttons onto `.btn-primary`/`.btn-secondary`;
+  eventually retire the barely-used `ui/*` primitives.
+- **C8**: de-dupe the two `insight-card` components.
+- Native `<select>` → consistent styling.
 
 ### Immediate next fix (hero-card.tsx, already read — apply this)
 
