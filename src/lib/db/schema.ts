@@ -187,7 +187,15 @@ export const postAnalytics = pgTable('post_analytics', {
   likes: integer('likes').default(0),
   comments: integer('comments').default(0),
   shares: integer('shares').default(0),
+  // DEAD COLUMN — never written. Meta deprecated `impressions` for media, so
+  // it is not even requested; it reads 0 on every row. Kept only to avoid a
+  // destructive migration. Use `views` instead.
   impressions: integer('impressions').default(0),
+  // Meta's replacement for media impressions. Already fetched by
+  // ig-analytics.ts (METRIC_KEYS includes 'views') but was never persisted —
+  // so the one signal that actually varies above reach was being thrown away.
+  // Verified live 2026-07-31: reach=10 views=24 on a real post.
+  views: integer('views').default(0),
   // Real distribution/engagement signals for the angle-attribution loop —
   // matched back from Instagram media insights. See lib/brain/attribution.ts.
   reach: integer('reach').default(0),

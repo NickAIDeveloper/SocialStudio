@@ -75,6 +75,7 @@ async function attributePostPerformance(
         postId: a.postId,
         userId: brand.userId,
         reach: a.metrics.reach,
+        views: a.metrics.views,
         saves: a.metrics.saves,
         likes: a.metrics.likes,
         comments: a.metrics.comments,
@@ -84,6 +85,7 @@ async function attributePostPerformance(
         target: postAnalytics.postId,
         set: {
           reach: a.metrics.reach,
+          views: a.metrics.views,
           saves: a.metrics.saves,
           likes: a.metrics.likes,
           comments: a.metrics.comments,
