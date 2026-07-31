@@ -11,6 +11,7 @@ import { cerebrasChatCompletion } from '@/lib/cerebras';
 import { computeNextRunAt, isDueNow, nextPostSlot, type Frequency } from '@/lib/autopilot/schedule';
 import { reconcileAutopilotStatuses } from '@/lib/autopilot/reconcile';
 import { pushScheduledPost } from '@/lib/autopilot/push-to-buffer';
+import { recordCreativeGeneration } from '@/lib/brain/record-generation';
 import { recordChannelDisconnected, clearChannelAlert } from '@/lib/autopilot/channel-alert';
 import { decrypt } from '@/lib/encryption';
 import { uploadImageToGitHub } from '@/lib/github-images';
@@ -446,6 +447,22 @@ export async function POST(req: Request): Promise<Response> {
       source: 'autopilot',
     })
     .returning({ id: posts.id });
+
+  // Creative-as-data capture (M2). Records the INPUTS behind this generation so
+  // the brain can later ask which hook shapes / image sources / angles actually
+  // correlate with reach. Never throws — analytics must not cost a post.
+  await recordCreativeGeneration({
+    brandId,
+    surface: 'autopilot',
+    postId: inserted.id,
+    angle,
+    hookText,
+    contentType: 'tip',
+    imageProvider: processedImageUrl ? 'god-mode' : (sourceImageUrl ? 'stock' : null),
+    gradeScore: best.grade?.score ?? null,
+    discardedReason: qualityHeld ? (qualityReason ?? 'quality_held') : null,
+    godModeFellBack: godPayload.godModeFellBack ?? false,
+  });
 
   // Visibility: a post that drafted with no usable image (god-mode returned
   // neither a stock nor a composited URL) otherwise saves silently as a
