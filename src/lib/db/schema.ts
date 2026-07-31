@@ -382,6 +382,11 @@ export const metaAds = pgTable('meta_ads', {
   // before tagging existed, and on APP-objective ads whose App Store link
   // cannot carry query params.
   clickId: uuid('click_id'),
+  // Provenance, so the ads agent can only ever pause or promote its OWN ads.
+  // 'human' = built through /ads. 'agent' = created autonomously. NULL means
+  // unknown (predates tagging) and is treated as human — hands off. See
+  // lib/ads/agent-policy.ts, where this is the first check made.
+  createdBy: varchar('created_by', { length: 16 }),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });

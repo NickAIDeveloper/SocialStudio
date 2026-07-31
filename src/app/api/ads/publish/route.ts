@@ -304,6 +304,9 @@ export async function POST(request: NextRequest) {
       objective: cfg.metaObjective, status: liveStatus, draft: { ...draft, targeting }, lastError: liveError,
       // Joins a later conversion (gv_cid in the landing URL) back to this ad.
       clickId,
+      // Published through the /ads builder by a person. The ads agent checks
+      // this first and will never touch anything not tagged 'agent'.
+      createdBy: 'human',
     });
 
     return NextResponse.json({
