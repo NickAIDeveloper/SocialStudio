@@ -59,6 +59,10 @@ export interface SchedulePostParams {
   organizationId: string;
   text: string;
   imageUrls?: string[];
+  // Vertical clip to publish as a Reel (M3). Mutually exclusive with imageUrls —
+  // when present it wins, since a post is one or the other. Validate with
+  // checkReelAsset before calling.
+  video?: { url: string; thumbnailUrl?: string };
   scheduledAt?: string; // ISO date string
   mode: 'addToQueue' | 'shareNow' | 'customScheduled';
 }
@@ -147,9 +151,20 @@ export async function createPost(apiKey: string, params: SchedulePostParams): Pr
   const dueAtField = params.mode === 'customScheduled' && params.scheduledAt
     ? `dueAt: ${JSON.stringify(params.scheduledAt)}`
     : '';
-  const assetsField = params.imageUrls?.length
-    ? `assets: [${params.imageUrls.map(url => `{ image: { url: ${JSON.stringify(url)} } }`).join(', ')}]`
-    : '';
+  // A post carries either a video or images, never both. Video wins when set.
+  const assetsField = params.video
+    ? `assets: [{ video: { url: ${JSON.stringify(params.video.url)}` +
+      (params.video.thumbnailUrl ? `, thumbnail: { url: ${JSON.stringify(params.video.thumbnailUrl)} }` : '') +
+      ` } }]`
+    : params.imageUrls?.length
+      ? `assets: [${params.imageUrls.map(url => `{ image: { url: ${JSON.stringify(url)} } }`).join(', ')}]`
+      : '';
+
+  // Instagram needs to be told a video is a Reel; the default post type would
+  // publish it to the feed instead, which is the surface we're trying to leave.
+  const instagramMeta = params.video
+    ? '{ instagram: { type: reel, shouldShareToFeed: true } }'
+    : '{ instagram: { type: post, shouldShareToFeed: true } }';
 
   const query = `mutation {
     createPost(input: {
@@ -158,7 +173,7 @@ export async function createPost(apiKey: string, params: SchedulePostParams): Pr
       mode: ${params.mode}
       schedulingType: ${schedulingType}
       source: "social-studio"
-      metadata: { instagram: { type: post, shouldShareToFeed: true } }
+      metadata: ${instagramMeta}
       ${dueAtField}
       ${assetsField}
     }) {

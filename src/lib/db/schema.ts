@@ -595,6 +595,11 @@ export const autopilotSettings = pgTable('autopilot_settings', {
   bufferChannelId: varchar('buffer_channel_id', { length: 128 }),
   bufferOrganizationId: varchar('buffer_organization_id', { length: 128 }),
   bufferChannelName: varchar('buffer_channel_name', { length: 255 }),
+  // Opt-in media format (M3): 'image' (default, unchanged behaviour) | 'reel'.
+  // Static feed images are the weakest distribution format on Instagram, so
+  // this exists to let a brand test Reels without changing anything for brands
+  // that don't opt in. See lib/autopilot/media-format.ts.
+  mediaFormat: varchar('media_format', { length: 16 }).notNull().default('image'),
   // When we last alerted the user that this brand's Buffer channel had gone
   // disconnected. Set on the healthy→disconnected transition and cleared when the
   // channel comes back, so a multi-day outage sends ONE email, not one per run.
