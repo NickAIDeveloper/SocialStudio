@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { brands, autopilotSettings } from '@/lib/db/schema';
+import { brands, autopilotSettings, linkedAccounts } from '@/lib/db/schema';
+import { getChannelHealth } from '@/lib/buffer';
+import { checkChannelPushable } from '@/lib/autopilot/channel-health';
+import { decrypt } from '@/lib/encryption';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +52,7 @@ export async function GET(req: Request): Promise<Response> {
       nextRunAt: null,
       lastError: null,
       totalGenerated: 0,
+      channelIssue: null,
     });
   }
   return NextResponse.json({
@@ -59,7 +63,36 @@ export async function GET(req: Request): Promise<Response> {
     nextRunAt: row.nextRunAt,
     lastError: row.lastError,
     totalGenerated: row.totalGenerated,
+    // Live Buffer channel health, so a channel that has lost authorization is
+    // visible the moment the page opens instead of days later in Buffer's UI.
+    channelIssue: await describeChannelIssue(guard.brand.userId, row),
   });
+}
+
+// Asks Buffer whether this brand's channel can still receive posts. Returns null
+// when it's fine, unknown, or not applicable — this is a diagnostic nicety and
+// must never break the settings page, so every failure path returns null.
+async function describeChannelIssue(
+  userId: string,
+  row: typeof autopilotSettings.$inferSelect,
+): Promise<{ code: string; message: string; severity: 'error' | 'warning' } | null> {
+  if (!row.bufferChannelId || !row.bufferOrganizationId) return null;
+  try {
+    const [link] = await db
+      .select()
+      .from(linkedAccounts)
+      .where(and(eq(linkedAccounts.userId, userId), eq(linkedAccounts.provider, 'buffer')));
+    if (!link?.accessToken) return null;
+
+    const health = await getChannelHealth(decrypt(link.accessToken), row.bufferOrganizationId);
+    const check = checkChannelPushable(health.get(row.bufferChannelId));
+    if (check.blocked) return { code: check.code, message: check.message, severity: 'error' };
+    if (check.warning) return { code: 'buffer_queue_paused', message: check.warning, severity: 'warning' };
+    return null;
+  } catch (err) {
+    console.error('[autopilot] channel health check failed:', err instanceof Error ? err.message : err);
+    return null;
+  }
 }
 
 export async function PATCH(req: Request): Promise<Response> {

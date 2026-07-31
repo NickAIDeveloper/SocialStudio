@@ -161,6 +161,11 @@ export const posts = pgTable('posts', {
   scheduledAt: timestamp('scheduled_at', { mode: 'date' }),
   publishedAt: timestamp('published_at', { mode: 'date' }),
   bufferPostId: text('buffer_post_id'),
+  // Why a 'failed' post failed, in Buffer's own words (PostPublishingError:
+  // message + rawError), captured by reconcileAutopilotStatuses. Without it a
+  // dropped post showed a bare "Failed" and the cause — e.g. "Buffer has lost
+  // authorization to post on your behalf" / "Invalid Credentials" — was invisible.
+  failureReason: text('failure_reason'),
   source: varchar('source', { length: 32 }), // 'manual' (default null) | 'autopilot'
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow(),
@@ -188,6 +193,48 @@ export const postAnalytics = pgTable('post_analytics', {
   reach: integer('reach').default(0),
   saves: integer('saves').default(0),
   fetchedAt: timestamp('fetched_at', { mode: 'date' }).defaultNow(),
+});
+
+// ── Creative Generations (M2 — "creative as data") ────────────────────────────
+//
+// One row per GENERATION ATTEMPT, recording the INPUTS that produced a creative
+// rather than only the artefact. The existing angle→reach loop learns from one
+// attribute; this widens it to every knob we turn (hook shape, image source,
+// overlay style, model, grade) so we can ask which of them actually correlate
+// with reach.
+//
+// Deliberately a separate table, not columns on `posts`:
+//   - a best-of-N loser or a quality-held draft never becomes a published post,
+//     and what we REJECT is as informative as what we ship — postId is nullable.
+//   - `posts` is on the hot path; this is written best-effort and read offline,
+//     so keeping it separate means a failure here can never affect posting.
+export const creativeGenerations = pgTable('creative_generations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  brandId: uuid('brand_id')
+    .notNull()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  // Null when this attempt was discarded (best-of-N loser) or held for review.
+  postId: uuid('post_id').references(() => posts.id, { onDelete: 'cascade' }),
+  // 'autopilot' | 'smart-posts' | 'batch' | 'ads'
+  surface: varchar('surface', { length: 32 }).notNull(),
+  model: varchar('model', { length: 64 }),
+  angle: varchar('angle', { length: 20 }),
+  // Structural shape of the hook (question / number / contrarian / …), derived
+  // from the text so hooks can be compared across brands and wordings.
+  hookPattern: varchar('hook_pattern', { length: 24 }),
+  hookText: text('hook_text'),
+  contentType: varchar('content_type', { length: 20 }),
+  overlayStyle: varchar('overlay_style', { length: 20 }),
+  // 'pixabay' | 'unsplash' | 'pexels' | 'generated' | …
+  imageProvider: varchar('image_provider', { length: 24 }),
+  // The search term or generation prompt that produced the image.
+  imageQuery: text('image_query'),
+  // 0–10 from runGrade; null when the grader was unavailable.
+  gradeScore: integer('grade_score'),
+  // Why this attempt did not ship, if it didn't ('quality_held', 'best_of_n_loser', …).
+  discardedReason: varchar('discarded_reason', { length: 48 }),
+  godModeFellBack: pgBoolean('god_mode_fell_back').notNull().default(false),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
 // ── User Preferences ───────────────────────────────────────────────────────────
@@ -328,6 +375,18 @@ export const metaAds = pgTable('meta_ads', {
   status: varchar('status', { length: 24 }).notNull().default('PAUSED'),
   draft: jsonb('draft'),
   lastError: text('last_error'),
+  // First-party click id embedded in the ad's destination URL as `gv_cid`.
+  // This platform takes no payments — revenue happens in the marketed product
+  // (pacebrain.app / affectly.app) — so a conversion reported back to us can
+  // only be joined to the ad that caused it via this id. Null on ads published
+  // before tagging existed, and on APP-objective ads whose App Store link
+  // cannot carry query params.
+  clickId: uuid('click_id'),
+  // Provenance, so the ads agent can only ever pause or promote its OWN ads.
+  // 'human' = built through /ads. 'agent' = created autonomously. NULL means
+  // unknown (predates tagging) and is treated as human — hands off. See
+  // lib/ads/agent-policy.ts, where this is the first check made.
+  createdBy: varchar('created_by', { length: 16 }),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });
@@ -536,6 +595,15 @@ export const autopilotSettings = pgTable('autopilot_settings', {
   bufferChannelId: varchar('buffer_channel_id', { length: 128 }),
   bufferOrganizationId: varchar('buffer_organization_id', { length: 128 }),
   bufferChannelName: varchar('buffer_channel_name', { length: 255 }),
+  // Opt-in media format (M3): 'image' (default, unchanged behaviour) | 'reel'.
+  // Static feed images are the weakest distribution format on Instagram, so
+  // this exists to let a brand test Reels without changing anything for brands
+  // that don't opt in. See lib/autopilot/media-format.ts.
+  mediaFormat: varchar('media_format', { length: 16 }).notNull().default('image'),
+  // When we last alerted the user that this brand's Buffer channel had gone
+  // disconnected. Set on the healthy→disconnected transition and cleared when the
+  // channel comes back, so a multi-day outage sends ONE email, not one per run.
+  channelAlertAt: timestamp('channel_alert_at', { mode: 'date' }),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });

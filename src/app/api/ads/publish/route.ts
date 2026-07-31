@@ -15,6 +15,8 @@ import {
   OBJECTIVE_CONFIG, minDailyBudget, type AdDraft, type AdTargeting, type AdObjective,
 } from '@/lib/meta/ads-types';
 import { findOverlap, type GeoCity } from '@/lib/ads/geo-overlap';
+import { buildTrackedUrl } from '@/lib/ads/tracked-url';
+import { randomUUID } from 'node:crypto';
 
 export const maxDuration = 60;
 
@@ -229,7 +231,24 @@ export async function POST(request: NextRequest) {
     }
 
     // APP ads use the App Store URL as the creative link; others use destinationUrl.
-    const creativeLink = draft.objective === 'APP' ? draft.appStoreUrl! : draft.destinationUrl;
+    const rawCreativeLink = draft.objective === 'APP' ? draft.appStoreUrl! : draft.destinationUrl;
+
+    // Attribution tag. This platform takes no payments, so revenue is earned in
+    // the marketed product (pacebrain.app / affectly.app) — the only way to tie
+    // a click to an outcome is to carry an id across. clickId is minted here
+    // (before the creative, which is built before the ad exists) and persisted
+    // on the metaAds row so a conversion reported later can be joined back.
+    //
+    // buildTrackedUrl returns App Store URLs untouched: Meta validates those
+    // against the registered promoted_object and extra query params break the
+    // match (error 1487810).
+    const clickId = randomUUID();
+    const creativeLink = buildTrackedUrl(rawCreativeLink, {
+      source: 'meta',
+      medium: 'paid_social',
+      brandSlug: brand.slug ?? brandId,
+      contentId: clickId,
+    });
 
     // Ordered write sequence — all PAUSED.
     // Validate video-specific fields before any write.
@@ -283,6 +302,11 @@ export async function POST(request: NextRequest) {
       userId, brandId, adAccountId, pageId, igAccountId: igAccountId ?? null,
       campaignId: createdCampaign, adsetId: createdAdset, creativeId: createdCreative, adId,
       objective: cfg.metaObjective, status: liveStatus, draft: { ...draft, targeting }, lastError: liveError,
+      // Joins a later conversion (gv_cid in the landing URL) back to this ad.
+      clickId,
+      // Published through the /ads builder by a person. The ads agent checks
+      // this first and will never touch anything not tagged 'agent'.
+      createdBy: 'human',
     });
 
     return NextResponse.json({

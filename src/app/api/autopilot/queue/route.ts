@@ -57,6 +57,9 @@ export async function GET(req: Request): Promise<Response> {
       sourceImageUrl: posts.sourceImageUrl,
       processedImageUrl: posts.processedImageUrl,
       createdAt: posts.createdAt,
+      // Buffer's own explanation for a 'failed' post, so the grid can say why
+      // instead of a bare "Failed".
+      failureReason: posts.failureReason,
     })
     .from(posts)
     .where(and(eq(posts.brandId, brandId), eq(posts.source, 'autopilot')))

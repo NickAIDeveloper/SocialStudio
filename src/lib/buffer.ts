@@ -7,6 +7,10 @@ export interface BufferChannel {
   avatar: string;
 }
 
+// Re-exported from the autopilot policy module so callers get one shape.
+export type { BufferChannelHealth } from './autopilot/channel-health';
+import type { BufferChannelHealth } from './autopilot/channel-health';
+
 export interface BufferOrganization {
   id: string;
   name: string;
@@ -55,6 +59,10 @@ export interface SchedulePostParams {
   organizationId: string;
   text: string;
   imageUrls?: string[];
+  // Vertical clip to publish as a Reel (M3). Mutually exclusive with imageUrls —
+  // when present it wins, since a post is one or the other. Validate with
+  // checkReelAsset before calling.
+  video?: { url: string; thumbnailUrl?: string };
   scheduledAt?: string; // ISO date string
   mode: 'addToQueue' | 'shareNow' | 'customScheduled';
 }
@@ -108,14 +116,55 @@ export async function getOrganizationsAndChannels(apiKey: string): Promise<Buffe
   return data.account.organizations;
 }
 
+// Per-channel health for an organization, keyed by channel id.
+//
+// Buffer keeps its OWN Instagram/Meta credential per channel (nothing to do with
+// the IG token lib/meta/ig-token.ts refreshes). When it expires the channel goes
+// isDisconnected=true and every post pushed into it dies at publish time with
+// "Invalid Credentials" — see lib/autopilot/channel-health.ts for the policy.
+//
+// Uses the TOP-LEVEL channels(input:) query on purpose: the nested
+// organizations.channels resolver returns FORBIDDEN and its non-null wrapper
+// propagates the failure over the whole response.
+export async function getChannelHealth(
+  apiKey: string,
+  orgId: string,
+): Promise<Map<string, BufferChannelHealth>> {
+  const data = await bufferGraphQL<{ channels: BufferChannelHealth[] }>(
+    apiKey,
+    `{
+      channels(input: { organizationId: ${JSON.stringify(orgId)} }) {
+        id
+        name
+        service
+        isDisconnected
+        isLocked
+        isQueuePaused
+      }
+    }`,
+  );
+  return new Map((data.channels ?? []).map(c => [c.id, c]));
+}
+
 export async function createPost(apiKey: string, params: SchedulePostParams): Promise<BufferPost> {
   const schedulingType = 'automatic';
   const dueAtField = params.mode === 'customScheduled' && params.scheduledAt
     ? `dueAt: ${JSON.stringify(params.scheduledAt)}`
     : '';
-  const assetsField = params.imageUrls?.length
-    ? `assets: [${params.imageUrls.map(url => `{ image: { url: ${JSON.stringify(url)} } }`).join(', ')}]`
-    : '';
+  // A post carries either a video or images, never both. Video wins when set.
+  const assetsField = params.video
+    ? `assets: [{ video: { url: ${JSON.stringify(params.video.url)}` +
+      (params.video.thumbnailUrl ? `, thumbnail: { url: ${JSON.stringify(params.video.thumbnailUrl)} }` : '') +
+      ` } }]`
+    : params.imageUrls?.length
+      ? `assets: [${params.imageUrls.map(url => `{ image: { url: ${JSON.stringify(url)} } }`).join(', ')}]`
+      : '';
+
+  // Instagram needs to be told a video is a Reel; the default post type would
+  // publish it to the feed instead, which is the surface we're trying to leave.
+  const instagramMeta = params.video
+    ? '{ instagram: { type: reel, shouldShareToFeed: true } }'
+    : '{ instagram: { type: post, shouldShareToFeed: true } }';
 
   const query = `mutation {
     createPost(input: {
@@ -124,7 +173,7 @@ export async function createPost(apiKey: string, params: SchedulePostParams): Pr
       mode: ${params.mode}
       schedulingType: ${schedulingType}
       source: "social-studio"
-      metadata: { instagram: { type: post, shouldShareToFeed: true } }
+      metadata: ${instagramMeta}
       ${dueAtField}
       ${assetsField}
     }) {
@@ -235,14 +284,22 @@ export async function getQueuedPosts(apiKey: string): Promise<BufferPost[]> {
 // windowed — it caps well below a channel's full sent history), this resolves
 // any post id directly, so it can tell "Buffer sent it" apart from "Buffer
 // dropped it" (NOT_FOUND). Used by status reconciliation as the source of truth.
+// Buffer's own explanation of why a post failed to publish. Worth keeping: it is
+// the difference between a bare "Failed" and "Buffer lost authorization to post
+// to pacebrain.app — reconnect it".
+export interface BufferPublishingError {
+  message: string | null;
+  rawError: string | null;
+}
+
 export type BufferPostLookup =
-  | { found: true; status: string; dueAt: string | null }
+  | { found: true; status: string; dueAt: string | null; error?: BufferPublishingError | null }
   | { found: false };
 
 export async function getPostById(apiKey: string, id: string): Promise<BufferPostLookup> {
   const query = `{
     post(input: { id: ${JSON.stringify(id)} }) {
-      ... on Post { id status dueAt }
+      ... on Post { id status dueAt error { message rawError } }
     }
   }`;
   const response = await fetch(BUFFER_GRAPHQL_URL, {
@@ -264,7 +321,7 @@ export async function getPostById(apiKey: string, id: string): Promise<BufferPos
   }
   const p = json.data?.post;
   if (!p) return { found: false };
-  return { found: true, status: p.status, dueAt: p.dueAt ?? null };
+  return { found: true, status: p.status, dueAt: p.dueAt ?? null, error: p.error ?? null };
 }
 
 // Bulk status map for an organization, paginated up to `maxPages` (×100 posts).
@@ -275,8 +332,8 @@ export async function getOrgPostStatusMap(
   apiKey: string,
   orgId: string,
   maxPages = 3,
-): Promise<Map<string, { status: string; dueAt: string | null }>> {
-  const out = new Map<string, { status: string; dueAt: string | null }>();
+): Promise<Map<string, { status: string; dueAt: string | null; error: BufferPublishingError | null }>> {
+  const out = new Map<string, { status: string; dueAt: string | null; error: BufferPublishingError | null }>();
   let after: string | null = null;
   let pages = 0;
   do {
@@ -284,7 +341,7 @@ export async function getOrgPostStatusMap(
     const query = `{
       posts(input: { organizationId: ${JSON.stringify(orgId)} }, first: 100${afterArg}) {
         pageInfo { hasNextPage endCursor }
-        edges { node { id status dueAt } }
+        edges { node { id status dueAt ... on Post { error { message rawError } } } }
       }
     }`;
     const response = await fetch(BUFFER_GRAPHQL_URL, {
@@ -298,7 +355,11 @@ export async function getOrgPostStatusMap(
       throw new Error(`Buffer GraphQL error: ${json.errors.map((e: { message: string }) => e.message).join('; ')}`);
     }
     for (const e of json.data?.posts?.edges ?? []) {
-      out.set(e.node.id, { status: e.node.status, dueAt: e.node.dueAt ?? null });
+      out.set(e.node.id, {
+        status: e.node.status,
+        dueAt: e.node.dueAt ?? null,
+        error: e.node.error ?? null,
+      });
     }
     const pi = json.data?.posts?.pageInfo;
     after = pi?.hasNextPage ? pi.endCursor : null;
