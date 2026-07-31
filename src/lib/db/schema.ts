@@ -333,6 +333,13 @@ export const metaAds = pgTable('meta_ads', {
   status: varchar('status', { length: 24 }).notNull().default('PAUSED'),
   draft: jsonb('draft'),
   lastError: text('last_error'),
+  // First-party click id embedded in the ad's destination URL as `gv_cid`.
+  // This platform takes no payments — revenue happens in the marketed product
+  // (pacebrain.app / affectly.app) — so a conversion reported back to us can
+  // only be joined to the ad that caused it via this id. Null on ads published
+  // before tagging existed, and on APP-objective ads whose App Store link
+  // cannot carry query params.
+  clickId: uuid('click_id'),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });
