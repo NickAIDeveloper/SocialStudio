@@ -76,7 +76,7 @@ export async function reconcileAutopilotStatuses(brandId: string): Promise<Recon
       const id = row.bufferPostId!;
       const fromFeed = orgMap.get(id);
       const lookup: BufferPostLookup = fromFeed
-        ? { found: true, status: fromFeed.status, dueAt: fromFeed.dueAt }
+        ? { found: true, status: fromFeed.status, dueAt: fromFeed.dueAt, error: fromFeed.error }
         : await getPostById(apiKey, id); // authoritative for window-misses
 
       const patch = reconcileStatus(row.status, lookup);
@@ -84,7 +84,12 @@ export async function reconcileAutopilotStatuses(brandId: string): Promise<Recon
 
       await db
         .update(posts)
-        .set({ status: patch.status, publishedAt: patch.publishedAt, updatedAt: new Date() })
+        .set({
+          status: patch.status,
+          publishedAt: patch.publishedAt,
+          failureReason: patch.failureReason,
+          updatedAt: new Date(),
+        })
         .where(eq(posts.id, row.id));
 
       if (patch.status === 'published') published++;

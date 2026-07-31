@@ -161,6 +161,11 @@ export const posts = pgTable('posts', {
   scheduledAt: timestamp('scheduled_at', { mode: 'date' }),
   publishedAt: timestamp('published_at', { mode: 'date' }),
   bufferPostId: text('buffer_post_id'),
+  // Why a 'failed' post failed, in Buffer's own words (PostPublishingError:
+  // message + rawError), captured by reconcileAutopilotStatuses. Without it a
+  // dropped post showed a bare "Failed" and the cause — e.g. "Buffer has lost
+  // authorization to post on your behalf" / "Invalid Credentials" — was invisible.
+  failureReason: text('failure_reason'),
   source: varchar('source', { length: 32 }), // 'manual' (default null) | 'autopilot'
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow(),
@@ -536,6 +541,10 @@ export const autopilotSettings = pgTable('autopilot_settings', {
   bufferChannelId: varchar('buffer_channel_id', { length: 128 }),
   bufferOrganizationId: varchar('buffer_organization_id', { length: 128 }),
   bufferChannelName: varchar('buffer_channel_name', { length: 255 }),
+  // When we last alerted the user that this brand's Buffer channel had gone
+  // disconnected. Set on the healthy→disconnected transition and cleared when the
+  // channel comes back, so a multi-day outage sends ONE email, not one per run.
+  channelAlertAt: timestamp('channel_alert_at', { mode: 'date' }),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });

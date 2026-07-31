@@ -122,6 +122,10 @@ interface Settings {
   nextRunAt: string | null;
   lastError: string | null;
   totalGenerated: number;
+  // Live Buffer channel health. Non-null means posts either can't be scheduled
+  // (severity 'error' — Buffer lost authorization) or won't publish until the
+  // user acts (severity 'warning' — queue paused).
+  channelIssue: { code: string; message: string; severity: 'error' | 'warning' } | null;
 }
 
 const FREQ_LABELS: Record<Settings['frequency'], string> = {
@@ -284,6 +288,34 @@ export function AutopilotCard({ brandId, brandName }: Props) {
         <BufferChannelPicker brandId={brandId} brandHint={brandName} />
       )}
 
+      {/* Buffer holds its own Instagram credential per channel and it expires
+          (~60 days). When it does, Buffer accepts posts and silently drops them
+          at publish time, so this has to be loud and link straight to the fix. */}
+      {s.channelIssue && (
+        <div
+          className={`mt-3 text-xs rounded px-3 py-2 border ${
+            s.channelIssue.severity === 'error'
+              ? 'text-red-300 bg-red-950/40 border-red-900/60'
+              : 'text-amber-300 bg-amber-950/30 border-amber-900/60'
+          }`}
+        >
+          <div className="font-medium">
+            {s.channelIssue.severity === 'error'
+              ? '⚠️ Buffer channel needs reconnecting'
+              : '⏸️ Buffer queue paused'}
+          </div>
+          <div className="mt-1">{s.channelIssue.message}</div>
+          <a
+            href="https://buffer.com/channels"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block underline hover:no-underline"
+          >
+            Open Buffer channels →
+          </a>
+        </div>
+      )}
+
       <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <div>
           <div className="text-(--muted-2)">Status</div>
@@ -337,6 +369,9 @@ interface QueueItem {
   sourceImageUrl: string | null;
   processedImageUrl: string | null;
   createdAt: string;
+  // Buffer's own words for why a 'failed' post failed, e.g. "Buffer has lost
+  // authorization to post on your behalf (Invalid Credentials)".
+  failureReason: string | null;
 }
 
 function statusBadge(status: string): { label: string; classes: string } {
@@ -512,6 +547,11 @@ function AutopilotQueue({
                       </div>
                       {p.hookText && (
                         <div className="text-xs font-medium text-(--txt) line-clamp-2">{p.hookText}</div>
+                      )}
+                      {p.status === 'failed' && p.failureReason && (
+                        <div className="text-[10px] text-red-300/90 line-clamp-2" title={p.failureReason}>
+                          {p.failureReason}
+                        </div>
                       )}
                       <div className="text-[11px] text-(--muted) line-clamp-3 whitespace-pre-line">
                         {p.caption}
@@ -690,6 +730,12 @@ function PostPreviewModal({
             </span>
           )}
         </div>
+
+        {post.status === 'failed' && post.failureReason && (
+          <div className="mx-3 mb-3 text-[11px] text-red-300 bg-red-950/40 border border-red-900/60 rounded px-2 py-1.5">
+            {post.failureReason}
+          </div>
+        )}
 
         {/* Action bar */}
         <div className="px-3 pb-3 pt-1 border-t border-(--line) mt-0 flex flex-col gap-2">

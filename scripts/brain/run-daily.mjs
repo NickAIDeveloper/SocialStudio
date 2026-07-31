@@ -93,9 +93,33 @@ async function refreshIgTokens() {
   }
 }
 
+async function checkChannelHealth() {
+  // Buffer holds its OWN Instagram credential per channel and it expires. When
+  // pacebrain.app's died on 2026-07-26 this cron kept succeeding for five days
+  // while every post was silently dropped — nothing was looking at the channel.
+  try {
+    const out = await call('/api/autopilot/channel-health', {});
+    console.log(
+      `[brain] channel-health: status=${out.status} checked=${out.json?.checked ?? 0} blocked=${out.json?.blocked ?? 0}`,
+    );
+    for (const r of out.json?.reports ?? []) {
+      if (r.state === 'blocked') {
+        console.error(
+          `    ⚠ ${r.slug} (${r.channel}): ${r.code} — broken ${r.outageDays}d. ${r.message}`,
+        );
+      } else if (r.state === 'warning' || r.state === 'unknown') {
+        console.log(`    ${r.slug} (${r.channel}): ${r.code ?? r.state}`);
+      }
+    }
+  } catch (err) {
+    console.error('[brain] channel-health failed:', err);
+  }
+}
+
 (async () => {
   const day = new Date().toISOString().slice(0, 10);
   await refreshIgTokens();
+  await checkChannelHealth();
   const brands = await listBrands();
   console.log(`[brain] daily run, ${brands.length} brands, day=${day}`);
 

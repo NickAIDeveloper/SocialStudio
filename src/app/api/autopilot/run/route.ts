@@ -10,7 +10,8 @@ import type { AngleId } from '@/lib/smart-posts/creative-angles';
 import { cerebrasChatCompletion } from '@/lib/cerebras';
 import { computeNextRunAt, isDueNow, nextPostSlot, type Frequency } from '@/lib/autopilot/schedule';
 import { reconcileAutopilotStatuses } from '@/lib/autopilot/reconcile';
-import { createPost } from '@/lib/buffer';
+import { pushScheduledPost } from '@/lib/autopilot/push-to-buffer';
+import { recordChannelDisconnected, clearChannelAlert } from '@/lib/autopilot/channel-alert';
 import { decrypt } from '@/lib/encryption';
 import { uploadImageToGitHub } from '@/lib/github-images';
 import { ensureInstagramReadyImageUrl } from '@/lib/autopilot/buffer-image';
@@ -353,28 +354,33 @@ export async function POST(req: Request): Promise<Response> {
       }
 
       if (apiKey) {
-        if (!settings.bufferChannelId || !settings.bufferOrganizationId) {
-          postStatus = 'draft';
-          lastError = 'buffer_channel_not_selected';
+        // pushScheduledPost pre-flights the channel's health: if Buffer has lost
+        // authorization to the channel it returns status='draft' rather than
+        // pushing a post Buffer would accept and then drop at publish time.
+        const push = await pushScheduledPost(
+          apiKey,
+          {
+            bufferChannelId: settings.bufferChannelId,
+            bufferOrganizationId: settings.bufferOrganizationId,
+          },
+          {
+            text: `${caption}\n\n${hashtags}`.trim(),
+            scheduledAt,
+            // The composited image (hook overlay + brand logo) uploaded to
+            // GitHub. Falls back to the IG-ready stock URL if upload failed.
+            imageUrls: bufferImageUrl ? [bufferImageUrl] : undefined,
+          },
+        );
+        bufferPostId = push.bufferPostId;
+        postStatus = push.status;
+        lastError = push.lastError ?? push.warning;
+
+        // A dead channel affects every future run, not just this one — latch the
+        // first-seen time so the daily sweep can report the outage's age.
+        if (push.lastError?.startsWith('buffer_channel_disconnected')) {
+          await recordChannelDisconnected(brandId, push.lastError);
         } else {
-          try {
-            const fullText = `${caption}\n\n${hashtags}`.trim();
-            const bufferPost = await createPost(apiKey, {
-              channelId: settings.bufferChannelId,
-              organizationId: settings.bufferOrganizationId,
-              text: fullText,
-              mode: 'customScheduled',
-              scheduledAt: scheduledAt.toISOString(),
-              // Use the composited image (with hook overlay + brand logo) that
-              // was uploaded to GitHub. Falls back to raw stock URL if upload failed.
-              imageUrls: bufferImageUrl ? [bufferImageUrl] : undefined,
-            });
-            bufferPostId = bufferPost.id;
-            postStatus = 'scheduled';
-          } catch (err) {
-            postStatus = 'draft';
-            lastError = `buffer_push_failed: ${err instanceof Error ? err.message : String(err)}`;
-          }
+          await clearChannelAlert(brandId);
         }
       }
     }
