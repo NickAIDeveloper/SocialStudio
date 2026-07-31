@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import { eq, and, gte, desc } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
@@ -105,9 +106,13 @@ async function attributePostPerformance(
   return attributions.length;
 }
 
+// Both optional: the HMAC signature covers the request BODY only, so a scheduler
+// that can send just a static `{}` (cron-job.org, any plain URL pinger) can sign
+// one constant and still call this route. When they're absent we generate them —
+// a run id only needs to be unique, and the day is always "today" in practice.
 interface Body {
-  runId: string;
-  day: string;
+  runId?: string;
+  day?: string;
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -123,8 +128,20 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ error: 'bad_signature' }, { status: 401 });
   }
 
-  const body = JSON.parse(rawBody) as Body;
+  let parsed: Body = {};
+  try {
+    parsed = rawBody ? (JSON.parse(rawBody) as Body) : {};
+  } catch {
+    return NextResponse.json({ error: 'bad_json' }, { status: 400 });
+  }
+  const body = {
+    runId: parsed.runId ?? randomUUID(),
+    day: parsed.day ?? new Date().toISOString().slice(0, 10),
+  };
   const dayDate = new Date(`${body.day}T00:00:00Z`);
+  if (isNaN(dayDate.getTime())) {
+    return NextResponse.json({ error: 'bad_day' }, { status: 400 });
+  }
 
   const [brand] = await db.select().from(brands).where(eq(brands.id, brandId));
   if (!brand) return NextResponse.json({ error: 'brand_not_found' }, { status: 404 });
