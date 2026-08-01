@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { AdDashboardCard, type DashboardAd } from '../_components/AdDashboardCard';
+import { AgentPlanPanel } from '@/components/ads/agent-plan-panel';
 
 interface DashboardResponse {
   success: boolean;
@@ -11,6 +12,8 @@ interface DashboardResponse {
 
 export default function QueuedAdsPage() {
   const [ads, setAds] = useState<DashboardAd[] | null>(null);
+  // Agent-plan panels sit beside the ads they judge, one per brand.
+  const [brands, setBrands] = useState<Array<{ id: string; slug: string; name: string | null }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
@@ -34,6 +37,13 @@ export default function QueuedAdsPage() {
   }
 
   useEffect(() => {
+    fetch('/api/brands')
+      .then((r) => (r.ok ? r.json() : { brands: [] }))
+      .then((d) => setBrands(d.brands ?? []))
+      .catch(() => setBrands([]));
+  }, []);
+
+  useEffect(() => {
     void loadAds();
   }, []);
 
@@ -45,6 +55,13 @@ export default function QueuedAdsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
+      {brands.length > 0 && (
+        <div className="mb-6 space-y-4">
+          {brands.map((b) => (
+            <AgentPlanPanel key={b.id} brandId={b.id} brandName={b.name ?? b.slug} />
+          ))}
+        </div>
+      )}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">Ads dashboard</h1>
