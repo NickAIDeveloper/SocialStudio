@@ -8,7 +8,7 @@ interface Insight {
   ctr: number; cpc: number; frequency: number; results: number; resultType: string; currency: string | null;
 }
 export interface DashboardAd {
-  id: string; objective: string; status: string;
+  id: string; adId: string | null; objective: string; status: string;
   adsManagerUrl: string | null; lastError: string | null;
   preview: { headline: string | null; primaryText: string | null; imageUrl: string | null; thumbnailUrl: string | null; mediaType: string; cta: string; destinationUrl: string | null };
   insight: Insight | null;
@@ -36,6 +36,26 @@ function Metric(props: { label: string; value: string; tone?: 'up' | 'down' }) {
 export function AdDashboardCard({ ad }: { ad: DashboardAd }) {
   const [advice, setAdvice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [activating, setActivating] = useState(false);
+  const [activateMsg, setActivateMsg] = useState<string | null>(null);
+
+  async function activate() {
+    if (activating || !ad.adId) return;
+    // Explicit confirmation: everything else in this app is reversible, this
+    // one starts real spend against the ad set budget.
+    if (!window.confirm(`Activate this ad? It will begin spending against its ad set budget immediately.`)) return;
+    setActivating(true);
+    setActivateMsg(null);
+    try {
+      const res = await fetch(`/api/ads/activate?adId=${encodeURIComponent(ad.adId)}`, { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      setActivateMsg(res.ok ? (body.message ?? 'Ad is now active.') : (body.message ?? `Failed: ${res.status}`));
+    } catch (e) {
+      setActivateMsg(e instanceof Error ? e.message : 'Request failed');
+    } finally {
+      setActivating(false);
+    }
+  }
   const i = ad.insight;
   const cur = i?.currency ?? '';
   const trendTone = ad.ctrTrend?.direction === 'up' ? 'up' : ad.ctrTrend?.direction === 'down' ? 'down' : undefined;
@@ -100,11 +120,25 @@ export function AdDashboardCard({ ad }: { ad: DashboardAd }) {
             💡 {ad.signals.tips.join(' ')}
           </div>
         )}
-        <div className="mt-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <button onClick={askAi} disabled={loading} className="rounded bg-(--accent) px-2 py-1 text-xs text-white disabled:opacity-50">
             {loading ? 'Thinking…' : '✨ Ask AI for advice'}
           </button>
+          {/* Only PAUSED ads can be started. This is the one control in the app
+              that causes Meta to spend money, so it confirms first and says so. */}
+          {ad.status === 'PAUSED' && ad.adId && (
+            <button
+              onClick={activate}
+              disabled={activating}
+              className="rounded border border-(--success)/50 bg-(--success)/10 px-2 py-1 text-xs text-(--success) disabled:opacity-50"
+            >
+              {activating ? 'Starting…' : '▶ Activate (starts spending)'}
+            </button>
+          )}
         </div>
+        {activateMsg && (
+          <div className="mt-2 rounded-lg border border-(--line) px-3 py-2 text-xs text-(--txt)">{activateMsg}</div>
+        )}
         {advice && <div className="mt-2 whitespace-pre-wrap rounded-lg border border-(--line) px-3 py-2 text-sm text-(--txt)">{advice}</div>}
       </div>
     </div>

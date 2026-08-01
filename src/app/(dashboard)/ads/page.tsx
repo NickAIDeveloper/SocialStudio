@@ -28,6 +28,9 @@ export default function AdsPage() {
   const [draft, setDraft] = useState<AdDraft | null>(null);
   const [imageCandidates, setImageCandidates] = useState<string[]>([]);
   const [imageMissing, setImageMissing] = useState(false);
+  // Copy problems the generator is meant to avoid but can still produce, e.g.
+  // organic 'link in bio' phrasing in a paid ad. Reported, never auto-rewritten.
+  const [copyIssues, setCopyIssues] = useState<Array<{ code: string; severity: string; detail: string }>>([]);
   const [targeting, setTargeting] = useState<AdTargeting>({
     countries: ['GB'], cities: [], ageMin: 18, ageMax: 65, gender: 'all', interests: [],
     dailyBudgetMinor: 1000, startDate: '', endDate: '',
@@ -60,6 +63,7 @@ export default function AdsPage() {
     // Templates carry a finished draft; no image candidates to surface.
     setImageCandidates([]);
     setImageMissing(false);
+    setCopyIssues([]);
     setStep(3); // jump straight to Review
   }
 
@@ -143,12 +147,12 @@ export default function AdsPage() {
                 brands={brands} brandId={brandId} setBrandId={setBrandId}
                 objective={objective} setObjective={setObjective}
                 destinationUrl={destinationUrl} setDestinationUrl={setDestinationUrl}
-                onDraft={(d, cands, missing) => { setDraft(d); setImageCandidates(cands); setImageMissing(missing); setStep(1); }}
+                onDraft={(d, cands, missing, issues) => { setDraft(d); setImageCandidates(cands); setImageMissing(missing); setCopyIssues(issues ?? []); setStep(1); }}
               />
             </div>
           )}
           {step === 1 && draft && (
-            <StepCreative draft={draft} setDraft={setDraft} brandId={brandId} onBack={() => setStep(0)} onNext={() => setStep(2)} candidates={imageCandidates} imageMissing={imageMissing} />
+            <StepCreative draft={draft} setDraft={setDraft} brandId={brandId} onBack={() => setStep(0)} onNext={() => setStep(2)} candidates={imageCandidates} imageMissing={imageMissing} copyIssues={copyIssues} />
           )}
           {step === 2 && (
             <StepAudience

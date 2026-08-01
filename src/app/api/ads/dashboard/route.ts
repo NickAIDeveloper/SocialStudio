@@ -107,6 +107,8 @@ export async function GET(req: Request) {
 
       return {
         id: r.id,
+        // Meta's ad id, distinct from our row id — the activate control needs it.
+        adId: r.adId,
         objective: r.objective,
         status: r.status,
         createdAt: r.createdAt,

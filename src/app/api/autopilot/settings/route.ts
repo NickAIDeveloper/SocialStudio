@@ -6,6 +6,7 @@ import { brands, autopilotSettings, linkedAccounts } from '@/lib/db/schema';
 import { getChannelHealth } from '@/lib/buffer';
 import { checkChannelPushable } from '@/lib/autopilot/channel-health';
 import { decrypt } from '@/lib/encryption';
+import { resolveMediaFormat, type MediaFormat } from '@/lib/autopilot/media-format';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,7 @@ export async function GET(req: Request): Promise<Response> {
       nextRunAt: null,
       lastError: null,
       totalGenerated: 0,
+      mediaFormat: 'image',
       channelIssue: null,
     });
   }
@@ -63,6 +65,7 @@ export async function GET(req: Request): Promise<Response> {
     nextRunAt: row.nextRunAt,
     lastError: row.lastError,
     totalGenerated: row.totalGenerated,
+    mediaFormat: row.mediaFormat ?? 'image',
     // Live Buffer channel health, so a channel that has lost authorization is
     // visible the moment the page opens instead of days later in Buffer's UI.
     channelIssue: await describeChannelIssue(guard.brand.userId, row),
@@ -104,9 +107,10 @@ export async function PATCH(req: Request): Promise<Response> {
     enabled?: boolean;
     frequency?: string;
     mode?: string;
+    mediaFormat?: string;
   };
 
-  const update: { enabled?: boolean; frequency?: Frequency; mode?: Mode; updatedAt: Date } = {
+  const update: { enabled?: boolean; frequency?: Frequency; mode?: Mode; mediaFormat?: MediaFormat; updatedAt: Date } = {
     updatedAt: new Date(),
   };
   if (typeof body.enabled === 'boolean') update.enabled = body.enabled;
@@ -115,6 +119,11 @@ export async function PATCH(req: Request): Promise<Response> {
   }
   if (typeof body.mode === 'string' && (VALID_MODE as readonly string[]).includes(body.mode)) {
     update.mode = body.mode as Mode;
+  }
+  // Anything unrecognised resolves to 'image', so a bad value can never leave a
+  // brand in a format the pipeline cannot ship.
+  if (typeof body.mediaFormat === 'string') {
+    update.mediaFormat = resolveMediaFormat(body.mediaFormat);
   }
 
   // Upsert.

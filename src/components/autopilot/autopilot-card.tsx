@@ -122,6 +122,8 @@ interface Settings {
   nextRunAt: string | null;
   lastError: string | null;
   totalGenerated: number;
+  // 'image' (default) | 'reel'. Opt-in: existing brands are unaffected.
+  mediaFormat: 'image' | 'reel';
   // Live Buffer channel health. Non-null means posts either can't be scheduled
   // (severity 'error' — Buffer lost authorization) or won't publish until the
   // user acts (severity 'warning' — queue paused).
@@ -161,7 +163,7 @@ export function AutopilotCard({ brandId, brandName }: Props) {
 
   useEffect(() => { load(); }, [brandId]);
 
-  async function patch(update: Partial<Pick<Settings, 'enabled' | 'frequency' | 'mode'>>) {
+  async function patch(update: Partial<Pick<Settings, 'enabled' | 'frequency' | 'mode' | 'mediaFormat'>>) {
     setSaving(true); setErr(null);
     try {
       const res = await fetch(`/api/autopilot/settings?brandId=${brandId}`, {
@@ -283,6 +285,30 @@ export function AutopilotCard({ brandId, brandName }: Props) {
           </select>
         </div>
       </div>
+
+      {s.enabled && (
+        <div className="mt-3">
+          <label className="text-xs text-(--muted) mb-1 block" htmlFor={`fmt-${brandId}`}>
+            Post format
+          </label>
+          <select
+            id={`fmt-${brandId}`}
+            disabled={saving}
+            value={s.mediaFormat ?? 'image'}
+            onChange={(e) => patch({ mediaFormat: e.target.value as 'image' | 'reel' })}
+            className="select-field"
+          >
+            <option value="image">Image post (default)</option>
+            <option value="reel">Reel (video) — experimental</option>
+          </select>
+          {s.mediaFormat === 'reel' && (
+            <div className="mt-1.5 text-xs text-amber-300 bg-amber-950/20 border border-amber-900/50 rounded px-2 py-1.5">
+              Reels reach further than static posts, but autopilot cannot generate video yet — you
+              will need to supply vertical 9:16 clips. Until then this brand keeps posting images.
+            </div>
+          )}
+        </div>
+      )}
 
       {s.enabled && s.mode === 'auto' && (
         <BufferChannelPicker brandId={brandId} brandHint={brandName} />
