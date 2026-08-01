@@ -131,8 +131,15 @@ DIFFERENTIATION: position AGAINST the competitor angle above. Out-flank, do not 
 
 HARD RULES:
 - NEVER invent stats, percentages, studies, testimonials, awards, or features that were not given above.
+- NEVER invent an offer: no free trials, discounts, guarantees, refunds, or pricing claims unless they appear above.
 - Only reference real ${brandName} value. Soft language ("many people find") over fake science.
 - No dashes or hyphens. No emojis. No markdown. No hashtags inside primaryText.
+
+THIS IS A PAID AD, NOT AN ORGANIC POST. It renders with a clickable CTA button
+and a destination URL attached. The reader taps the ad itself.
+- NEVER write "link in bio", "link below", "swipe up", "DM us", "comment BELOW", or any instruction to navigate somewhere else. There is no bio and no link in the caption.
+- Close by motivating the tap itself ("see your predicted time in seconds"), not by explaining where to click.
+- The headline is a SEPARATE on-screen slot from the hook. They must not be the same sentence, or one of the two slots is wasted.
 
 OUTPUT — return ONLY this JSON object:
 {"primaryText":"2-4 short paragraphs, blank-line separated: a scroll-stopping hook line, then a body that runs the chosen framework, then a clear CTA matched to the objective","hook":"3-6 word scroll-stopper","headline":"<=40 chars, benefit-driven","hashtags":"#a #b #c #d #e (exactly 5, tiered broad, niche, then specific)"}`;
