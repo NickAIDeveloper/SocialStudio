@@ -7,6 +7,8 @@ import { readBrandBrain } from '@/lib/brain/consume';
 import { buildCompetitorIntel } from '@/lib/brain/competitor-intel';
 import { buildAdDraft } from '@/lib/ads/build-draft';
 import { auditAdCopy } from '@/lib/ads/ad-copy-guard';
+import { brandPainPoints } from '@/lib/db/schema';
+import { buildPainBrief, type RankedPain } from '@/lib/research/pain-points';
 import { generateAdCopy } from '@/lib/ads/ad-copy';
 import { summarizeCompetitorIntel } from '@/lib/ads/competitor-summary';
 import { OBJECTIVE_CONFIG, type AdObjective } from '@/lib/meta/ads-types';
@@ -81,10 +83,17 @@ export async function POST(request: NextRequest) {
     const origin = request.nextUrl.origin;
     const cookie = request.headers.get('cookie') ?? '';
 
-    const [brain, intel] = await Promise.all([
+    const [brain, intel, painRow] = await Promise.all([
       readBrandBrain(body.brandId).catch(() => null),
       buildCompetitorIntel(body.brandId).catch(() => null),
+      // Audience pain points, mined from real community discussions. Optional:
+      // a brand with none researched yet generates exactly as before.
+      db.select().from(brandPainPoints).where(eq(brandPainPoints.brandId, body.brandId))
+        .then(rows => rows[0] ?? null).catch(() => null),
     ]);
+    const painBrief = painRow?.ranked
+      ? buildPainBrief(painRow.ranked as RankedPain[])
+      : null;
     const competitorContext = summarizeCompetitorIntel(intel);
 
     let copy;
@@ -99,6 +108,7 @@ export async function POST(request: NextRequest) {
         objective: body.objective,
         destinationUrl: body.destinationUrl,
         briefMd: brain?.briefMd ?? null,
+        painBrief,
         competitorContext,
       });
     } catch (genErr) {

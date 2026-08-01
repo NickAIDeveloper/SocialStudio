@@ -14,10 +14,20 @@ vi.mock('@/lib/brain/competitor-intel', () => ({
   }),
 }));
 vi.mock('@/lib/ads/ad-copy', () => ({ generateAdCopy: genMock }));
+// The route makes two differently-shaped queries: the brand lookup ends in
+// .limit(1), while the pain-points lookup awaits .where() directly. So where()
+// returns a thenable that ALSO carries .limit — supporting both without the
+// test having to know which query is which.
 vi.mock('@/lib/db', () => ({
-  db: { select: () => ({ from: () => ({ where: () => ({ limit: limitMock }) }) }) },
+  db: {
+    select: () => ({
+      from: () => ({
+        where: () => Object.assign(Promise.resolve([]), { limit: limitMock }),
+      }),
+    }),
+  },
 }));
-vi.mock('@/lib/db/schema', () => ({ brands: {} }));
+vi.mock('@/lib/db/schema', () => ({ brands: {}, brandPainPoints: {} }));
 vi.mock('drizzle-orm', () => ({ eq: vi.fn(), and: vi.fn() }));
 
 import { POST } from '../route';

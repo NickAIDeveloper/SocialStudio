@@ -21,6 +21,10 @@ export interface GenerateAdCopyInput {
   objective: AdObjective;
   destinationUrl: string;
   briefMd?: string | null;
+  // Audience pain points mined from real community discussions, ranked by
+  // recurrence. Written from the audience's own words rather than our
+  // description of the product. See lib/research/pain-points.ts.
+  painBrief?: string | null;
   competitorContext?: string | null;
 }
 
@@ -96,6 +100,12 @@ function buildUserPrompt(input: GenerateAdCopyInput): string {
   brandTruth.push(`Destination URL for this ad: ${input.destinationUrl}`);
   const brandTruthBlock = brandTruth.join('\n');
 
+  // Pain points go FIRST: they are what the reader already feels, and the ad
+  // works by naming that before it mentions the product.
+  const painBlock = input.painBrief ? `
+${input.painBrief}
+` : '';
+
   const briefBlock = input.briefMd
     ? `\nBRAND BRAIN (latest strategic brief, use as ground truth for voice and positioning):\n${input.briefMd.slice(0, 3500)}\n`
     : '';
@@ -110,7 +120,7 @@ CAMPAIGN OBJECTIVE: ${cfg.label} — ${cfg.description}
 Match the angle and CTA to this goal. ${input.objective === 'TRAFFIC' ? 'Drive the click to learn more.' : input.objective === 'ENGAGEMENT' ? 'Provoke reaction, saves, and comments.' : input.objective === 'LEADS' ? 'Drive a sign-up; reduce friction and risk.' : 'Drive an app install; make the value instant and mobile-first.'}
 
 ${brandTruthBlock}
-${briefBlock}${competitorBlock}
+${painBlock}${briefBlock}${competitorBlock}
 
 PERSUASION PSYCHOLOGY (deploy the 2-3 MOST fitting for this product, not all):
 - Cialdini's principles: reciprocity, scarcity, authority, social proof, commitment/consistency, liking, unity.
