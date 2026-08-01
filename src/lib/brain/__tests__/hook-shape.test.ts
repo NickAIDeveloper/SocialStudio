@@ -4,7 +4,7 @@ import {
   pickUnderusedPattern,
   buildVarietyDirective,
   OVERUSE_THRESHOLD,
-} from '../hook-variety';
+} from '../hook-shape';
 
 describe('patternShare', () => {
   it('reports each pattern as a fraction of recent posts', () => {

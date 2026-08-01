@@ -1,4 +1,9 @@
-// src/lib/brain/hook-variety.ts
+// src/lib/brain/hook-shape.ts
+//
+// NOT to be confused with lib/smart-posts/hook-variety.ts, which bans the exact
+// overused sentence SKELETON. This steers the grammatical SHAPE. They are
+// complementary: the skeleton ban stops one template repeating verbatim, this
+// stops every hook being the same kind of sentence.
 //
 // Forces structural range into hooks.
 //

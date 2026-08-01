@@ -17,6 +17,46 @@ import type { Rgb } from './qa';
 
 export type VerticalRegion = 'top' | 'middle' | 'bottom';
 
+// Average colour of an EXACT pixel band. Preferred over the coarse
+// top/middle/bottom split wherever the caller already knows where the text will
+// land, because the renderer clamps text position dynamically and a third-of-
+// the-image approximation can sample the wrong strip entirely.
+export async function sampleBandColour(
+  image: Buffer,
+  top: number,
+  height: number,
+): Promise<Rgb | null> {
+  try {
+    const { width, height: imgHeight } = await sharp(image).metadata();
+    if (!width || !imgHeight) return null;
+
+    // Clamp into the image: callers compute layout before knowing the final
+    // canvas, so an out-of-range band is expected rather than exceptional.
+    const safeTop = Math.max(0, Math.min(Math.floor(top), imgHeight - 1));
+    const safeHeight = Math.max(1, Math.min(Math.floor(height), imgHeight - safeTop));
+
+    const { data, info } = await sharp(image)
+      .extract({ left: 0, top: safeTop, width, height: safeHeight })
+      .resize(32, 32, { fit: 'fill' })
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    if (info.channels < 3) return null;
+    let r = 0, g = 0, b = 0;
+    const pixels = data.length / info.channels;
+    for (let i = 0; i < data.length; i += info.channels) {
+      r += data[i];
+      g += data[i + 1];
+      b += data[i + 2];
+    }
+    return { r: Math.round(r / pixels), g: Math.round(g / pixels), b: Math.round(b / pixels) };
+  } catch (err) {
+    console.warn('[creative-qa] band sample failed:', err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 // Sample only the band the text occupies. Averaging the WHOLE image would be
 // misleading: a dark photo with a bright sky reads as mid-grey overall, while
 // the hook sitting in the sky is invisible.
