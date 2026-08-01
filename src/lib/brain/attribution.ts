@@ -36,6 +36,9 @@ export interface PostForAttribution {
 
 export interface MediaMetrics {
   reach: number;
+  // Meta's replacement for media impressions; varies above reach and is the
+  // only secondary signal that moves at this account size (saves are 0).
+  views: number;
   saves: number;
   likes: number;
   comments: number;
@@ -51,6 +54,7 @@ export interface Attribution {
 function metricsOf(media: IgMediaItem): MediaMetrics {
   return {
     reach: getMetric(media, 'reach') ?? 0,
+    views: getMetric(media, 'views') ?? 0,
     saves: getMetric(media, 'saves') ?? 0,
     likes: getMetric(media, 'likes') ?? 0,
     comments: getMetric(media, 'comments') ?? 0,

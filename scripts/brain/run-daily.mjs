@@ -47,7 +47,11 @@ async function runOne(brandId, day) {
       `/api/brain/snapshot?brandId=${brandId}&source=${source}`,
       { runId, day }
     );
-    console.log(`  snapshot.${source}:`, out.status, out.json?.status ?? '');
+    // Log the REASON too. Logging only the status is why `snapshot.ads: 200
+    // failed` ran nightly for days without anyone learning that the Meta token
+    // had expired.
+    const detail = out.json?.reason ? ` (${out.json.reason})` : '';
+    console.log(`  snapshot.${source}:`, out.status, `${out.json?.status ?? ''}${detail}`);
   }
   const compute = await call(`/api/brain/compute?brandId=${brandId}`, { runId });
   console.log('  compute:', compute.status, compute.json?.status ?? '');

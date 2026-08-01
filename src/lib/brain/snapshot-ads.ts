@@ -20,7 +20,18 @@ export async function snapshotAds(input: SnapshotAdsInput): Promise<SnapshotResp
   const url = `https://graph.facebook.com/v21.0/${input.adAccountId}/insights?date_preset=last_28d&level=campaign&fields=campaign_name,impressions,reach,clicks,ctr,cpc,actions&access_token=${input.accessToken}`;
   const res = await fetcher(url);
   if (!res.ok) {
-    return { status: 'failed', reason: `ads_${res.status}` };
+    // Surface WHAT failed, not just that it did. This returned a bare
+    // "ads_400" every night from 2026-07-28 while the actual cause — an expired
+    // Meta token needing a human reconnect — was never visible in the log.
+    let detail = '';
+    try {
+      const body = (await res.json()) as { error?: { code?: number; message?: string } };
+      if (body.error?.code === 190) detail = '_token_expired';
+      else if (body.error?.message) detail = `_${body.error.message.slice(0, 60)}`;
+    } catch {
+      // Non-JSON error body — the status code alone will have to do.
+    }
+    return { status: 'failed', reason: `ads_${res.status}${detail}` };
   }
   const json = (await res.json()) as { data?: unknown[] };
   const data = json.data ?? [];
