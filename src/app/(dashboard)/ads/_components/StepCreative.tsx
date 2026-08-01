@@ -14,8 +14,10 @@ export function StepCreative(props: {
   onNext: () => void;
   candidates: string[];
   imageMissing: boolean;
+  copyIssues?: Array<{ code: string; severity: string; detail: string }>;
 }) {
   const { draft, setDraft } = props;
+  const issues = props.copyIssues ?? [];
   const set = <K extends keyof AdDraft>(k: K, v: AdDraft[K]) => setDraft({ ...draft, [k]: v });
 
   const mediaType = draft.mediaType ?? 'image';
@@ -103,6 +105,24 @@ export function StepCreative(props: {
 
   return (
     <div className="space-y-5">
+      {issues.length > 0 && (
+        <div className="rounded-lg border border-amber-900/60 bg-amber-950/25 px-3 py-2.5">
+          <div className="text-xs font-medium text-amber-300">
+            {issues.length === 1 ? 'One thing to check in this copy' : `${issues.length} things to check in this copy`}
+          </div>
+          <ul className="mt-1.5 space-y-1">
+            {issues.map((issue) => (
+              <li key={issue.code} className="text-[11px] text-amber-200/90 flex gap-1.5">
+                <span aria-hidden>{issue.severity === 'error' ? '⚠' : '•'}</span>
+                <span>{issue.detail}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-1.5 text-[10px] text-(--muted-2)">
+            Edit the text below to fix these. Nothing is rewritten automatically.
+          </div>
+        </div>
+      )}
       <div>
         <label className="mb-1 block text-sm font-medium text-(--muted)">Media type</label>
         <div className="inline-flex rounded-2xl border border-(--line-strong) bg-(--surface) p-0.5">

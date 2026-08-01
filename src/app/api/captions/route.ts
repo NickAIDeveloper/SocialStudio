@@ -8,6 +8,8 @@ import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
 import { sanitizeCaption, sanitizeHook, sanitizeHashtags, reconcileCountClaim } from '@/lib/caption-engine';
 import { resolveHook } from '@/lib/smart-posts/hook-fallback';
 import { pickLruAngle, buildCreativeBrief, aggregateAngleScores, type CreativeAngle, type AngleId } from '@/lib/smart-posts/creative-angles';
+import { classifyHookPattern } from '@/lib/brain/creative-stats';
+import { pickUnderusedPattern, buildVarietyDirective } from '@/lib/brain/hook-shape';
 import {
   classifyHookAngle,
   dominantHookSkeleton,
@@ -279,6 +281,17 @@ export async function POST(request: NextRequest) {
       bannedSkeletonHuman,
     });
 
+    // Hook SHAPE variety, orthogonal to the angle rotation above: the angle
+    // decides the subject, this decides the sentence form. Both are needed --
+    // the creative loop measured ~75% of every hook ever published using the
+    // same shape ('statement'), which the angle rotation cannot see because a
+    // question and a flat claim about the same subject share an angle.
+    const recentPatterns = recentHooksRaw.map((h) => classifyHookPattern(h));
+    const varietyDirective = buildVarietyDirective(
+      pickUnderusedPattern(recentPatterns),
+      recentPatterns,
+    );
+
     // Build brand context from website and description
     let brandContext = '';
     if (brand) {
@@ -388,7 +401,9 @@ ${brandVoiceContext}
 
 VARIATION SEED: ${variationSeed}. ${avoidTopics.length > 0 ? `AVOID these already-used themes: ${avoidTopics.slice(0, 5).join(', ')}.` : ''} Write from a completely fresh angle.
 ${recentHooksBlock}
-${creativeBrief}${captionLengthHint ? `\nTARGET CAPTION LENGTH: ${captionLengthHint === 'short' ? 'SHORT (40-80 words). Punchy, dense, no fluff.' : captionLengthHint === 'long' ? 'LONG (120-200 words). Expand with texture, examples, or narrative while staying scannable.' : 'MEDIUM (80-120 words). Balanced depth.'} This is driven by what has historically performed best for this account.\n` : ''}${captionPatternHint?.label ? `\nCAPTION PATTERN: Structure this caption using the "${captionPatternHint.label}" pattern — this pattern statistically outperforms on this account. ${captionPatternHint.type === 'lists' ? 'Use a numbered or bulleted list of concrete tips.' : captionPatternHint.type === 'questions' ? 'Open with a provocative question and weave more questions throughout.' : captionPatternHint.type === 'emotional' ? 'Lead with a raw emotional confession or feeling.' : captionPatternHint.type === 'stats' ? 'Anchor the hook around a concrete number or comparison (real numbers only — no fabrication).' : captionPatternHint.type === 'story' ? 'Use a micro-story arc: setup → turn → lesson.' : ''}\n` : ''}${toneHint === 'community' ? `\nTONE NUDGE: Engagement has been dipping — lean into COMMUNITY / relatable mode. Be vulnerable, specific, and invite a response in the CTA.\n` : ''}
+${creativeBrief}
+${varietyDirective}
+${captionLengthHint ? `\nTARGET CAPTION LENGTH: ${captionLengthHint === 'short' ? 'SHORT (40-80 words). Punchy, dense, no fluff.' : captionLengthHint === 'long' ? 'LONG (120-200 words). Expand with texture, examples, or narrative while staying scannable.' : 'MEDIUM (80-120 words). Balanced depth.'} This is driven by what has historically performed best for this account.\n` : ''}${captionPatternHint?.label ? `\nCAPTION PATTERN: Structure this caption using the "${captionPatternHint.label}" pattern — this pattern statistically outperforms on this account. ${captionPatternHint.type === 'lists' ? 'Use a numbered or bulleted list of concrete tips.' : captionPatternHint.type === 'questions' ? 'Open with a provocative question and weave more questions throughout.' : captionPatternHint.type === 'emotional' ? 'Lead with a raw emotional confession or feeling.' : captionPatternHint.type === 'stats' ? 'Anchor the hook around a concrete number or comparison (real numbers only — no fabrication).' : captionPatternHint.type === 'story' ? 'Use a micro-story arc: setup → turn → lesson.' : ''}\n` : ''}${toneHint === 'community' ? `\nTONE NUDGE: Engagement has been dipping — lean into COMMUNITY / relatable mode. Be vulnerable, specific, and invite a response in the CTA.\n` : ''}
 
 SPECIFICITY — THE ANTI-SLOP RULE (as important as the hook):
 - The post MUST contain at least ONE concrete, specific, verifiable element: a real number, a named ${brandName} feature, a concrete step, or a specific micro-moment or example. Generic motivation with no specifics is a hard reject.

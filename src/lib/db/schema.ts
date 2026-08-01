@@ -203,6 +203,30 @@ export const postAnalytics = pgTable('post_analytics', {
   fetchedAt: timestamp('fetched_at', { mode: 'date' }).defaultNow(),
 });
 
+// ── Audience Pain Points (research) ───────────────────────────────────────────
+//
+// What real people in this brand's world complain about, mined from public
+// community discussions and ranked by RECURRENCE. One row per brand, refreshed
+// periodically.
+//
+// Exists because generation previously wrote entirely from our own description
+// of the product and from competitor data — never from the audience's own
+// words. `ranked` holds the full RankedPain[] including untrusted entries, so
+// the evidence is inspectable; only trusted ones reach the brief.
+export const brandPainPoints = pgTable('brand_pain_points', {
+  brandId: uuid('brand_id')
+    .primaryKey()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  // Which community was mined, e.g. 'stackexchange:fitness'.
+  source: varchar('source', { length: 64 }).notNull(),
+  // The search terms used, so a disappointing result can be diagnosed.
+  queries: jsonb('queries'),
+  discussionsScanned: integer('discussions_scanned').notNull().default(0),
+  // RankedPain[] — theme, mentions, trusted, quotes, totalUpvotes.
+  ranked: jsonb('ranked'),
+  fetchedAt: timestamp('fetched_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
 // ── Creative Generations (M2 — "creative as data") ────────────────────────────
 //
 // One row per GENERATION ATTEMPT, recording the INPUTS that produced a creative

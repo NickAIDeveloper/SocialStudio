@@ -17,7 +17,7 @@ export function StepGoal(props: {
   brandId: string; setBrandId: (v: string) => void;
   objective: AdObjective; setObjective: (v: AdObjective) => void;
   destinationUrl: string; setDestinationUrl: (v: string) => void;
-  onDraft: (draft: AdDraft, candidates: string[], imageMissing: boolean) => void;
+  onDraft: (draft: AdDraft, candidates: string[], imageMissing: boolean, copyIssues?: Array<{ code: string; severity: string; detail: string }>) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +89,7 @@ export function StepGoal(props: {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message ?? json.error ?? 'Generation failed');
-      props.onDraft(json.draft as AdDraft, json.imageCandidates ?? [], Boolean(json.imageMissing));
+      props.onDraft(json.draft as AdDraft, json.imageCandidates ?? [], Boolean(json.imageMissing), json.copyIssues ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Generation failed');
     } finally {

@@ -6,6 +6,9 @@ import { getUserId } from '@/lib/auth-helpers';
 import { readBrandBrain } from '@/lib/brain/consume';
 import { buildCompetitorIntel } from '@/lib/brain/competitor-intel';
 import { buildAdDraft } from '@/lib/ads/build-draft';
+import { auditAdCopy } from '@/lib/ads/ad-copy-guard';
+import { brandPainPoints } from '@/lib/db/schema';
+import { buildPainBrief, type RankedPain } from '@/lib/research/pain-points';
 import { generateAdCopy } from '@/lib/ads/ad-copy';
 import { summarizeCompetitorIntel } from '@/lib/ads/competitor-summary';
 import { OBJECTIVE_CONFIG, type AdObjective } from '@/lib/meta/ads-types';
@@ -37,9 +40,12 @@ async function pickImages(args: {
     headers: { cookie: args.cookie },
   });
   if (!pxRes.ok) return { chosen: null, candidates: [] };
-  const { hits } = (await pxRes.json()) as { hits?: Array<{ webformatURL?: string }> };
+  // largeImageURL (1280px) rather than webformatURL (640px). A paid ad is shown
+  // full-width on modern phones, where a 640px source looks visibly soft — and
+  // unlike an organic post, this one costs money every time it is displayed.
+  const { hits } = (await pxRes.json()) as { hits?: Array<{ largeImageURL?: string; webformatURL?: string }> };
   const candidates = (hits ?? [])
-    .map((h) => h.webformatURL)
+    .map((h) => h.largeImageURL ?? h.webformatURL)
     .filter((url): url is string => Boolean(url))
     .slice(0, 8);
   const chosen = candidates[0] ?? null;
@@ -77,10 +83,17 @@ export async function POST(request: NextRequest) {
     const origin = request.nextUrl.origin;
     const cookie = request.headers.get('cookie') ?? '';
 
-    const [brain, intel] = await Promise.all([
+    const [brain, intel, painRow] = await Promise.all([
       readBrandBrain(body.brandId).catch(() => null),
       buildCompetitorIntel(body.brandId).catch(() => null),
+      // Audience pain points, mined from real community discussions. Optional:
+      // a brand with none researched yet generates exactly as before.
+      db.select().from(brandPainPoints).where(eq(brandPainPoints.brandId, body.brandId))
+        .then(rows => rows[0] ?? null).catch(() => null),
     ]);
+    const painBrief = painRow?.ranked
+      ? buildPainBrief(painRow.ranked as RankedPain[])
+      : null;
     const competitorContext = summarizeCompetitorIntel(intel);
 
     let copy;
@@ -95,6 +108,7 @@ export async function POST(request: NextRequest) {
         objective: body.objective,
         destinationUrl: body.destinationUrl,
         briefMd: brain?.briefMd ?? null,
+        painBrief,
         competitorContext,
       });
     } catch (genErr) {
@@ -135,7 +149,19 @@ export async function POST(request: NextRequest) {
       ...(isApp && body.applicationId && { applicationId: body.applicationId }),
     });
 
-    return NextResponse.json({ draft, imageMissing: !chosen, imageCandidates: candidates });
+    // Surface copy problems the prompt is supposed to prevent but the model can
+    // still produce — chiefly organic phrasing ("link in bio") in a paid ad,
+    // which sends the reader nowhere. Reported, not blocking: the draft is
+    // reviewed before publishing, and silently rewriting the model's prose
+    // would be worse than showing the operator what is wrong with it.
+    const copyIssues = auditAdCopy(draft);
+
+    return NextResponse.json({
+      draft,
+      imageMissing: !chosen,
+      imageCandidates: candidates,
+      copyIssues,
+    });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

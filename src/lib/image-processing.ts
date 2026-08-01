@@ -2,6 +2,8 @@ import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs/promises';
 import { assertAllowedImageUrl } from '@/lib/url-validation';
+import { sampleBandColour } from '@/lib/creative/sample-region';
+import { contrastRatio, MIN_CONTRAST } from '@/lib/creative/qa';
 import type { Brand } from '@/lib/domain-types';
 
 /** Resolve an image URL to a Buffer — handles both data URIs and HTTPS URLs. */
@@ -659,11 +661,42 @@ export async function createInstagramImageWithText(
   const accentY = Math.min(textTop + textH + accentGap, logoTopApprox - logoGap);
   const textLeft = Math.max(0, Math.floor((width - textW) / 2));
 
+  // Readability gate. The hook is rendered WHITE over an arbitrary stock photo,
+  // and the base tint below is only 10% — so a pale image (sky, snow, sand)
+  // leaves the text effectively invisible. Measure the actual band the text will
+  // occupy and, when contrast falls short, darken just that band until it is
+  // legible. Reporting the problem would be useless here: nobody is reviewing
+  // each render, so the gate has to FIX it.
+  const textBandColour = await sampleBandColour(squareImage, textTop, textH);
+  let scrimOpacity = 0;
+  if (textBandColour) {
+    const ratio = contrastRatio({ r: 255, g: 255, b: 255 }, textBandColour);
+    if (ratio < MIN_CONTRAST) {
+      // Scale the scrim with the shortfall rather than using a fixed value: a
+      // slightly-too-bright photo gets a light veil, a white-out gets a heavy
+      // one, and neither is darkened more than it needs.
+      const shortfall = Math.min(1, (MIN_CONTRAST - ratio) / MIN_CONTRAST);
+      scrimOpacity = Math.min(0.55, 0.18 + shortfall * 0.5);
+      console.warn(
+        `[creative-qa] hook contrast ${ratio.toFixed(2)}:1 below ${MIN_CONTRAST}:1 — applying ${scrimOpacity.toFixed(2)} scrim`,
+      );
+    }
+  }
+  // Feather the scrim beyond the glyphs so it reads as a deliberate gradient
+  // rather than a visible rectangle behind the words.
+  const scrimPad = 48;
+  const scrimTop = Math.max(0, textTop - scrimPad);
+  const scrimHeight = Math.min(height - scrimTop, textH + scrimPad * 2);
+  const scrimRect = scrimOpacity > 0
+    ? `<rect x="0" y="${scrimTop}" width="${width}" height="${scrimHeight}" fill="rgba(0,0,0,${scrimOpacity.toFixed(2)})"/>`
+    : '';
+
   // Light tint + teal accent line rendered as SVG (no text → librsvg can't fail here).
   const lineWidth = 120;
   const lineLeft = Math.floor((width - lineWidth) / 2);
   const overlaySvg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
   <rect width="${width}" height="${height}" fill="rgba(0,0,0,0.10)"/>
+  ${scrimRect}
   <rect x="${lineLeft}" y="${accentY}" width="${lineWidth}" height="4" rx="2" fill="${colors.accent}"/>
 </svg>`;
 
