@@ -22,6 +22,8 @@
 // flag.
 
 // Below this many independent mentions, a pain is reported but not trusted.
+import { SOURCE_SITES } from './sources';
+
 export const MIN_MENTIONS_TO_TRUST = 3;
 
 // Keep the brief readable — three pieces of evidence is plenty to write from.
@@ -98,6 +100,23 @@ export function rankPainPoints(mentions: readonly PainMention[]): RankedPain[] {
 // Renders the top pains for injection into the caption/ad brief. Only trusted
 // pains are included — an untrusted one would read to the model as established
 // fact and there is no way for it to know otherwise.
+// Which community was this brand researched against? Reads the site back out
+// of the stored `source` ('stackexchange:fitness' → 'fitness').
+//
+// This exists so the daily cron can REFRESH a brand using the community a human
+// already chose, instead of falling back to a default. The route defaults `site`
+// to 'fitness', which was harmless while a human picked it on /research — but a
+// cron looping every brand would mine fitness complaints for a travel brand and
+// a marketing brand, and autopilot now injects those straight into captions.
+//
+// Returns null rather than guessing. Null means "no human has chosen a community
+// for this brand", and the correct response is to skip it, not to pick one.
+export function parseResearchSite(source: string | null | undefined): string | null {
+  const site = (source ?? '').split(':')[1]?.trim();
+  if (!site) return null;
+  return site in SOURCE_SITES ? site : null;
+}
+
 // How long researched pain points stay usable before a refresh is worth its
 // cost. What an audience complains about shifts over weeks, not hours, while a
 // refresh costs a full scrape plus two LLM passes per brand — so a daily cron

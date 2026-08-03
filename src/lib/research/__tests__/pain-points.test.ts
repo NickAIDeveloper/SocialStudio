@@ -3,6 +3,7 @@ import {
   normalisePainKey,
   rankPainPoints,
   isPainResearchStale,
+  parseResearchSite,
   MIN_MENTIONS_TO_TRUST,
   type PainMention,
 } from '../pain-points';
@@ -146,5 +147,40 @@ describe('isPainResearchStale', () => {
     const twoDaysAgo = new Date('2026-08-01T12:00:00Z');
     expect(isPainResearchStale(twoDaysAgo, now, 1)).toBe(true);
     expect(isPainResearchStale(twoDaysAgo, now, 30)).toBe(false);
+  });
+});
+
+// ─── Research source per brand (bug found 2026-08-03) ───────────────────────
+//
+// The refresh route defaults `site` to 'fitness'. That was harmless while the
+// only caller was a human picking a community on /research, but the daily cron
+// calls it for EVERY brand — so a travel brand and a marketing brand would both
+// have fitness pain points mined and stored. Now that autopilot injects those
+// into captions, a wrong source actively degrades posts rather than just
+// wasting a scrape.
+
+describe('parseResearchSite', () => {
+  it('reads the site back out of a stored source', () => {
+    expect(parseResearchSite('stackexchange:fitness')).toBe('fitness');
+    expect(parseResearchSite('stackexchange:money')).toBe('money');
+  });
+
+  it('returns null when nothing has been researched yet', () => {
+    // The signal that no human has ever chosen a community for this brand.
+    expect(parseResearchSite(null)).toBeNull();
+    expect(parseResearchSite(undefined)).toBeNull();
+    expect(parseResearchSite('')).toBeNull();
+  });
+
+  it('returns null for a source it cannot parse', () => {
+    // Never guess a community. Guessing is what puts fitness complaints into a
+    // travel brand's captions.
+    expect(parseResearchSite('stackexchange')).toBeNull();
+    expect(parseResearchSite('reddit')).toBeNull();
+    expect(parseResearchSite('stackexchange:')).toBeNull();
+  });
+
+  it('rejects a site that is no longer supported', () => {
+    expect(parseResearchSite('stackexchange:nosuchsite')).toBeNull();
   });
 });

@@ -20,7 +20,9 @@ import { verifyBrainSignature } from '@/lib/brain/auth';
 import { fetchStackExchangeDiscussions, SOURCE_SITES, type Discussion } from '@/lib/research/sources';
 import { extractPainMentions } from '@/lib/research/extract-pains';
 import { canonicaliseThemes } from '@/lib/research/canonicalise';
-import { rankPainPoints, isPainResearchStale, PAIN_RESEARCH_MAX_AGE_DAYS } from '@/lib/research/pain-points';
+import {
+  rankPainPoints, isPainResearchStale, parseResearchSite, PAIN_RESEARCH_MAX_AGE_DAYS,
+} from '@/lib/research/pain-points';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -37,9 +39,9 @@ export async function POST(req: Request): Promise<Response> {
 
   const { searchParams } = new URL(req.url);
   const brandId = searchParams.get('brandId');
-  const site = searchParams.get('site') ?? 'fitness';
+  const requestedSite = searchParams.get('site');
   if (!brandId) return NextResponse.json({ error: 'missing_brandId' }, { status: 400 });
-  if (!SOURCE_SITES[site]) {
+  if (requestedSite && !SOURCE_SITES[requestedSite]) {
     return NextResponse.json(
       { error: 'unknown_site', supported: Object.keys(SOURCE_SITES) },
       { status: 400 },
@@ -62,10 +64,31 @@ export async function POST(req: Request): Promise<Response> {
     .select()
     .from(brandPainPoints)
     .where(eq(brandPainPoints.brandId, brandId));
+
+  // Which community to mine. An explicit ?site= wins (a deliberate choice).
+  // Otherwise reuse whatever a human already picked for this brand.
+  //
+  // There is NO default. This used to fall back to 'fitness', which was safe
+  // while the only caller was a human on /research choosing a community — but
+  // the daily cron loops every brand, so a travel brand and a marketing brand
+  // would both get fitness complaints mined and stored. Autopilot now injects
+  // those into captions, so a wrong community actively degrades posts instead
+  // of merely wasting a scrape. Skipping is always better than guessing.
+  const site = requestedSite ?? parseResearchSite(existing?.source);
+  if (!site) {
+    return NextResponse.json({
+      status: 'skipped',
+      reason: 'no_source_configured',
+      message: 'Choose a community for this brand on /research first — there is no sensible default.',
+      supported: Object.keys(SOURCE_SITES),
+    });
+  }
+
   if (!force && !isPainResearchStale(existing?.fetchedAt, new Date())) {
     return NextResponse.json({
       status: 'skipped',
       reason: 'still_fresh',
+      site,
       fetchedAt: existing?.fetchedAt,
       maxAgeDays: PAIN_RESEARCH_MAX_AGE_DAYS,
     });
