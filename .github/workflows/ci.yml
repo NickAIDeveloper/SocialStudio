@@ -1,0 +1,51 @@
+# Runs the test suite on every push and pull request.
+#
+# Until now the only workflow in this repo was brain-daily.yml — nothing ran
+# `npm test` automatically, so every test here was advisory: it only executed if
+# a human remembered to run it locally before pushing. That is how the silent
+# cron 405 reached production twice despite a regression test existing
+# specifically to catch it (src/__tests__/middleware-cron-routes.test.ts).
+#
+# Deliberately fast (install + test + lint, no build) so it stays under a minute
+# and nobody is tempted to skip it. Vercel already builds on push, so a build
+# step here would duplicate that gate rather than add one.
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# A new push to the same branch makes the previous run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      # Lint is NOT a gate yet: `npm run lint` currently reports 14 pre-existing
+      # errors (4 setState-in-effect, 4 unescaped entities, prefer-const, one
+      # explicit any, one impure call during render). Making it blocking today
+      # would mean a pipeline that is red from its first run, which teaches
+      # everyone to ignore CI — the precise habit this workflow exists to break.
+      # Report it, do not fail on it. Flip to a gate once the 14 are cleared.
+      - name: Lint (advisory)
+        run: npm run lint
+        continue-on-error: true
