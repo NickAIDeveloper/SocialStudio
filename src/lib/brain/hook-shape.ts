@@ -56,8 +56,14 @@ export function patternShare(recent: readonly string[]): Partial<Record<string, 
 // that, least-used wins, and the immediately-previous shape is excluded
 // regardless, since back-to-back repetition reads as sameness however rare the
 // shape is overall.
+//
+// ORDERING: `recent` is NEWEST FIRST, matching every caller, which builds its
+// history with `.orderBy(desc(...))`. This used to read the last element as the
+// most recent and so excluded the OLDEST shape — meaning a shape that was both
+// just used and globally rare would be picked straight back, which is precisely
+// the back-to-back repeat this rule exists to prevent.
 export function pickUnderusedPattern(recent: readonly string[]): HookPattern {
-  const mostRecent = recent[recent.length - 1];
+  const mostRecent = recent[0];
   const counts = new Map<HookPattern, number>(TARGETABLE_PATTERNS.map(p => [p, 0]));
   for (const pattern of recent) {
     if (counts.has(pattern as HookPattern)) {
@@ -83,6 +89,7 @@ const SHAPE_GUIDE: Record<HookPattern, string> = {
 };
 
 // Prompt fragment steering the next hook towards an under-used shape.
+// `recent` is NEWEST FIRST, as in pickUnderusedPattern.
 export function buildVarietyDirective(target: HookPattern, recent: readonly string[]): string {
   const lines = [
     `HOOK SHAPE FOR THIS POST: ${target} — ${SHAPE_GUIDE[target]}.`,
@@ -98,7 +105,7 @@ export function buildVarietyDirective(target: HookPattern, recent: readonly stri
       `Do NOT use these overused shapes: ${overused.join(', ')}. They already dominate this account and another one adds nothing.`,
     );
   } else if (recent.length > 0) {
-    const last = recent.slice(-3).join(', ');
+    const last = recent.slice(0, 3).join(', ');
     lines.push(`Recent hook shapes were: ${last}. Do not repeat the most recent one.`);
   }
 
