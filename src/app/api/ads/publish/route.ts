@@ -16,6 +16,7 @@ import {
 } from '@/lib/meta/ads-types';
 import { findOverlap, type GeoCity } from '@/lib/ads/geo-overlap';
 import { buildTrackedUrl } from '@/lib/ads/tracked-url';
+import { resolveAudienceMode, advantageAudienceFlag } from '@/lib/ads/audience-mode';
 import { randomUUID } from 'node:crypto';
 
 export const maxDuration = 60;
@@ -191,14 +192,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const audienceMode = resolveAudienceMode(targeting.audienceMode);
+
     const metaTargeting: Record<string, unknown> = {
       geo_locations: geo,
       age_min: targeting.ageMin,
       age_max: targeting.ageMax,
-      // Meta now requires the Advantage+ audience flag to be set explicitly, or
-      // it rejects the ad set with subcode 1870227 ("Advantage Audience Flag
-      // Required"). We use manual detailed targeting, so opt out (0).
-      targeting_automation: { advantage_audience: 0 },
+      // Meta requires the Advantage+ audience flag to be set explicitly, or it
+      // rejects the ad set with subcode 1870227 ("Advantage Audience Flag
+      // Required"). Which way it goes is now the user's choice per ad, and
+      // defaults to opting out (0) so existing behaviour is unchanged.
+      targeting_automation: { advantage_audience: advantageAudienceFlag(audienceMode) },
     };
     const genders = genderCodes(targeting.gender);
     if (genders) metaTargeting.genders = genders;

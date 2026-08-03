@@ -112,6 +112,12 @@ export interface AdTargeting {
   ageMax: number; // 13..65
   gender: 'all' | 'male' | 'female';
   interests: string[]; // free-text names; resolved to IDs at publish time
+  // 'detailed' (default) hand-picks the audience from the fields above.
+  // 'broad' turns on Meta's Advantage+ audience and lets delivery find people
+  // beyond them, treating the interests as suggestions rather than a fence.
+  // Optional so drafts saved before this existed keep their exact behaviour.
+  // See lib/ads/audience-mode.ts.
+  audienceMode?: 'detailed' | 'broad';
   dailyBudgetMinor: number; // minor units of account currency (e.g. pence)
   startDate: string; // ISO date-time
   endDate: string; // ISO date-time

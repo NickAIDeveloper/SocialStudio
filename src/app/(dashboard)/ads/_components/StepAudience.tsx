@@ -256,6 +256,35 @@ export function StepAudience(props: {
         </Labeled>
       </div>
 
+      <Labeled label="Who should Meta show this to?">
+        <div className="space-y-2">
+          {([
+            {
+              value: 'detailed' as const,
+              title: 'Pick the audience myself',
+              blurb: 'Deliver to the age, location, gender and interests set above, and no further.',
+            },
+            {
+              value: 'broad' as const,
+              title: 'Let the creative find the audience',
+              blurb: 'Turns on Meta Advantage+ audience. The settings above become suggestions and delivery can go beyond them. Meta looks for people who respond, rather than people who match.',
+            },
+          ]).map((opt) => {
+            const active = (targeting.audienceMode ?? 'detailed') === opt.value;
+            return (
+              <button key={opt.value} type="button" onClick={() => set('audienceMode', opt.value)}
+                className={`w-full rounded-2xl border px-3 py-2.5 text-left ${active ? 'border-(--violet-24) bg-(--violet-08)' : 'border-(--line-strong)'}`}>
+                <div className={`text-sm font-medium ${active ? 'text-(--violet-bright)' : 'text-(--txt)'}`}>{opt.title}</div>
+                <div className="mt-0.5 text-xs text-(--muted)">{opt.blurb}</div>
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-xs text-(--muted)">
+          Neither is proven for these brands yet. Running one of each is the only way to find out which works.
+        </p>
+      </Labeled>
+
       <Labeled label="Interests (AI-suggested — click to toggle, or add your own)">
         <div className="flex flex-wrap gap-2">
           {[...new Set([...props.suggestions, ...targeting.interests])].map((name) => {
