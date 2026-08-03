@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   normalisePainKey,
   rankPainPoints,
+  isPainResearchStale,
   MIN_MENTIONS_TO_TRUST,
   type PainMention,
 } from '../pain-points';
@@ -104,5 +105,46 @@ describe('rankPainPoints', () => {
 
   it('returns nothing for no input', () => {
     expect(rankPainPoints([])).toEqual([]);
+  });
+});
+
+// ─── Staleness gate (added 2026-08-03) ──────────────────────────────────────
+//
+// The refresh route is HMAC-gated for cron use but was never called by one, so
+// research only ever ran when a human clicked. Adding it to the daily cron
+// naively would re-scrape and run two LLM passes per brand per day for data
+// that shifts monthly. The cron stays dumb and calls daily; this decides
+// whether that call should do any work.
+
+describe('isPainResearchStale', () => {
+  const now = new Date('2026-08-03T12:00:00Z');
+
+  it('treats never-researched as stale', () => {
+    expect(isPainResearchStale(null, now)).toBe(true);
+    expect(isPainResearchStale(undefined, now)).toBe(true);
+  });
+
+  it('leaves fresh research alone', () => {
+    expect(isPainResearchStale(new Date('2026-08-02T12:00:00Z'), now)).toBe(false);
+  });
+
+  it('refreshes research older than the window', () => {
+    expect(isPainResearchStale(new Date('2026-07-25T12:00:00Z'), now)).toBe(true);
+  });
+
+  it('treats exactly the window boundary as stale', () => {
+    expect(isPainResearchStale(new Date('2026-07-27T12:00:00Z'), now)).toBe(true);
+  });
+
+  it('does not re-scrape on a future timestamp', () => {
+    // Clock skew between the app and the DB must not trigger an expensive
+    // rescrape on every run.
+    expect(isPainResearchStale(new Date('2026-08-04T12:00:00Z'), now)).toBe(false);
+  });
+
+  it('honours a custom window', () => {
+    const twoDaysAgo = new Date('2026-08-01T12:00:00Z');
+    expect(isPainResearchStale(twoDaysAgo, now, 1)).toBe(true);
+    expect(isPainResearchStale(twoDaysAgo, now, 30)).toBe(false);
   });
 });

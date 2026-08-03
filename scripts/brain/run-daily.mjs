@@ -64,6 +64,15 @@ async function runOne(brandId, day) {
       console.log(`    error: ${e.handle} -> ${e.reason}`);
     }
   }
+  // Audience research, BEFORE autopilot so a refresh lands in time to steer
+  // today's post. The route self-gates on staleness, so this is a cheap no-op
+  // on most days rather than a daily re-scrape.
+  const research = await call(`/api/research/pain-points?brandId=${brandId}`, { runId });
+  console.log(
+    '  research:', research.status, research.json?.status ?? '',
+    research.json?.reason ?? `(trusted=${research.json?.trusted ?? 0})`,
+  );
+
   const forceParam = process.env.FORCE_AUTOPILOT === 'true' ? '&force=1' : '';
   const autopilot = await call(`/api/autopilot/run?brandId=${brandId}${forceParam}`, { runId, day });
   console.log('  autopilot:', autopilot.status, autopilot.json?.status ?? '', autopilot.json?.reason ?? autopilot.json?.postId ?? '');

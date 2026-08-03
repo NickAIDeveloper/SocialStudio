@@ -98,6 +98,30 @@ export function rankPainPoints(mentions: readonly PainMention[]): RankedPain[] {
 // Renders the top pains for injection into the caption/ad brief. Only trusted
 // pains are included — an untrusted one would read to the model as established
 // fact and there is no way for it to know otherwise.
+// How long researched pain points stay usable before a refresh is worth its
+// cost. What an audience complains about shifts over weeks, not hours, while a
+// refresh costs a full scrape plus two LLM passes per brand — so a daily cron
+// asking "is this stale?" is far cheaper than a daily cron that re-researches.
+export const PAIN_RESEARCH_MAX_AGE_DAYS = 7;
+
+const DAY_MS = 86_400_000;
+
+// Should the refresh actually do work? Lets the cron stay dumb (call daily) and
+// keeps the decision here, where it is testable without a network or a model.
+export function isPainResearchStale(
+  fetchedAt: Date | null | undefined,
+  now: Date,
+  maxAgeDays: number = PAIN_RESEARCH_MAX_AGE_DAYS,
+): boolean {
+  if (!fetchedAt) return true;
+  const ageMs = now.getTime() - fetchedAt.getTime();
+  // A negative age means the stored timestamp is ahead of us — clock skew
+  // between app and database, not stale data. Re-scraping on skew would mean
+  // paying for a full refresh on every single run.
+  if (ageMs < 0) return false;
+  return ageMs >= maxAgeDays * DAY_MS;
+}
+
 export function buildPainBrief(ranked: readonly RankedPain[], limit = 3): string {
   const usable = ranked.filter(p => p.trusted).slice(0, limit);
   if (usable.length === 0) return '';

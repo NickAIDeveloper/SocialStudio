@@ -20,7 +20,7 @@ import { verifyBrainSignature } from '@/lib/brain/auth';
 import { fetchStackExchangeDiscussions, SOURCE_SITES, type Discussion } from '@/lib/research/sources';
 import { extractPainMentions } from '@/lib/research/extract-pains';
 import { canonicaliseThemes } from '@/lib/research/canonicalise';
-import { rankPainPoints } from '@/lib/research/pain-points';
+import { rankPainPoints, isPainResearchStale, PAIN_RESEARCH_MAX_AGE_DAYS } from '@/lib/research/pain-points';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -48,6 +48,28 @@ export async function POST(req: Request): Promise<Response> {
 
   const [brand] = await db.select().from(brands).where(eq(brands.id, brandId));
   if (!brand) return NextResponse.json({ error: 'brand_not_found' }, { status: 404 });
+
+  // Staleness gate. The daily cron calls this for every brand every day, but a
+  // refresh costs a full scrape plus two LLM passes and what an audience
+  // complains about shifts over weeks, so most of those calls should do
+  // nothing. `force=1` overrides it for a deliberate out-of-band refresh.
+  //
+  // The /research page's refresh button is unaffected: it goes through
+  // /api/research/view, which is session-authenticated and researches inline.
+  // A human clicking refresh always means now.
+  const force = searchParams.get('force') === '1';
+  const [existing] = await db
+    .select()
+    .from(brandPainPoints)
+    .where(eq(brandPainPoints.brandId, brandId));
+  if (!force && !isPainResearchStale(existing?.fetchedAt, new Date())) {
+    return NextResponse.json({
+      status: 'skipped',
+      reason: 'still_fresh',
+      fetchedAt: existing?.fetchedAt,
+      maxAgeDays: PAIN_RESEARCH_MAX_AGE_DAYS,
+    });
+  }
 
   // Queries come from the brand's own words. Broad queries pull in unrelated
   // communities whose pains genuinely don't recur together, which is what
