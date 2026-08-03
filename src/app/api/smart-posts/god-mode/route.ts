@@ -8,6 +8,11 @@ import { cerebrasChatCompletion, isCerebrasAvailable } from '@/lib/cerebras';
 import type { DeepProfile } from '@/lib/meta/deep-profile.types';
 import { FORMAT_OPTIONS_JSON, SUPPORTED_FORMATS, isSupportedFormat } from '@/lib/autopilot/capabilities';
 import { isIgAuthError } from '@/lib/meta/ig-token';
+import { desc, eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { brandPainPoints, posts } from '@/lib/db/schema';
+import { buildPainBrief, type RankedPain } from '@/lib/research/pain-points';
+import { buildAutopilotSteering, type AutopilotSteering } from '@/lib/smart-posts/autopilot-steering';
 
 // Allow longer runtime — deep profile fetch + LLM design + image compositing.
 // Bumped from 60s to 90s after Cerebras rate-limit retries (300ms base, up to
@@ -164,6 +169,7 @@ function buildUserPrompt(
   profile: DeepProfile,
   competitorIntel: CompetitorIntel | null,
   likeOfMediaId?: string,
+  steering?: AutopilotSteering | null,
 ): string {
   const compact = compactProfileForPrompt(profile);
   const likeOfLine = likeOfMediaId
@@ -183,12 +189,19 @@ function buildUserPrompt(
     SUPPORTED_FORMATS.length === 1
       ? `IMPORTANT CAPABILITY CONSTRAINT: this account can only ship single-photo posts right now. Reels and carousels are not yet supported by the pipeline. You MUST set "format" to "${SUPPORTED_FORMATS[0]}". Even if the data suggests reels or carousels would beat the account medians, design the strongest possible single-photo post (still-image hook with overlay) — do not pick REEL or CAROUSEL.`
       : `Pick one of the supported formats: ${FORMAT_OPTIONS_JSON}. Other formats are not yet shippable.`;
+  // Audience pain and hook-shape variety. Both were wired into /api/captions
+  // only, so the unattended posting path generated without either.
+  const steeringBlock = steering && steering.blocks.length > 0
+    ? `\n${steering.blocks.join('\n\n')}\n\nThe "pattern" you return MUST follow the hook shape above.\n`
+    : '';
+
   return [
     "Below is the account's full performance profile. Use the actual numbers.",
     '',
     'PROFILE_JSON:',
     JSON.stringify(compact, null, 2),
     competitorBlock,
+    steeringBlock,
     '',
     capabilityNote,
     '',
@@ -338,10 +351,36 @@ export async function POST(req: NextRequest) {
       console.warn('[SmartPosts/god-mode] buildCompetitorIntel failed:', err instanceof Error ? err.message : err);
     }
 
+    // Creative steering: hook-shape variety + audience pain research. Both are
+    // best-effort — a brand with no research, or a transient DB error, must
+    // degrade to the previous unsteered behaviour rather than block a post.
+    let steering: AutopilotSteering | null = null;
+    try {
+      const [recentRows, painRow] = await Promise.all([
+        db
+          .select({ hookText: posts.hookText })
+          .from(posts)
+          .where(eq(posts.brandId, brandId))
+          .orderBy(desc(posts.createdAt))
+          .limit(15),
+        db
+          .select()
+          .from(brandPainPoints)
+          .where(eq(brandPainPoints.brandId, brandId))
+          .then(rows => rows[0] ?? null),
+      ]);
+      steering = buildAutopilotSteering({
+        recentHooks: recentRows.map(r => r.hookText ?? ''),
+        painBrief: painRow?.ranked ? buildPainBrief(painRow.ranked as RankedPain[]) : null,
+      });
+    } catch (err) {
+      console.warn('[SmartPosts/god-mode] steering failed:', err instanceof Error ? err.message : err);
+    }
+
     const raw = await cerebrasChatCompletion(
       [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: buildUserPrompt(profile, competitorIntel, likeOfMediaId) },
+        { role: 'user', content: buildUserPrompt(profile, competitorIntel, likeOfMediaId, steering) },
       ],
       { temperature: LLM_TEMP, maxTokens: LLM_MAX_TOKENS },
     );
