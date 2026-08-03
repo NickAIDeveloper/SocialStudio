@@ -22,9 +22,32 @@ const email = process.argv[2] ?? 'origae@socialstudio.app';
 const sql = neon(process.env.NEON_DB_URL!);
 const db = drizzle(sql);
 
-async function g(path: string, token: string, params = ''): Promise<any> {
+// Graph responses are shape-per-endpoint; callers narrow what they read.
+type GraphResponse = Record<string, unknown> & {
+  data?: unknown[];
+  error?: { message?: string; code?: number };
+};
+
+// Only the fields this script asks Meta for and prints.
+interface AdNode {
+  id?: string;
+  name?: string;
+  status?: string;
+  effective_status?: string;
+  updated_time?: string;
+  adset?: {
+    status?: string;
+    effective_status?: string;
+    daily_budget?: string;
+    start_time?: string;
+    end_time?: string;
+  };
+  campaign?: { status?: string; effective_status?: string };
+}
+
+async function g(path: string, token: string, params = ''): Promise<GraphResponse> {
   const res = await fetch(`${BASE}${path}?access_token=${encodeURIComponent(token)}${params}`);
-  return res.json();
+  return res.json() as Promise<GraphResponse>;
 }
 
 (async () => {
@@ -46,7 +69,7 @@ async function g(path: string, token: string, params = ''): Promise<any> {
     'adset{id,name,status,effective_status,daily_budget,start_time,end_time},' +
     'campaign{id,name,status,effective_status}&limit=50');
   console.log('\n=== ALL ADS AT META ===');
-  for (const a of (ads.data ?? [])) {
+  for (const a of (ads.data ?? []) as AdNode[]) {
     console.log(`\nad ${a.id}  "${a.name}"`);
     console.log(`  ad       status=${a.status}  effective=${a.effective_status}`);
     console.log(`  adset    status=${a.adset?.status}  effective=${a.adset?.effective_status}  budget=${a.adset?.daily_budget}  start=${a.adset?.start_time}  end=${a.adset?.end_time}`);
