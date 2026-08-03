@@ -61,6 +61,7 @@ schema drift is left alone. Rollback is "stop reading the tables".
 ```
 id              uuid pk
 dimension       varchar(32)   -- angle | framework | pain_point | hook_shape | cta_type | image_style
+                              -- image_style is record-only until AI image generation lands (§10)
 value           varchar(64)   -- 'PAS', 'curiosity_gap', 'loss_aversion'
 prompt_fragment text          -- the instruction text injected into the copywriter prompt
 source          varchar(32)   -- builtin | ads_library | transcript | viral_feed
@@ -347,11 +348,24 @@ and every other component works unchanged.
 
 ---
 
-## 10. Open questions
+## 10. Resolved decisions
 
-1. `image_style` as a dimension presumes the image generation path can accept a style
-   directive. Today god-mode *selects* stock photos rather than *creating* to a brief
-   (roadmap M3). Until then this dimension is recorded but has no `prompt_fragment` effect —
-   confirm that recording-without-acting is acceptable, or drop the dimension until M3.
-2. Wildcard rate of 1-in-5 is a guess. It is a config constant, so it can be tuned once the
-   leaderboard shows real spread.
+**1. `image_style` is kept, record-only for now.** (Confirmed 2026-08-03.)
+
+Creative is stock-photo selection today; the intent is to move to AI-generated statics once
+a suitable tool is chosen. So the dimension ships now in **record-only** mode: it is stored
+on every genome and scored like any other ingredient, but its `prompt_fragment` is not
+injected anywhere until an image path exists that can accept a style directive.
+
+This is the cheaper order of operations. Recording from day one means that when generation
+does land, there is already history showing which image styles correlated with clicks —
+rather than starting that clock from zero on the day the tool is swapped in. The cost of
+carrying it is one nullable dimension.
+
+Implementation note: `sampling.ts` must treat a dimension with no active `prompt_fragment`
+as sampleable-but-inert, not as an error. Covered by a unit test.
+
+**2. Wildcard rate confirmed at 1-in-5.** (Confirmed 2026-08-03.)
+
+`wildcardEveryN: 5` in `DEFAULT_ENTROPY_CONFIG`. A config constant, tunable once the
+leaderboard shows real spread.
