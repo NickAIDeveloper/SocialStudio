@@ -15,7 +15,7 @@ import {
 } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
 import { matchQuestion, listQuestions } from '@/lib/analytics/questions';
-import { aggregateByDimension, type StatRow } from '@/lib/brain/creative-stats';
+import { summariseCreativeStats, type StatRow } from '@/lib/brain/creative-stats';
 import type { RankedPain } from '@/lib/research/pain-points';
 
 export const dynamic = 'force-dynamic';
@@ -82,9 +82,12 @@ export async function POST(req: Request): Promise<Response> {
           .leftJoin(posts, eq(posts.id, creativeGenerations.postId))
           .leftJoin(postAnalytics, eq(postAnalytics.postId, posts.id))
           .where(eq(creativeGenerations.brandId, brand.id));
-        const stats = aggregateByDimension(gens as StatRow[], 'hookPattern');
-        if (stats.length > 0) {
-          rows.push({ brand: brand.slug, byHookShape: stats.slice(0, 5) });
+        // Both dimensions, because the question asks for both. `angle` was
+        // selected above and then silently dropped, so the answer addressed
+        // half the question without saying so.
+        const summary = summariseCreativeStats(gens as StatRow[], 5);
+        if (summary.byHookShape.length > 0 || summary.byAngle.length > 0) {
+          rows.push({ brand: brand.slug, ...summary });
         }
         break;
       }

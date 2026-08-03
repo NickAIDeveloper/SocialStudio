@@ -76,9 +76,24 @@ export interface DimensionStat {
   confident: boolean;
 }
 
-// Mean outcome score per distinct value of one dimension, strongest first.
-// Rows with a null/absent value for that dimension are skipped rather than
-// bucketed as "unknown", so legacy rows can't invent a phantom category.
+// A row is only an OBSERVATION when it carries an actual measurement.
+//
+// Callers reach these rows through a LEFT JOIN onto postAnalytics, so a
+// generation whose post is unpublished — or published but not yet synced —
+// arrives with every outcome field null. scoreOutcome would score that 0,
+// which deflates the mean and inflates the sample count at the same time: the
+// worst of both, because it also drags a value toward `confident`.
+//
+// A measured zero is different and must still count. A published post that
+// genuinely reached nobody is real evidence.
+export function hasOutcome(outcome: Outcome): boolean {
+  return outcome.reach != null || outcome.saves != null;
+}
+
+// Mean outcome score per distinct value of one dimension, most trustworthy
+// first. Rows with a null/absent value for that dimension are skipped rather
+// than bucketed as "unknown", so legacy rows can't invent a phantom category;
+// rows with no measurement are skipped by hasOutcome.
 export function aggregateByDimension(
   rows: readonly StatRow[],
   dimension: Dimension,
@@ -88,6 +103,7 @@ export function aggregateByDimension(
   for (const row of rows) {
     const value = row[dimension];
     if (!value) continue;
+    if (!hasOutcome(row)) continue;
     const cur = sums.get(value) ?? { total: 0, n: 0 };
     cur.total += scoreOutcome(row);
     cur.n += 1;
@@ -101,7 +117,34 @@ export function aggregateByDimension(
       meanScore: total / n,
       confident: n >= MIN_CONFIDENT_SAMPLES,
     }))
-    .sort((a, b) => b.meanScore - a.meanScore);
+    // Confidence outranks raw score. Readers scan a ranked list top-down and
+    // act on what heads it, so a one-post fluke sitting above a value measured
+    // thirty times is misleading no matter how honestly `confident: false` is
+    // reported alongside it. It also let flukes monopolise a top-N slice.
+    // Within a confidence tier, score decides as before.
+    .sort((a, b) => {
+      if (a.confident !== b.confident) return a.confident ? -1 : 1;
+      return b.meanScore - a.meanScore;
+    });
+}
+
+export interface CreativeSummary {
+  byHookShape: DimensionStat[];
+  byAngle: DimensionStat[];
+}
+
+// Both creative dimensions a reader asks about together ("which hook shapes and
+// angles perform best?"), so a caller cannot answer half the question by
+// accident. Empty dimensions are returned as empty arrays rather than omitted,
+// so "no data yet" is visible instead of looking like the question was ignored.
+export function summariseCreativeStats(
+  rows: readonly StatRow[],
+  topN: number,
+): CreativeSummary {
+  return {
+    byHookShape: aggregateByDimension(rows, 'hookPattern').slice(0, topN),
+    byAngle: aggregateByDimension(rows, 'angle').slice(0, topN),
+  };
 }
 
 export type RankVerdict = 'winner' | 'no_difference' | 'insufficient_data';

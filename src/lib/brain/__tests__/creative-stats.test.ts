@@ -4,6 +4,7 @@ import {
   scoreOutcome,
   aggregateByDimension,
   rankDimension,
+  summariseCreativeStats,
   MIN_CONFIDENT_SAMPLES,
 } from '../creative-stats';
 
@@ -150,5 +151,144 @@ describe('rankDimension', () => {
       angle: 'question', hookPattern: 'question', reach: 100, saves: 0,
     }));
     expect(rankDimension(many, 'angle').verdict).toBe('insufficient_data');
+  });
+});
+
+// ─── Regression tests: three bugs found via /ask on 2026-08-03 ───────────────
+//
+// The page answered "which hook shapes and angles perform best?" by ranking a
+// single-post fluke (mean 21, n=1) above a value measured 30 times, counting
+// unpublished posts as zero-scoring samples, and omitting angles entirely.
+
+describe('aggregateByDimension — confidence outranks raw mean', () => {
+  it('ranks a well-sampled value above a better-scoring fluke', () => {
+    const rows = [
+      { angle: 'fluke', reach: 21, saves: 0 },
+      ...Array.from({ length: MIN_CONFIDENT_SAMPLES }, () => ({
+        angle: 'proven', reach: 9, saves: 0,
+      })),
+    ];
+    const stats = aggregateByDimension(rows, 'angle');
+    // The fluke scores higher but is backed by one post; showing it first
+    // invites acting on noise.
+    expect(stats[0].value).toBe('proven');
+    expect(stats[1].value).toBe('fluke');
+  });
+
+  it('still orders by mean score within the confident group', () => {
+    const rows = [
+      ...Array.from({ length: MIN_CONFIDENT_SAMPLES }, () => ({
+        angle: 'weaker', reach: 10, saves: 0,
+      })),
+      ...Array.from({ length: MIN_CONFIDENT_SAMPLES }, () => ({
+        angle: 'stronger', reach: 90, saves: 0,
+      })),
+    ];
+    const stats = aggregateByDimension(rows, 'angle');
+    expect(stats.map(s => s.value)).toEqual(['stronger', 'weaker']);
+  });
+
+  it('keeps a confident value visible when the list is truncated', () => {
+    const flukes = Array.from({ length: 5 }, (_, i) => ({
+      angle: `fluke_${i}`, reach: 500, saves: 0,
+    }));
+    const rows = [
+      ...flukes,
+      ...Array.from({ length: MIN_CONFIDENT_SAMPLES }, () => ({
+        angle: 'proven', reach: 5, saves: 0,
+      })),
+    ];
+    // Five high-scoring flukes would previously fill every top-5 slot.
+    expect(aggregateByDimension(rows, 'angle').slice(0, 5)[0].value).toBe('proven');
+  });
+});
+
+describe('aggregateByDimension — unmeasured posts are not observations', () => {
+  it('excludes rows that have no analytics at all', () => {
+    const rows = [
+      { angle: 'question', reach: 100, saves: 1 },
+      // Generated but never published, or analytics not yet synced. Counting
+      // this as a zero deflates the mean AND inflates the sample count.
+      { angle: 'question', reach: null, saves: null },
+    ];
+    const [stat] = aggregateByDimension(rows, 'angle');
+    expect(stat.samples).toBe(1);
+    expect(stat.meanScore).toBe(120);
+  });
+
+  it('excludes rows where the outcome fields are absent entirely', () => {
+    const rows = [
+      { angle: 'question', reach: 60, saves: 0 },
+      { angle: 'question' },
+    ];
+    expect(aggregateByDimension(rows, 'angle')[0].samples).toBe(1);
+  });
+
+  it('counts a genuinely measured zero', () => {
+    // A published post that truly reached nobody is real evidence and must
+    // still count, unlike an unmeasured one.
+    const rows = [
+      { angle: 'question', reach: 100, saves: 0 },
+      { angle: 'question', reach: 0, saves: 0 },
+    ];
+    const [stat] = aggregateByDimension(rows, 'angle');
+    expect(stat.samples).toBe(2);
+    expect(stat.meanScore).toBe(50);
+  });
+
+  it('omits a value whose every row is unmeasured', () => {
+    const rows = [
+      { angle: 'measured', reach: 10, saves: 0 },
+      { angle: 'ghost', reach: null, saves: null },
+    ];
+    expect(aggregateByDimension(rows, 'angle').map(s => s.value)).toEqual(['measured']);
+  });
+});
+
+describe('rankDimension — reachable verdict beneath a fluke', () => {
+  it('names a winner when two confident values sit below an unsampled outlier', () => {
+    const rows = [
+      { angle: 'fluke', reach: 9999, saves: 0 },
+      ...Array.from({ length: MIN_CONFIDENT_SAMPLES }, () => ({
+        angle: 'question', reach: 200, saves: 0,
+      })),
+      ...Array.from({ length: MIN_CONFIDENT_SAMPLES }, () => ({
+        angle: 'stat', reach: 50, saves: 0,
+      })),
+    ];
+    // Previously the fluke occupied stats[0] and forced insufficient_data,
+    // hiding a comparison that was perfectly well evidenced.
+    const result = rankDimension(rows, 'angle');
+    expect(result.verdict).toBe('winner');
+    expect(result.leader?.value).toBe('question');
+  });
+});
+
+describe('summariseCreativeStats', () => {
+  const rows = [
+    { angle: 'question', hookPattern: 'question', reach: 100, saves: 0 },
+    { angle: 'stat', hookPattern: 'number', reach: 40, saves: 0 },
+  ];
+
+  it('returns angles as well as hook shapes', () => {
+    // /ask asked for both and only ever returned hook shapes.
+    const summary = summariseCreativeStats(rows, 5);
+    expect(summary.byHookShape.map(s => s.value)).toEqual(['question', 'number']);
+    expect(summary.byAngle.map(s => s.value)).toEqual(['question', 'stat']);
+  });
+
+  it('truncates each dimension to topN', () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({
+      angle: `a_${i}`, hookPattern: `h_${i}`, reach: i * 10, saves: 0,
+    }));
+    const summary = summariseCreativeStats(many, 5);
+    expect(summary.byHookShape).toHaveLength(5);
+    expect(summary.byAngle).toHaveLength(5);
+  });
+
+  it('reports empty dimensions rather than omitting them', () => {
+    const summary = summariseCreativeStats([{ angle: 'solo', reach: 10, saves: 0 }], 5);
+    expect(summary.byAngle).toHaveLength(1);
+    expect(summary.byHookShape).toEqual([]);
   });
 });
