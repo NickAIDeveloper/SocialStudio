@@ -676,3 +676,82 @@ export type SelectBrandBrain = typeof brandBrain.$inferSelect;
 
 export type InsertAutopilotSettings = typeof autopilotSettings.$inferInsert;
 export type SelectAutopilotSettings = typeof autopilotSettings.$inferSelect;
+
+// ── Creative genome ──────────────────────────────────────────────────────────
+// Ingredient-level learning: what each creative was MADE of, so outcomes can be
+// scored per ingredient rather than per ad. At this volume a per-ad winner is
+// noise; ten ads across four frameworks give counts that mean something.
+// See docs/superpowers/specs/2026-08-03-creative-genome-design.md
+
+export const creativeIngredients = pgTable(
+  'creative_ingredients',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    dimension: varchar('dimension', { length: 32 }).notNull(),
+    value: varchar('value', { length: 64 }).notNull(),
+    // The instruction injected into the copywriter prompt. An ingredient is
+    // self-describing: a framework is not the label 'PAS', it ships the prose.
+    promptFragment: text('prompt_fragment').notNull(),
+    // 'builtin' today. Spec 2 inserts 'ads_library' | 'transcript' | 'viral_feed'
+    // rows here and nothing else in the system needs to change.
+    source: varchar('source', { length: 32 }).notNull().default('builtin'),
+    active: pgBoolean('active').notNull().default(true),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('creative_ingredient_dim_value_idx').on(t.dimension, t.value)],
+);
+
+export const creativeGenomes = pgTable(
+  'creative_genomes',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    // 'ad' → meta_ads.id, 'post' → posts.id. Intentionally NOT a foreign key:
+    // it points at two different tables. Orphans are harmless — they simply
+    // stop contributing to scores.
+    subjectType: varchar('subject_type', { length: 16 }).notNull(),
+    subjectId: uuid('subject_id').notNull(),
+    brandId: uuid('brand_id').references(() => brands.id, { onDelete: 'cascade' }),
+    surface: varchar('surface', { length: 16 }).notNull(), // 'ads' | 'organic'
+    wasWildcard: pgBoolean('was_wildcard').notNull().default(false),
+    // noveltyDistance, borrowedPriors[], temperature — so "why did it write
+    // this?" is always answerable, the same way an agent-plan decision is.
+    samplingMeta: jsonb('sampling_meta'),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('creative_genome_subject_idx').on(t.subjectType, t.subjectId),
+    index('creative_genome_surface_idx').on(t.surface),
+  ],
+);
+
+export const creativeGenomeIngredients = pgTable(
+  'creative_genome_ingredients',
+  {
+    genomeId: uuid('genome_id')
+      .notNull()
+      .references(() => creativeGenomes.id, { onDelete: 'cascade' }),
+    ingredientId: uuid('ingredient_id')
+      .notNull()
+      .references(() => creativeIngredients.id, { onDelete: 'cascade' }),
+  },
+  (t) => [primaryKey({ columns: [t.genomeId, t.ingredientId] })],
+);
+
+export const creativeIngredientScores = pgTable(
+  'creative_ingredient_scores',
+  {
+    ingredientId: uuid('ingredient_id')
+      .notNull()
+      .references(() => creativeIngredients.id, { onDelete: 'cascade' }),
+    surface: varchar('surface', { length: 16 }).notNull(),
+    n: integer('n').notNull().default(0),
+    meanReward: numeric('mean_reward'),
+    // The number the sampler actually uses. Shrunk toward a prior in proportion
+    // to how little data backs it — a raw mean over n=2 is noise wearing a
+    // number's clothing.
+    shrunkScore: numeric('shrunk_score'),
+    borrowed: pgBoolean('borrowed').notNull().default(false),
+    updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.ingredientId, t.surface] })],
+);
