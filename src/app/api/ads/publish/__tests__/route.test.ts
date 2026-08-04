@@ -15,6 +15,9 @@ const { state } = vi.hoisted(() => ({
       tokenExpiresAt: new Date(Date.now() + 86_400_000),
       assets: { adAccounts: [{ id: 'act_1', account_id: '1', currency: 'GBP' }] },
     } as Record<string, unknown> | null,
+    // Creative genome recording (mocked below) — captures calls / forces a throw.
+    recordedGenomes: [] as unknown[],
+    recordGenomeThrows: false,
   },
 }));
 
@@ -73,6 +76,14 @@ vi.mock('@/lib/meta/ads', () => ({
   waitForVideoReady: vi.fn().mockResolvedValue(undefined),
   createVideoCreative: vi.fn().mockResolvedValue('vcreative_1'),
   deleteCampaign: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('@/lib/creative/genome-record', () => ({
+  recordGenome: vi.fn(async (input: unknown) => {
+    if (state.recordGenomeThrows) throw new Error('genome record boom');
+    state.recordedGenomes.push(input);
+    return 'genome_1';
+  }),
 }));
 
 import { POST } from '../route';
@@ -144,6 +155,9 @@ describe('POST /api/ads/publish', () => {
       tokenExpiresAt: new Date(Date.now() + 86_400_000),
       assets: { adAccounts: [{ id: 'act_1', account_id: '1', currency: 'GBP' }] },
     };
+    state.recordedGenomes = [];
+    state.recordGenomeThrows = false;
+    delete process.env.CREATIVE_GENOME_ENABLED;
   });
 
   // ── Base test coverage ────────────────────────────────────────────────────
@@ -527,5 +541,44 @@ describe('POST /api/ads/publish', () => {
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/overlap/i);
     expect(vi.mocked(createCampaign)).not.toHaveBeenCalled();
+  });
+
+  // ── Creative genome recording ────────────────────────────────────────────
+
+  describe('creative genome recording', () => {
+    it('does not record a genome when the flag is off', async () => {
+      // Flag off is the default. Nothing about publishing may change.
+      delete process.env.CREATIVE_GENOME_ENABLED;
+      const res = await POST(makeReq(validBody));
+      expect(res.status).toBe(200);
+      expect(state.recordedGenomes).toHaveLength(0);
+    });
+
+    it('records the genome when the flag is on and one was supplied', async () => {
+      process.env.CREATIVE_GENOME_ENABLED = 'true';
+      const res = await POST(makeReq({
+        ...validBody,
+        genome: {
+          ingredients: [{ id: 'f1', dimension: 'framework', value: 'PAS', promptFragment: 'x' }],
+          wasWildcard: false, noveltyDistance: 1, noveltyExhausted: false, borrowedPriors: [], temperature: 1,
+        },
+      }));
+      expect(res.status).toBe(200);
+      expect(state.recordedGenomes).toHaveLength(1);
+    });
+
+    it('still publishes when genome recording throws', async () => {
+      // Best effort. A telemetry write must never cost a real ad.
+      process.env.CREATIVE_GENOME_ENABLED = 'true';
+      state.recordGenomeThrows = true;
+      const res = await POST(makeReq({
+        ...validBody,
+        genome: {
+          ingredients: [{ id: 'f1', dimension: 'framework', value: 'PAS', promptFragment: 'x' }],
+          wasWildcard: false, noveltyDistance: 1, noveltyExhausted: false, borrowedPriors: [], temperature: 1,
+        },
+      }));
+      expect(res.status).toBe(200);
+    });
   });
 });

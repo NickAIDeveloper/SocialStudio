@@ -17,6 +17,7 @@ import {
 import { findOverlap, type GeoCity } from '@/lib/ads/geo-overlap';
 import { buildTrackedUrl } from '@/lib/ads/tracked-url';
 import { resolveAudienceMode, advantageAudienceFlag } from '@/lib/ads/audience-mode';
+import type { SampledGenome } from '@/lib/creative/sampling';
 import { randomUUID } from 'node:crypto';
 
 export const maxDuration = 60;
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
     userId = await getUserId();
     const body = (await request.json()) as {
       brandId?: string; adAccountId?: string; pageId?: string; igAccountId?: string;
-      draft?: AdDraft; targeting?: AdTargeting;
+      draft?: AdDraft; targeting?: AdTargeting; genome?: SampledGenome;
     };
     brandId = body.brandId ?? '';
     adAccountId = body.adAccountId ?? '';
@@ -312,6 +313,24 @@ export async function POST(request: NextRequest) {
       // this first and will never touch anything not tagged 'agent'.
       createdBy: 'human',
     });
+
+    // Creative genome: remember what this ad was made of, so its outcome can
+    // teach the ingredients rather than only the ad. Flagged and best effort —
+    // recordGenome swallows its own failures and returns null.
+    if (process.env.CREATIVE_GENOME_ENABLED === 'true' && body.genome) {
+      try {
+        const { recordGenome } = await import('@/lib/creative/genome-record');
+        await recordGenome({
+          subjectType: 'ad',
+          subjectId: adId,
+          brandId: brand.id,
+          surface: 'ads',
+          genome: body.genome,
+        });
+      } catch (err) {
+        console.warn('[ads/publish] genome recording failed:', err instanceof Error ? err.message : err);
+      }
+    }
 
     return NextResponse.json({
       campaignId: createdCampaign, adsetId: createdAdset, creativeId: createdCreative, adId,
