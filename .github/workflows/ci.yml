@@ -34,20 +34,10 @@ jobs:
           node-version: 22
           cache: npm
 
-      # `npm install`, not `npm ci`. The committed package-lock.json is out of
-      # sync with package.json (missing @emnapi/* transitive deps), which CI
-      # caught on its first ever run — nothing had clean-installed this repo
-      # before. The obvious fix, regenerating the lockfile, cannot be done on
-      # the Windows dev machine: npm prunes other platforms' optional binaries,
-      # so a regenerated lockfile loses @esbuild/linux-x64 and breaks this
-      # runner instead. Regenerating it needs a Linux environment.
-      #
-      # Until then `npm install` resolves the tree on the runner and platform
-      # binaries land correctly. Slower and not byte-reproducible, but the point
-      # of this workflow is that tests RUN — a reproducibility guarantee that
-      # blocks every test from executing is worth strictly less than nothing.
+      # Back to `npm ci` now the lockfile is in sync (regenerated on Linux via
+      # lockfile-refresh.yml, 2026-08-04). Reproducible and faster.
       - name: Install
-        run: npm install --no-audit --no-fund
+        run: npm ci
 
       - name: Test
         run: npm test
