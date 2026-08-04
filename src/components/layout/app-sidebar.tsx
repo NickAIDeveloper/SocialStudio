@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { BarChart3, Sparkles, Plus, Bot, Megaphone, Menu, Settings, X, Search, MessageCircleQuestion, FlaskConical } from 'lucide-react';
+import { BarChart3, Sparkles, Plus, Bot, Megaphone, Menu, Settings, X, Search, MessageCircleQuestion, FlaskConical, Dna } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserMenu } from '@/components/layout/user-menu';
 
@@ -14,6 +14,7 @@ const primaryItems = [
   { href: '/create', label: 'Create', icon: Plus },
   { href: '/autopilot', label: 'Autopilot', icon: Bot },
   { href: '/ads', label: 'Ads', icon: Megaphone },
+  { href: '/ads/genome', label: 'Genome', icon: Dna },
   { href: '/intel', label: 'Intelligence', icon: FlaskConical },
   { href: '/research', label: 'Research', icon: Search },
   { href: '/ask', label: 'Ask', icon: MessageCircleQuestion },
