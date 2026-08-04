@@ -369,3 +369,114 @@ as sampleable-but-inert, not as an error. Covered by a unit test.
 
 `wildcardEveryN: 5` in `DEFAULT_ENTROPY_CONFIG`. A config constant, tunable once the
 leaderboard shows real spread.
+
+---
+
+## 11. Implementation deviations
+
+Five places where the shipped code does not do what this spec says, each with the reason and
+the evidence. A spec that silently disagrees with the code it produced is worse than no spec,
+because the next reader will "fix" the code back to match the document instead of the data.
+
+### D1 — Organic reward is reach relative to the brand median, not reach / followers
+
+§4.1 specifies `reward(organic) = reach / followers`. The code
+(`src/lib/creative/scoring.ts:54-57`, `organicReward()`) computes `reach / brandMedianReach`
+instead.
+
+Follower counts live on `scraped_accounts` rows, and those rows have `brand_id` set to `NULL`
+— there is no reliable join from a genome back to a follower count. Even if there were, scores
+pool across brands in one table, and the measured medians differ sharply: pacebrain's median
+post reach is 14, affectly's is 3. Dividing by a static follower count would still let one
+brand's absolute reach numbers outrank another brand's regardless of which ingredients were
+used, because the two brands operate at completely different reach scales. Dividing by the
+brand's own median cancels that out: every brand's ingredients are scored against that brand's
+own typical outcome, so a curiosity-gap hook that reaches 2x affectly's median (score ~2.0) is
+comparable to a curiosity-gap hook that reaches 2x pacebrain's median, even though the raw
+reach numbers (6 vs 28) look nothing alike.
+
+### D2 — Eligibility floors are per surface, not one shared `IMPRESSION_FLOOR`
+
+§4.2 says to reuse `IMPRESSION_FLOOR = 500` from `signals.ts` for eligibility. The code
+applies that floor only to the ads surface (`src/lib/creative/genome-read.ts:28,115`,
+`ADS_IMPRESSION_FLOOR = 500`). Organic eligibility is gated solely by `hasOutcome()`
+(`genome-read.ts:122`), with no impression floor at all.
+
+Real organic posts in this system reach 1 to 28 people. A 500-impression floor would have
+excluded every organic post ever published, leaving `loadObservations('organic')` permanently
+empty. Since the ads surface borrows organic's `shrunk_score` as its cold-start prior (§4.3),
+an empty organic surface means the ads surface has nothing to borrow either — the whole
+cold-start mechanism the spec depends on would be dead on arrival, and it would look fine at
+review time because no error is thrown; it would just never learn anything. Organic instead
+uses whatever eligibility `hasOutcome()` already enforces for the existing brain (a post has to
+have analytics recorded at all), which is the same bar the organic learning loop already
+clears today.
+
+### D3 — Borrowed prior is a multiplier on the ads mean, not an absolute value
+
+§4.3 describes the borrowed prior as "that ingredient's organic `shrunk_score`" — read
+literally, `prior = organic.shrunkScore`. The code
+(`src/lib/creative/scoring.ts:99-111`) instead computes
+`prior = adsGlobalMean * organic.shrunkScore`, treating the organic score as a relative
+multiplier rather than an absolute value.
+
+The two surfaces are not on the same scale. Ads reward is a click-through rate, roughly
+0.01-0.1. Organic reward (post-D1) is reach relative to the brand median, roughly 0.5-3. Using
+an organic score directly as an absolute ads prior means an ingredient that reached 2x its
+brand's median organically would enter the ads formula as `prior = 2.0` — a claimed 200% CTR,
+about 40 times any real click-through rate — and at `k = 5` it would take roughly n = 5000 real
+ad observations before the shrinkage formula `(n·mean + k·prior)/(n+k)` faded that absolute
+value back down to something in CTR range. Using it as a multiplier on the ads global mean
+keeps the prior on the ads scale from the start (`0.03 mean × 2.0 = 0.06`, still a plausible
+CTR), so it fades at the intended `n ≈ 45` (nine times `k`), and an ingredient that has never
+run an ad does not enter the leaderboard looking like the best-performing ad ever bought.
+Verified arithmetically during review, not just asserted.
+
+### D4 — Softmax standardises scores within the dimension before exponentiating
+
+§5.1 specifies `softmax(score / temperature)` applied to raw scores. The code
+(`src/lib/creative/sampling.ts:78-103`, `softmaxWithFloor()`) z-scores the scores within the
+dimension first, then divides by temperature, then exponentiates.
+
+At ad scale, raw scores are close together in absolute terms — 0.02 vs 0.03 CTR. Exponentiating
+`0.02` and `0.03` directly and normalising gives probabilities of about 0.497 and 0.503:
+effectively uniform. The sampler would never meaningfully favor a better-scoring ingredient, and
+every score this feature computes would be discarded. Organic scores (0.5-3 range) do not have
+this problem at `temperature = 1.0`, so one shared temperature cannot serve both surfaces under
+the literal spec — either it is too flat for ads or too sharp for organic. Standardising within
+the dimension first (subtract the mean, divide by the standard deviation) puts both surfaces on
+a comparable footing before temperature is applied: the same 0.02-vs-0.03 gap, once standardised,
+yields probabilities around 0.238 and 0.762 — the sampler actually exploits the score difference
+instead of ignoring it.
+
+### D5 — Organic genome recording is not implemented
+
+§6.2 says `genome-record.ts` writes a genome "when an ad is published... and when an organic
+post is created." Only the ads path is wired: `recordGenome()` is called from
+`src/app/api/ads/publish/route.ts:327-328`. There is no call site anywhere in the organic
+posting path (`god-mode`, autopilot, or the manual composer).
+
+Wiring organic recording means sampling a genome inside god-mode, which is the autopilot hot
+path — explicitly forbidden by this plan's own constraints (§6.4: "Does not touch the autopilot
+hot path"). The organic rail also already has its own steering as of the 2026-08-03 hook-shape
+variety work, so this was not a silent gap so much as a deliberate one, but it has a real
+consequence that has to be stated plainly rather than left to be discovered later:
+**`borrowedPriors` will be empty and no cold-start warm start exists for the ads surface until a
+follow-up wires organic recording.** The ads surface still works — `scoreIngredients()` falls
+back to the ads global mean as its prior when no organic score exists for an ingredient — it
+just starts cold instead of inheriting a head start from organic history. §8's own risk table
+already names "zero ad data makes the loop unverifiable" as a known risk; this is the same risk
+extended to the borrowing mechanism specifically.
+
+### Note — a defect in the plan's own test design, fixed during implementation
+
+The convergence acceptance test in §7 seeds a deterministic linear congruential generator (LCG)
+for its RNG. The plan's original seed was a fraction. An LCG of the form
+`state = (state * a + c) % m` needs an integer seed: with a fractional starting value, the
+recurrence `state * 9301` never reaches the modulus `233280`, so the sequence contracts to the
+fixed point `0.2200965...` on the first call and every subsequent "random" draw returns that
+same constant. A sampler fed a constant stream cannot produce variety, which would have made the
+convergence test — the acceptance test for the entire spec — fail for a reason that has nothing
+to do with the sampler's correctness. This was a defect in the plan's test design, not in the
+implementation; it was caught and fixed before landing by seeding the LCG with an integer
+(`rngState = 123456789`) in `src/lib/creative/__tests__/sampling.test.ts`.
