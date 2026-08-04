@@ -19,7 +19,7 @@
 // here. That needs outside DNA and is spec 2.
 
 import type { CreativeDimension } from './vocabulary';
-import type { IngredientScore } from './scoring';
+import type { IngredientScore, Surface } from './scoring';
 
 export interface SamplableIngredient {
   id: string;
@@ -50,6 +50,12 @@ export interface SampledGenome {
   ingredients: SamplableIngredient[];
   wasWildcard: boolean;
   noveltyDistance: number | null;
+  // True when resampling used every attempt and still could not clear
+  // noveltyMinDistance, i.e. this recipe is a near-repeat we settled for.
+  // Stated rather than left to be inferred: a genome has to be as inspectable
+  // as an agent-plan decision, and "we gave up looking" is a reason a reader
+  // needs to see.
+  noveltyExhausted: boolean;
   borrowedPriors: string[];
   temperature: number;
 }
@@ -107,6 +113,12 @@ export function jaccardDistance(a: readonly string[], b: readonly string[]): num
   return union === 0 ? 0 : 1 - shared / union;
 }
 
+function pickUniform<T>(items: readonly T[], rng: () => number): T {
+  const i = Math.floor(rng() * items.length);
+  // rng() is allowed to return exactly 1; clamp rather than read past the end.
+  return items[Math.min(Math.max(i, 0), items.length - 1)];
+}
+
 function pick<T>(items: readonly T[], probabilities: readonly number[], rng: () => number): T {
   const r = rng();
   let acc = 0;
@@ -132,6 +144,13 @@ function groupByDimension(
 export function sampleGenome(args: {
   available: readonly SamplableIngredient[];
   scores: readonly IngredientScore[];
+  // Which surface this creative is for. REQUIRED, and scores are filtered to it
+  // here rather than at the call site: scoreIngredients() returns both surfaces
+  // in one array, so a caller passing that array straight through would
+  // standardise click-through rates (~0.01-0.1) together with reach ratios
+  // (~0.5-3) inside a single dimension, and the organic entries would swamp
+  // every z-score. Closing it at the source makes that impossible to get wrong.
+  surface: Surface;
   recentGenomes: readonly (readonly string[])[];
   index: number;
   config?: EntropyConfig;
@@ -140,7 +159,9 @@ export function sampleGenome(args: {
   const config = args.config ?? DEFAULT_ENTROPY_CONFIG;
   const rng = args.rng ?? Math.random;
   const byDimension = groupByDimension(args.available);
-  const scoreById = new Map(args.scores.map(s => [s.ingredientId, s]));
+  const scoreById = new Map(
+    args.scores.filter(s => s.surface === args.surface).map(s => [s.ingredientId, s]),
+  );
 
   const wasWildcard = config.wildcardEveryN > 0 && args.index % config.wildcardEveryN === 0;
   const window = args.recentGenomes.slice(0, config.noveltyWindow);
@@ -151,15 +172,16 @@ export function sampleGenome(args: {
       if (options.length === 0) continue;
 
       if (wasWildcard) {
-        // Ignore score entirely and take the least-tested option. Ties break by
-        // the order the vocabulary defines, so the choice is explainable.
-        let best = options[0];
-        let bestN = scoreById.get(best.id)?.n ?? 0;
-        for (const o of options) {
-          const n = scoreById.get(o.id)?.n ?? 0;
-          if (n < bestN) { best = o; bestN = n; }
-        }
-        chosen.push(best);
+        // Ignore score entirely and take the least-tested option. Ties break at
+        // RANDOM, not by vocabulary order: on a fresh brand every n is 0, so
+        // every dimension ties, and first-listed tie-breaking would make the
+        // one mechanism whose job is exploring the neglected tail propose the
+        // identical combination every time — weakest exactly where it matters
+        // most. The rng is injected, so a given seed is still reproducible.
+        const counts = options.map(o => scoreById.get(o.id)?.n ?? 0);
+        const fewest = Math.min(...counts);
+        const tied = options.filter((_, i) => counts[i] === fewest);
+        chosen.push(tied.length === 1 ? tied[0] : pickUniform(tied, rng));
         continue;
       }
 
@@ -195,6 +217,9 @@ export function sampleGenome(args: {
     ingredients: best,
     wasWildcard,
     noveltyDistance: window.length === 0 ? null : bestDistance,
+    // The loop only exits early once bestDistance clears the threshold, so
+    // still being under it here means every attempt was spent.
+    noveltyExhausted: window.length > 0 && bestDistance < config.noveltyMinDistance,
     borrowedPriors: best
       .filter(i => scoreById.get(i.id)?.borrowed)
       .map(i => i.id),

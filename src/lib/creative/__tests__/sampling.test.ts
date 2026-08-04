@@ -100,7 +100,7 @@ describe('jaccardDistance', () => {
 describe('sampleGenome — shape', () => {
   it('picks exactly one ingredient per available dimension', () => {
     const g = sampleGenome({
-      available: AVAILABLE, scores: [], recentGenomes: [], index: 1, rng: seeded([0.5]),
+      available: AVAILABLE, scores: [], surface: 'ads', recentGenomes: [], index: 1, rng: seeded([0.5]),
     });
     expect(g.ingredients).toHaveLength(2);
     expect(g.ingredients.map(i => i.dimension).sort()).toEqual(['framework', 'hook_shape']);
@@ -108,7 +108,7 @@ describe('sampleGenome — shape', () => {
 
   it('reports the temperature it used', () => {
     const g = sampleGenome({
-      available: AVAILABLE, scores: [], recentGenomes: [], index: 1, rng: seeded([0.5]),
+      available: AVAILABLE, scores: [], surface: 'ads', recentGenomes: [], index: 1, rng: seeded([0.5]),
     });
     expect(g.temperature).toBe(DEFAULT_ENTROPY_CONFIG.temperature);
   });
@@ -118,14 +118,34 @@ describe('sampleGenome — shape', () => {
       { ingredientId: 'f1', surface: 'ads', n: 1, meanReward: 0.1, shrunkScore: 0.5, borrowed: true },
     ];
     const g = sampleGenome({
-      available: AVAILABLE, scores, recentGenomes: [], index: 1, rng: seeded([0.0]),
+      available: AVAILABLE, scores, surface: 'ads', recentGenomes: [], index: 1, rng: seeded([0.0]),
     });
     // Legibility: "why did it write this?" must always be answerable.
     expect(Array.isArray(g.borrowedPriors)).toBe(true);
   });
 
+  it('ignores scores belonging to the other surface', () => {
+    // Task 5 calls refreshScores(), which returns BOTH surfaces in one array.
+    // If they were not filtered, this organic reach ratio would be standardised
+    // alongside click-through rates and would swamp every z-score in the
+    // dimension — so f2 would win a sample it should have no say in.
+    const adsOnly: IngredientScore[] = [
+      score('f1', 1000), score('f2', 0.001), score('f3', 0.001),
+    ];
+    const mixed: IngredientScore[] = [
+      ...adsOnly,
+      { ingredientId: 'f2', surface: 'organic', n: 500, meanReward: 9999, shrunkScore: 9999, borrowed: false },
+    ];
+    const draw = (scores: IngredientScore[]) => sampleGenome({
+      available: AVAILABLE, scores, surface: 'ads', recentGenomes: [], index: 1, rng: seeded([0.5]),
+    }).ingredients.map(i => i.id);
+
+    expect(draw(mixed)).toEqual(draw(adsOnly));
+    expect(draw(mixed)[0]).toBe('f1');
+  });
+
   it('returns an empty genome when nothing is available', () => {
-    const g = sampleGenome({ available: [], scores: [], recentGenomes: [], index: 1 });
+    const g = sampleGenome({ available: [], scores: [], surface: 'ads', recentGenomes: [], index: 1 });
     expect(g.ingredients).toEqual([]);
   });
 });
@@ -133,7 +153,7 @@ describe('sampleGenome — shape', () => {
 describe('sampleGenome — wildcard slot', () => {
   it('fires on every Nth creative', () => {
     const g = sampleGenome({
-      available: AVAILABLE, scores: [], recentGenomes: [],
+      available: AVAILABLE, scores: [], surface: 'ads', recentGenomes: [],
       index: DEFAULT_ENTROPY_CONFIG.wildcardEveryN, rng: seeded([0.5]),
     });
     expect(g.wasWildcard).toBe(true);
@@ -141,7 +161,7 @@ describe('sampleGenome — wildcard slot', () => {
 
   it('does not fire on other creatives', () => {
     const g = sampleGenome({
-      available: AVAILABLE, scores: [], recentGenomes: [], index: 1, rng: seeded([0.5]),
+      available: AVAILABLE, scores: [], surface: 'ads', recentGenomes: [], index: 1, rng: seeded([0.5]),
     });
     expect(g.wasWildcard).toBe(false);
   });
@@ -153,7 +173,7 @@ describe('sampleGenome — wildcard slot', () => {
       score('f1', 10, 100), score('f2', 0, 1), score('f3', 9, 50),
     ];
     const g = sampleGenome({
-      available: AVAILABLE, scores, recentGenomes: [],
+      available: AVAILABLE, scores, surface: 'ads', recentGenomes: [],
       index: DEFAULT_ENTROPY_CONFIG.wildcardEveryN, rng: seeded([0.5]),
     });
     expect(g.ingredients.find(i => i.dimension === 'framework')!.id).toBe('f2');
@@ -162,10 +182,27 @@ describe('sampleGenome — wildcard slot', () => {
   it('treats a never-tested ingredient as the least tested', () => {
     const scores: IngredientScore[] = [score('f1', 10, 100), score('f2', 5, 3)];
     const g = sampleGenome({
-      available: AVAILABLE, scores, recentGenomes: [],
+      available: AVAILABLE, scores, surface: 'ads', recentGenomes: [],
       index: DEFAULT_ENTROPY_CONFIG.wildcardEveryN, rng: seeded([0.5]),
     });
     expect(g.ingredients.find(i => i.dimension === 'framework')!.id).toBe('f3');
+  });
+
+  it('breaks a tie at random rather than always taking the first listed', () => {
+    // The cold-start case, and the one the wildcard exists for. Every option is
+    // equally untested, so vocabulary-order tie-breaking would propose the same
+    // ingredient forever and explore nothing.
+    let s = 777;
+    const rng = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+    const picked = new Set<string>();
+    for (let i = 0; i < 30; i++) {
+      const g = sampleGenome({
+        available: AVAILABLE, scores: [], surface: 'ads', recentGenomes: [],
+        index: DEFAULT_ENTROPY_CONFIG.wildcardEveryN, rng,
+      });
+      picked.add(g.ingredients.find(x => x.dimension === 'framework')!.id);
+    }
+    expect(picked.size).toBeGreaterThan(1);
   });
 });
 
@@ -174,7 +211,7 @@ describe('sampleGenome — combination novelty', () => {
     const scores = [score('f1', 100), score('h1', 100)];
     const recent = [['f1', 'h1']];
     const g = sampleGenome({
-      available: AVAILABLE, scores, recentGenomes: recent, index: 1, rng: seeded([0.01, 0.99]),
+      available: AVAILABLE, scores, surface: 'ads', recentGenomes: recent, index: 1, rng: seeded([0.01, 0.99]),
     });
     const ids = g.ingredients.map(i => i.id).sort();
     expect(ids).not.toEqual(['f1', 'h1']);
@@ -187,7 +224,7 @@ describe('sampleGenome — combination novelty', () => {
     const onlyOne: SamplableIngredient[] = [ing('f1', 'framework', 'PAS')];
     const recent = Array.from({ length: 10 }, () => ['f1']);
     const g = sampleGenome({
-      available: onlyOne, scores: [], recentGenomes: recent, index: 1, rng: seeded([0.5]),
+      available: onlyOne, scores: [], surface: 'ads', recentGenomes: recent, index: 1, rng: seeded([0.5]),
     });
     expect(g.ingredients).toHaveLength(1);
     expect(g.ingredients[0].id).toBe('f1');
@@ -195,15 +232,36 @@ describe('sampleGenome — combination novelty', () => {
 
   it('reports the novelty distance it achieved', () => {
     const g = sampleGenome({
-      available: AVAILABLE, scores: [], recentGenomes: [['f1', 'h1']], index: 1, rng: seeded([0.5]),
+      available: AVAILABLE, scores: [], surface: 'ads', recentGenomes: [['f1', 'h1']], index: 1, rng: seeded([0.5]),
     });
     expect(typeof g.noveltyDistance === 'number' || g.noveltyDistance === null).toBe(true);
+  });
+
+  it('flags that it gave up when no novel recipe exists', () => {
+    // One ingredient, ten identical recent genomes: every attempt is spent and
+    // the result is still a repeat. The caller must be able to SEE that.
+    const onlyOne: SamplableIngredient[] = [ing('f1', 'framework', 'PAS')];
+    const g = sampleGenome({
+      available: onlyOne, scores: [], surface: 'ads',
+      recentGenomes: Array.from({ length: 10 }, () => ['f1']), index: 1, rng: seeded([0.5]),
+    });
+    expect(g.noveltyExhausted).toBe(true);
+    expect(g.noveltyDistance).toBeLessThan(DEFAULT_ENTROPY_CONFIG.noveltyMinDistance);
+  });
+
+  it('does not flag exhaustion when it found a novel recipe', () => {
+    const g = sampleGenome({
+      available: AVAILABLE, scores: [], surface: 'ads',
+      recentGenomes: [['f1', 'h1']], index: 1, rng: seeded([0.99]),
+    });
+    expect(g.noveltyExhausted).toBe(false);
+    expect(g.noveltyDistance).toBeGreaterThanOrEqual(DEFAULT_ENTROPY_CONFIG.noveltyMinDistance);
   });
 
   it('only compares against the novelty window, not all history', () => {
     const ancient = Array.from({ length: 50 }, () => ['f1', 'h1']);
     const g = sampleGenome({
-      available: AVAILABLE, scores: [], recentGenomes: ancient, index: 1, rng: seeded([0.5]),
+      available: AVAILABLE, scores: [], surface: 'ads', recentGenomes: ancient, index: 1, rng: seeded([0.5]),
     });
     expect(g.ingredients).toHaveLength(2);
   });
@@ -228,7 +286,7 @@ describe('sampleGenome — convergence (the acceptance test for this spec)', () 
     const picks = new Set<string>();
     let dominantCount = 0;
     for (let i = 1; i <= 200; i++) {
-      const g = sampleGenome({ available: AVAILABLE, scores, recentGenomes: [], index: i, rng });
+      const g = sampleGenome({ available: AVAILABLE, scores, surface: 'ads', recentGenomes: [], index: i, rng });
       const framework = g.ingredients.find(x => x.dimension === 'framework')!;
       picks.add(framework.id);
       if (framework.id === 'f1') dominantCount++;
@@ -246,7 +304,7 @@ describe('sampleGenome — convergence (the acceptance test for this spec)', () 
     const recent: string[][] = [];
     const combos = new Set<string>();
     for (let i = 1; i <= 40; i++) {
-      const g = sampleGenome({ available: AVAILABLE, scores, recentGenomes: recent, index: i, rng });
+      const g = sampleGenome({ available: AVAILABLE, scores, surface: 'ads', recentGenomes: recent, index: i, rng });
       const key = g.ingredients.map(x => x.id).sort().join('+');
       combos.add(key);
       recent.unshift(g.ingredients.map(x => x.id));
