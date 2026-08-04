@@ -96,6 +96,36 @@ export async function POST(request: NextRequest) {
       : null;
     const competitorContext = summarizeCompetitorIntel(intel);
 
+    // Creative genome: sample the ingredients for this ad from what has actually
+    // worked. Flagged off by default and fully best-effort — the house pattern
+    // from smart-posts/generate.ts:216-226. A genome failure must never block
+    // an ad, exactly as a brain failure never blocks a caption.
+    let genome: import('@/lib/creative/sampling').SampledGenome | undefined;
+    if (process.env.CREATIVE_GENOME_ENABLED === 'true') {
+      try {
+        const [{ sampleGenome }, read] = await Promise.all([
+          import('@/lib/creative/sampling'),
+          import('@/lib/creative/genome-read'),
+        ]);
+        const [available, scores, recent, index] = await Promise.all([
+          read.loadSamplableIngredients(),
+          read.refreshScores(),
+          read.loadRecentGenomeIngredientIds('ads', 10),
+          read.nextGenomeIndex('ads'),
+        ]);
+        genome = sampleGenome({
+          available,
+          scores,
+          surface: 'ads',
+          recentGenomes: recent,
+          index,
+        });
+      } catch (err) {
+        console.warn('[ads/generate] genome sampling failed:', err instanceof Error ? err.message : err);
+        genome = undefined;
+      }
+    }
+
     let copy;
     try {
       copy = await generateAdCopy({
@@ -110,6 +140,7 @@ export async function POST(request: NextRequest) {
         briefMd: brain?.briefMd ?? null,
         painBrief,
         competitorContext,
+        genome,
       });
     } catch (genErr) {
       const message = genErr instanceof Error ? genErr.message : 'Copy generation failed';
@@ -161,6 +192,7 @@ export async function POST(request: NextRequest) {
       imageMissing: !chosen,
       imageCandidates: candidates,
       copyIssues,
+      genome: genome ?? null,
     });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {

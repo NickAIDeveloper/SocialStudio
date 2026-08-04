@@ -15,6 +15,8 @@ import {
   type AdObjective,
 } from '@/lib/meta/ads-types';
 import { sanitizeCaption, sanitizeHook } from '@/lib/caption-engine';
+import { RECORD_ONLY_DIMENSIONS } from '@/lib/creative/vocabulary';
+import type { SampledGenome } from '@/lib/creative/sampling';
 
 export interface GenerateAdCopyInput {
   brand: { name: string; slug: string; description?: string | null; websiteUrl?: string | null };
@@ -26,6 +28,11 @@ export interface GenerateAdCopyInput {
   // description of the product. See lib/research/pain-points.ts.
   painBrief?: string | null;
   competitorContext?: string | null;
+  // Chosen ingredients for this ad. When present, their prompt fragments
+  // replace the hardcoded framework and psychology prose below, so the copy is
+  // steered by what has actually worked rather than by a fixed menu. Absent
+  // means byte-identical behaviour to before the genome existed.
+  genome?: SampledGenome;
 }
 
 export interface AdCopy {
@@ -90,6 +97,25 @@ function buildSystemPrompt(): string {
   ].join(' ');
 }
 
+// The prompt text for a sampled genome. Exported so the selection rules can be
+// tested without calling a model.
+//
+// Record-only dimensions are skipped: image_style is stored and scored so the
+// history exists when generated imagery lands, but there is no image path that
+// can act on it today, and telling the copywriter about a picture nobody is
+// choosing would just add noise.
+export function buildGenomeBlock(genome: SampledGenome | null | undefined): string {
+  if (!genome || genome.ingredients.length === 0) return '';
+  const steerable = genome.ingredients.filter(
+    i => !RECORD_ONLY_DIMENSIONS.includes(i.dimension),
+  );
+  if (steerable.length === 0) return '';
+  return [
+    'CREATIVE DIRECTION FOR THIS AD (follow all of it):',
+    ...steerable.map(i => `- ${i.promptFragment}`),
+  ].join('\n');
+}
+
 function buildUserPrompt(input: GenerateAdCopyInput): string {
   const cfg = OBJECTIVE_CONFIG[input.objective];
   const brandName = input.brand.name || input.brand.slug;
@@ -114,15 +140,10 @@ ${input.painBrief}
     ? `\nCOMPETITOR INTELLIGENCE (what rivals are doing, position AGAINST this, do NOT copy it):\n${input.competitorContext.slice(0, 1200)}\n\nUse this to carve a DISTINCT angle. If competitors all lean on the same promise, attack from a different value. Make ${brandName} the obvious contrast, never an echo.\n`
     : `\nNo competitor data available. Lead with ${brandName}'s single strongest, most specific unique value and make it impossible to ignore.\n`;
 
-  return `Write one premium Meta ad for "${brandName}".
-
-CAMPAIGN OBJECTIVE: ${cfg.label} — ${cfg.description}
-Match the angle and CTA to this goal. ${input.objective === 'TRAFFIC' ? 'Drive the click to learn more.' : input.objective === 'ENGAGEMENT' ? 'Provoke reaction, saves, and comments.' : input.objective === 'LEADS' ? 'Drive a sign-up; reduce friction and risk.' : 'Drive an app install; make the value instant and mobile-first.'}
-
-${brandTruthBlock}
-${painBlock}${briefBlock}${competitorBlock}
-
-PERSUASION PSYCHOLOGY (deploy the 2-3 MOST fitting for this product, not all):
+  const genomeBlock = buildGenomeBlock(input.genome);
+  const directionBlock = genomeBlock
+    ? `${genomeBlock}\nUse the direction above INTERNALLY as structure only. Never print framework names or stage labels.`
+    : `PERSUASION PSYCHOLOGY (deploy the 2-3 MOST fitting for this product, not all):
 - Cialdini's principles: reciprocity, scarcity, authority, social proof, commitment/consistency, liking, unity.
 - Loss aversion: frame the cost of NOT acting, not just the upside.
 - Curiosity gap: open a loop the reader needs closed.
@@ -135,7 +156,17 @@ COPYWRITING FRAMEWORK (choose the single best fit for this objective):
 - BAB (Before, After, Bridge) — best for transformation products.
 - 4Ps (Promise, Picture, Proof, Push) — best when you have a strong concrete promise.
 Commit to ONE framework and structure the primaryText around it.
-Use the chosen framework INTERNALLY as structure only. NEVER print framework names or stage labels in the output (do NOT write 'Attention:', 'Interest:', 'Desire:', 'Action:', 'PAS', 'AIDA', 'BAB', '4Ps', 'Problem:', 'Solution:', 'Before:', 'After:', 'Bridge:', etc.). The copy must read as natural persuasive prose, not a labelled template.
+Use the chosen framework INTERNALLY as structure only. NEVER print framework names or stage labels in the output (do NOT write 'Attention:', 'Interest:', 'Desire:', 'Action:', 'PAS', 'AIDA', 'BAB', '4Ps', 'Problem:', 'Solution:', 'Before:', 'After:', 'Bridge:', etc.). The copy must read as natural persuasive prose, not a labelled template.`;
+
+  return `Write one premium Meta ad for "${brandName}".
+
+CAMPAIGN OBJECTIVE: ${cfg.label} — ${cfg.description}
+Match the angle and CTA to this goal. ${input.objective === 'TRAFFIC' ? 'Drive the click to learn more.' : input.objective === 'ENGAGEMENT' ? 'Provoke reaction, saves, and comments.' : input.objective === 'LEADS' ? 'Drive a sign-up; reduce friction and risk.' : 'Drive an app install; make the value instant and mobile-first.'}
+
+${brandTruthBlock}
+${painBlock}${briefBlock}${competitorBlock}
+
+${directionBlock}
 
 DIFFERENTIATION: position AGAINST the competitor angle above. Out-flank, do not imitate. Make the distinct value of ${brandName} the spine of the ad.
 
