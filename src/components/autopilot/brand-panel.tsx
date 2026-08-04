@@ -228,7 +228,7 @@ function BrainTab({ data }: { data: InsightsData }) {
   if (!hasBrain) {
     return (
       <div className="rounded-2xl border border-(--line) bg-(--surface)/30 p-4 text-sm text-(--muted)">
-        <span className="text-amber-300">Brain hasn't run yet.</span> Daily cron fires at 03:00 UTC — discoveries land here once it has data.
+        <span className="text-amber-300">Brain hasn&apos;t run yet.</span> Daily cron fires at 03:00 UTC — discoveries land here once it has data.
       </div>
     );
   }
@@ -255,7 +255,7 @@ function BrainTab({ data }: { data: InsightsData }) {
       {decision && (
         <div className="rounded-2xl border border-(--violet)/40 bg-gradient-to-br from-(--violet-12) to-(--bg) p-4">
           <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-(--violet-bright)">
-            The brain's decision
+            The brain&apos;s decision
           </div>
           <p className="text-sm leading-relaxed text-(--txt)">{decision}</p>
         </div>
@@ -327,7 +327,7 @@ function BrainTab({ data }: { data: InsightsData }) {
             </div>
             <span className="text-[10px] text-(--muted-2)">Based on {ci.sampleSize} of their posts · {ci.competitorCount} accounts</span>
           </div>
-          <p className="mb-3 text-xs text-(--muted)">Where they're beating you. The brain will try these on your next post.</p>
+          <p className="mb-3 text-xs text-(--muted)">Where they&apos;re beating you. The brain will try these on your next post.</p>
 
           <div className="grid gap-4 sm:grid-cols-3">
             {compHook && (
@@ -608,7 +608,7 @@ function LearningLedger({ data }: { data: InsightsData }) {
   if (!data.brain) {
     return (
       <div className="border-b border-(--line) bg-(--surface)/30 px-5 py-3 text-xs text-(--muted)">
-        <span className="text-amber-300">Brain hasn't analyzed yet.</span> Next analysis runs nightly at 03:00 UTC.
+        <span className="text-amber-300">Brain hasn&apos;t analyzed yet.</span> Next analysis runs nightly at 03:00 UTC.
       </div>
     );
   }

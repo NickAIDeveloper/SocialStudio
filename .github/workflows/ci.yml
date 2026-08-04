@@ -52,12 +52,9 @@ jobs:
       - name: Test
         run: npm test
 
-      # Lint is NOT a gate yet: `npm run lint` currently reports 14 pre-existing
-      # errors (4 setState-in-effect, 4 unescaped entities, prefer-const, one
-      # explicit any, one impure call during render). Making it blocking today
-      # would mean a pipeline that is red from its first run, which teaches
-      # everyone to ignore CI — the precise habit this workflow exists to break.
-      # Report it, do not fail on it. Flip to a gate once the 14 are cleared.
-      - name: Lint (advisory)
+      # Now a real gate: the 13 pre-existing errors were cleared on 2026-08-04,
+      # so this starts green and any new error is genuinely new. Warnings (92 of
+      # them, mostly unused vars) are still permitted — turning those into
+      # failures today would just reintroduce the red-from-birth problem.
+      - name: Lint
         run: npm run lint
-        continue-on-error: true

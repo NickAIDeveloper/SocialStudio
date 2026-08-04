@@ -1,0 +1,51 @@
+# Regenerates package-lock.json on Linux and uploads it for inspection.
+#
+# Why this exists: the only dev machine here is Windows, and npm prunes other
+# platforms' optional binaries when it rebuilds a lockfile. Running
+# `npm install --package-lock-only` locally drops every @esbuild/linux-* entry,
+# which would break the ubuntu CI runner. So the lockfile cannot be maintained
+# from the dev machine at all — it has to be produced somewhere Linux.
+#
+# Deliberately uploads an ARTIFACT rather than committing. A lockfile generated
+# on Linux may prune the win32 binaries in the same way, which would break local
+# development instead. Download it, check it still carries BOTH platforms, and
+# only then commit it. Verify, do not trust.
+#
+# Run from the Actions tab (workflow_dispatch).
+
+name: Refresh lockfile
+
+on:
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Regenerate lockfile
+        run: npm install --package-lock-only
+
+      - name: Report platform coverage
+        run: |
+          echo "esbuild platform entries: $(grep -c '"node_modules/@esbuild/' package-lock.json || echo 0)"
+          echo "--- linux-x64 present? ---"
+          grep -q '"node_modules/@esbuild/linux-x64"' package-lock.json \
+            && echo "YES" || echo "NO — this lockfile would break the CI runner"
+          echo "--- win32-x64 present? ---"
+          grep -q '"node_modules/@esbuild/win32-x64"' package-lock.json \
+            && echo "YES" || echo "NO — this lockfile would break Windows development"
+          echo "--- does npm ci accept it? ---"
+          npm ci --dry-run > /dev/null 2>&1 && echo "YES" || echo "NO"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-lock
+          path: package-lock.json
+          retention-days: 7

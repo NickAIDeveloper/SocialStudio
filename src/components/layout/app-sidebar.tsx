@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { BarChart3, Sparkles, Plus, Bot, Megaphone, Menu, Settings, X, Search, MessageCircleQuestion, FlaskConical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserMenu } from '@/components/layout/user-menu';
@@ -23,9 +23,19 @@ export function AppSidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  useEffect(() => {
+  // Close the mobile drawer when the route changes.
+  //
+  // Adjusting state during render rather than in an effect: this is React's
+  // documented pattern for "reset state when a value changes". An effect would
+  // paint the new page with the drawer still open and then close it on a second
+  // render — a visible flash, and the cascading render the compiler warns about.
+  // Deriving from pathname (rather than closing on link click) also covers
+  // back/forward navigation, which never fires a click handler.
+  const [lastPathname, setLastPathname] = useState(pathname);
+  if (pathname !== lastPathname) {
+    setLastPathname(pathname);
     setMobileOpen(false);
-  }, [pathname]);
+  }
 
   const navLink = (href: string, label: string, Icon: typeof BarChart3) => {
     const isActive = pathname === href || pathname.startsWith(`${href}/`);

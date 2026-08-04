@@ -49,7 +49,7 @@ export async function GET() {
       return NextResponse.json({ success: false, days: [], message: 'Buffer connection needs to be refreshed in Settings' });
     }
 
-    let posts: BufferPost[] = [];
+    const posts: BufferPost[] = [];
     try {
       const [queued, sent] = await Promise.all([
         getQueuedPosts(apiKey),

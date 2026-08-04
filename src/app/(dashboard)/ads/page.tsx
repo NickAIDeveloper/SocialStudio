@@ -39,7 +39,15 @@ export default function AdsPage() {
   // Repeatable-ad templates (browser-local only). Loading a template only
   // PREFILLS the wizard and jumps to Review — it never auto-publishes.
   const [templates, setTemplates] = useState<AdTemplate[]>([]);
-  useEffect(() => { setTemplates(listTemplates()); }, []);
+  // Templates live in localStorage, which does not exist while this renders on
+  // the server, so the first paint must be the empty list and the real one has
+  // to arrive after mount. Deferring by a microtask rather than setting state
+  // straight from the effect body avoids forcing a re-render mid-commit; a
+  // lazy useState initialiser is not an option here because the server and the
+  // client would then disagree about the initial markup.
+  useEffect(() => {
+    void Promise.resolve().then(() => setTemplates(listTemplates()));
+  }, []);
 
   function handleSaveTemplate(name: string) {
     if (!draft) return;

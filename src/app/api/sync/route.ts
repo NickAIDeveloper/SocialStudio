@@ -238,7 +238,7 @@ async function syncInstagramAccounts(userId: string): Promise<InstagramSyncResul
   // Scrape each account
   for (const account of accounts) {
     try {
-      let profile = await scrapeInstagramProfile(account.handle);
+      const profile = await scrapeInstagramProfile(account.handle);
 
       // Profile stats from HTML meta tags is our primary data source
       // Individual post scraping is unreliable due to Instagram's anti-bot measures

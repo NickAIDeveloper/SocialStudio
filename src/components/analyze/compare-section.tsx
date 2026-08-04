@@ -96,16 +96,23 @@ export function CompareSection() {
   // context changes. We intentionally key on both so switching brands in the
   // URL updates the "you" side as well.
   useEffect(() => {
-    if (!selected) {
-      setStats(null);
-      return;
-    }
+    // No setState here on the empty branch. "Nothing selected means no stats"
+    // is derived at render (see shownStats below) rather than stored, so
+    // deselecting does not cost a second render pass to blank the panel.
+    if (!selected) return;
     let cancelled = false;
-    setStatsLoading(true);
-    setStatsError(null);
-    const params = new URLSearchParams({ competitorId: selected });
-    if (brandId) params.set('brandId', brandId);
-    fetch(`/api/analyze/compare?${params.toString()}`)
+
+    // The whole fetch, including the loading/error reset, runs inside this
+    // async function rather than directly in the effect body. Setting state
+    // synchronously while the effect runs forces React to re-render before it
+    // has finished committing; deferring by one microtask costs nothing
+    // perceptible and keeps the commit clean.
+    const run = async () => {
+      setStatsLoading(true);
+      setStatsError(null);
+      const params = new URLSearchParams({ competitorId: selected });
+      if (brandId) params.set('brandId', brandId);
+      await fetch(`/api/analyze/compare?${params.toString()}`)
       .then(async (r) => {
         const json = await r.json().catch(() => ({}));
         if (cancelled) return;
@@ -122,14 +129,21 @@ export function CompareSection() {
       .finally(() => {
         if (!cancelled) setStatsLoading(false);
       });
+    };
+    void run();
     return () => {
       cancelled = true;
     };
   }, [selected, brandId]);
 
+  // What the panel actually shows. Stats belonging to a competitor who is no
+  // longer selected must never render, but they are worth keeping in state:
+  // reselecting the same competitor then shows instantly while the refetch runs.
+  const shownStats = selected ? stats : null;
+
   const selectedComp = competitors.find((c) => c.id === selected) ?? null;
-  const sample = stats?.competitor?.sampleSize ?? selectedComp?.postCount ?? 0;
-  const rows = rowsFromStats(stats?.you ?? null, stats?.competitor ?? null);
+  const sample = shownStats?.competitor?.sampleSize ?? selectedComp?.postCount ?? 0;
+  const rows = rowsFromStats(shownStats?.you ?? null, shownStats?.competitor ?? null);
 
   if (loading) {
     return (
@@ -184,7 +198,7 @@ export function CompareSection() {
       <div className="overflow-hidden rounded-2xl border border-(--line) bg-(--surface)">
         <div className="grid grid-cols-3 gap-4 border-b border-(--line) px-4 py-3 text-xs font-semibold uppercase tracking-wider text-(--muted)">
           <span>Metric</span>
-          <span>{stats?.youHandle ? `@${stats.youHandle}` : 'Your account'}</span>
+          <span>{shownStats?.youHandle ? `@${shownStats.youHandle}` : 'Your account'}</span>
           <span>{selectedComp ? `@${selectedComp.handle}` : 'Competitor'}</span>
         </div>
         {rows.map((row) => (

@@ -8,7 +8,7 @@ import { useHubState } from '@/lib/url-state';
 
 const mockReplace = vi.fn();
 let mockSearchParamsString = '';
-let mockPathname = '/analytics';
+const mockPathname = '/analytics';
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(mockSearchParamsString),

@@ -256,6 +256,14 @@ function ConnectionCard({
   account: MetaAccount | null;
   onDisconnect: () => void;
 }) {
+  // Wall-clock read ONCE, in a lazy state initialiser, so the token-expiry
+  // countdown further down is computed from a stable value. Calling Date.now()
+  // in the render body made render impure: React may render a component more
+  // than once per commit, and each render would produce a different answer.
+  // A lazy initialiser runs exactly once per mount instead.
+  // Hooks must run before any early return.
+  const [nowMs] = useState(() => Date.now());
+
   if (!account) {
     return (
       <div className="glass-card rounded-xl border border-white/5 p-6 space-y-4">
@@ -277,8 +285,13 @@ function ConnectionCard({
   }
 
   const expiresAt = account.tokenExpiresAt ? new Date(account.tokenExpiresAt) : null;
+  // Date.now() during render makes the render impure: the server and the client
+  // compute it at different instants, so the countdown can hydrate mismatched,
+  // and React may render this component more than once per commit. Reading the
+  // clock once after mount keeps render a pure function of props and state.
+  // Null until mounted, which simply hides the notice for one frame.
   const daysLeft = expiresAt
-    ? Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    ? Math.max(0, Math.ceil((expiresAt.getTime() - nowMs) / (1000 * 60 * 60 * 24)))
     : null;
 
   return (
