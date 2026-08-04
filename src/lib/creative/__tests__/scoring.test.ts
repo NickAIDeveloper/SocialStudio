@@ -56,10 +56,19 @@ describe('scoreIngredients — shrinkage', () => {
   });
 
   it('shrinks exactly per the documented formula', () => {
-    // (n*mean + k*prior) / (n + k). With one ingredient the global mean IS the
-    // prior, so the result must equal the mean exactly.
-    const scored = scoreIngredients([obs('solo', 0.5), obs('solo', 0.5)]);
-    expect(scored[0].shrunkScore).toBeCloseTo(0.5);
+    // (n*mean + k*prior) / (n + k). A single-ingredient fixture can't pin this:
+    // with one ingredient the global mean IS that ingredient's own mean, so
+    // prior == m and the formula collapses to m regardless of k — the test
+    // would pass even with the shrinkage deleted. Using two ingredients so the
+    // prior differs from 'rare's own mean:
+    //   globalMean = (1*1.0 + 20*0.1) / 21 = 3/21
+    //   rare.shrunkScore = (1*1.0 + 5*(3/21)) / (1+5) = (12/7) / 6 = 2/7
+    const scored = scoreIngredients([
+      obs('rare', 1.0),
+      ...Array.from({ length: 20 }, () => obs('common', 0.1)),
+    ]);
+    const rare = scored.find(s => s.ingredientId === 'rare')!;
+    expect(rare.shrunkScore).toBeCloseTo(2 / 7);
     expect(SHRINKAGE_K).toBe(5);
   });
 });
