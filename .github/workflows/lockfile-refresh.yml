@@ -41,8 +41,15 @@ jobs:
           echo "--- win32-x64 present? ---"
           grep -q '"node_modules/@esbuild/win32-x64"' package-lock.json \
             && echo "YES" || echo "NO — this lockfile would break Windows development"
-          echo "--- does npm ci accept it? ---"
-          npm ci --dry-run > /dev/null 2>&1 && echo "YES" || echo "NO"
+      # A dry run only proves the tree RESOLVES. It does not prove the platform
+      # binaries actually install, which is the thing that would break. Install
+      # for real and run the suite against it — that is the only evidence worth
+      # acting on before committing a lockfile.
+      - name: Prove it works — real npm ci
+        run: npm ci
+
+      - name: Prove it works — tests
+        run: npm test
 
       - uses: actions/upload-artifact@v4
         with:
