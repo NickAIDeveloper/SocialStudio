@@ -33,6 +33,14 @@ describe('softmaxWithFloor', () => {
     // to condemn every other ingredient permanently.
     const p = softmaxWithFloor([0, 0, 100], 1, 0.05);
     for (const x of p) expect(x).toBeGreaterThanOrEqual(0.04);
+
+    // The line above passes even with the floor deleted: standardisation bounds
+    // every z-score by sqrt(k-1), so at temperature 1 the losers already sit at
+    // 0.0967 on their own. Cold temperature is where the floor actually binds —
+    // the raw softmax leaves them at 0.0000248 — so this second case is what
+    // makes the test live up to its name.
+    const cold = softmaxWithFloor([0, 0, 100], 0.2, 0.05);
+    for (const x of cold) expect(x).toBeGreaterThanOrEqual(0.04);
   });
 
   it('still ranks a stronger option above a weaker one', () => {
@@ -294,6 +302,75 @@ describe('sampleGenome — convergence (the acceptance test for this spec)', () 
 
     expect(picks.size).toBe(3);            // nothing is permanently condemned
     expect(dominantCount).toBeLessThan(190); // and the leader does not take all
+  });
+
+  it('keeps selecting alternatives with the wildcard and novelty both disabled', () => {
+    // The test above exercises floor, wildcard and novelty TOGETHER, and passes
+    // even when the weighted sampler is replaced by pure argmax — the wildcard
+    // alone supplies enough variety to satisfy it. This isolates the sampler:
+    // with wildcardEveryN 0 and noveltyMinDistance 0, nothing but the shape of
+    // the probability distribution stands between a dominant ingredient and
+    // total convergence.
+    const config = { ...DEFAULT_ENTROPY_CONFIG, wildcardEveryN: 0, noveltyMinDistance: 0 };
+    const scores: IngredientScore[] = [
+      score('f1', 1000), score('f2', 0.001), score('f3', 0.001),
+      score('h1', 1000), score('h2', 0.001), score('h3', 0.001),
+    ];
+    let s = 123456789;
+    const rng = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+
+    const counts: Record<string, number> = {};
+    for (let i = 1; i <= 200; i++) {
+      const g = sampleGenome({
+        available: AVAILABLE, scores, surface: 'ads', recentGenomes: [], index: i, config, rng,
+      });
+      const id = g.ingredients.find(x => x.dimension === 'framework')!.id;
+      counts[id] = (counts[id] ?? 0) + 1;
+    }
+
+    // Observed 172 / 14 / 14. Each loser holds ~9.7% probability, so the leader
+    // must stay clearly under 90% of draws and the tail must be sampled
+    // repeatedly rather than once by luck. Argmax scores 200 / 0 / 0.
+    expect(Object.keys(counts)).toHaveLength(3);
+    expect(counts.f1).toBeLessThan(180);
+    expect(counts.f2).toBeGreaterThanOrEqual(5);
+    expect(counts.f3).toBeGreaterThanOrEqual(5);
+  });
+
+  it('relies on the floor when a cold temperature would otherwise collapse the distribution', () => {
+    // The test above does NOT test the floor. Standardisation bounds every
+    // z-score by sqrt(k-1), so at temperature 1 the losers already hold 0.0967
+    // and softmaxWithFloor returns identical probabilities with floor 0.05 or
+    // floor 0 — the floor never binds and could be deleted without failing it.
+    //
+    // The floor earns its place at cold temperatures, where the exponent
+    // spreads far enough to annihilate the losers: at t=0.2 the raw softmax
+    // gives them 0.0000248 each, which is ~0.005 draws in 200. The floor lifts
+    // them to 0.0455 and keeps them alive.
+    const config = {
+      ...DEFAULT_ENTROPY_CONFIG, wildcardEveryN: 0, noveltyMinDistance: 0, temperature: 0.2,
+    };
+    const scores: IngredientScore[] = [
+      score('f1', 1000), score('f2', 0.001), score('f3', 0.001),
+      score('h1', 1000), score('h2', 0.001), score('h3', 0.001),
+    ];
+    let s = 123456789;
+    const rng = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+
+    const counts: Record<string, number> = {};
+    for (let i = 1; i <= 200; i++) {
+      const g = sampleGenome({
+        available: AVAILABLE, scores, surface: 'ads', recentGenomes: [], index: i, config, rng,
+      });
+      const id = g.ingredients.find(x => x.dimension === 'framework')!.id;
+      counts[id] = (counts[id] ?? 0) + 1;
+    }
+
+    // Observed 188 / 5 / 7 with the floor. With floorProbability 0 this is
+    // 200 / 0 / 0 — so this assertion fails if the floor is removed, which is
+    // precisely what the test above cannot detect.
+    expect(Object.keys(counts)).toHaveLength(3);
+    expect(counts.f1).toBeLessThan(195);
   });
 
   it('produces a variety of distinct combinations across a run', () => {
