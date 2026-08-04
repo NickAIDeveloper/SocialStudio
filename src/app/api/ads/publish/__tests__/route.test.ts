@@ -24,7 +24,26 @@ const { state } = vi.hoisted(() => ({
 vi.mock('@/lib/auth-helpers', () => ({ getUserId: vi.fn().mockResolvedValue('u1') }));
 vi.mock('@/lib/encryption', () => ({ decrypt: vi.fn().mockReturnValue('TOKEN') }));
 
-const insertValues = vi.fn().mockResolvedValue(undefined);
+// The metaAds row's own generated uuid — distinct on purpose from any Meta id
+// fixture ('camp_1', 'adset_1', 'creative_1', 'ad_1') used elsewhere in this
+// file, so a test that accidentally asserts against the wrong id fails loudly.
+const INSERTED_META_AD_ROW_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+
+function insertResult(row: Record<string, unknown>) {
+  // Supports both call shapes the route uses:
+  //   await db.insert(t).values(row)              (forensic catch-block insert)
+  //   await db.insert(t).values(row).returning()   (success insert — needs the
+  //                                                  generated row back so the
+  //                                                  route can pass its uuid,
+  //                                                  not the Meta ad id, to
+  //                                                  genome recording)
+  return {
+    then: (resolve: (v: unknown) => void) => resolve(undefined),
+    returning: () => Promise.resolve([{ id: INSERTED_META_AD_ROW_ID, ...row }]),
+  };
+}
+
+const insertValues = vi.fn((row: Record<string, unknown>) => insertResult(row));
 
 // Returns the right stub row depending on which table is queried.
 function selectRow(t: unknown): Record<string, unknown> | null {
@@ -140,7 +159,7 @@ const validBody = {
 describe('POST /api/ads/publish', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    insertValues.mockResolvedValue(undefined);
+    insertValues.mockImplementation((row: Record<string, unknown>) => insertResult(row));
     // Default: the draft's applicationId resolves to an app with a registered
     // App Store URL. The registered url intentionally differs from the
     // free-text appStoreUrl so happy-path tests prove we use the registered one.
@@ -554,7 +573,7 @@ describe('POST /api/ads/publish', () => {
       expect(state.recordedGenomes).toHaveLength(0);
     });
 
-    it('records the genome when the flag is on and one was supplied', async () => {
+    it('records the genome when the flag is on and one was supplied, keyed to the internal ad row uuid', async () => {
       process.env.CREATIVE_GENOME_ENABLED = 'true';
       const res = await POST(makeReq({
         ...validBody,
@@ -565,6 +584,32 @@ describe('POST /api/ads/publish', () => {
       }));
       expect(res.status).toBe(200);
       expect(state.recordedGenomes).toHaveLength(1);
+      // subjectId must be the metaAds row's own generated uuid (from .returning()),
+      // NOT the Meta ad id ('ad_1' per the createAd mock). meta_ads.id is uuid
+      // NOT NULL, and genome-read.ts joins observations back via
+      // eq(metaAds.id, g.subjectId) — the Meta ad id would never match.
+      const recorded = state.recordedGenomes[0] as { subjectId: string };
+      expect(recorded.subjectId).toBe(INSERTED_META_AD_ROW_ID);
+    });
+
+    it('does not record the Meta ad id as subjectId — the two ids are not interchangeable', async () => {
+      process.env.CREATIVE_GENOME_ENABLED = 'true';
+      const res = await POST(makeReq({
+        ...validBody,
+        genome: {
+          ingredients: [{ id: 'f1', dimension: 'framework', value: 'PAS', promptFragment: 'x' }],
+          wasWildcard: false, noveltyDistance: 1, noveltyExhausted: false, borrowedPriors: [], temperature: 1,
+        },
+      }));
+      expect(res.status).toBe(200);
+      const recorded = state.recordedGenomes[0] as { subjectId: string };
+      // meta_ads.id is a uuid primary key — assert the shape directly rather
+      // than trusting the mock's label, so this fails if someone swaps the
+      // insert row's id back for the Meta ad id.
+      expect(recorded.subjectId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-/i);
+      // 'ad_1' is the Meta ad id returned by the createAd mock in this file
+      // (see the '@/lib/meta/ads' mock above). It must never end up here.
+      expect(recorded.subjectId).not.toBe('ad_1');
     });
 
     it('still publishes when genome recording throws', async () => {

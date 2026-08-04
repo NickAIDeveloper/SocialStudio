@@ -303,7 +303,7 @@ export async function POST(request: NextRequest) {
         ? (verdict?.reviewFeedback ?? null)
         : null;
 
-    await db.insert(metaAds).values({
+    const [adRow] = await db.insert(metaAds).values({
       userId, brandId, adAccountId, pageId, igAccountId: igAccountId ?? null,
       campaignId: createdCampaign, adsetId: createdAdset, creativeId: createdCreative, adId,
       objective: cfg.metaObjective, status: liveStatus, draft: { ...draft, targeting }, lastError: liveError,
@@ -312,17 +312,22 @@ export async function POST(request: NextRequest) {
       // Published through the /ads builder by a person. The ads agent checks
       // this first and will never touch anything not tagged 'agent'.
       createdBy: 'human',
-    });
+    }).returning();
 
     // Creative genome: remember what this ad was made of, so its outcome can
     // teach the ingredients rather than only the ad. Flagged and best effort —
     // recordGenome swallows its own failures and returns null.
+    //
+    // subjectId MUST be our internal meta_ads.id (uuid) — genome-read.ts joins
+    // observations back via eq(metaAds.id, g.subjectId). It is NOT adId, which
+    // is Meta's own ad id (a numeric string) and would fail the uuid column
+    // constraint silently, since recordGenome swallows its own errors.
     if (process.env.CREATIVE_GENOME_ENABLED === 'true' && body.genome) {
       try {
         const { recordGenome } = await import('@/lib/creative/genome-record');
         await recordGenome({
           subjectType: 'ad',
-          subjectId: adId,
+          subjectId: adRow.id,
           brandId: brand.id,
           surface: 'ads',
           genome: body.genome,
