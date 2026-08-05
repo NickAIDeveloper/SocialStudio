@@ -41,7 +41,7 @@ function ResetForm() {
         <div className="rounded-lg bg-(--violet-12) border border-(--violet-24) px-4 py-3 text-sm text-(--violet-bright)">
           Password reset successfully.
         </div>
-        <Link href="/login" className="text-sm text-(--violet-bright) hover:text-(--violet) inline-block">
+        <Link href="/login" className="text-sm text-(--violet-bright) hover:text-(--violet-bright) inline-block">
           Sign in with your new password
         </Link>
       </div>

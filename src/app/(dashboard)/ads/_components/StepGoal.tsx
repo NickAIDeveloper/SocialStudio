@@ -132,7 +132,7 @@ export function StepGoal(props: {
           ) : appsTokenExpired ? (
             <p className="text-sm text-(--muted)">
               Your Meta connection has expired. Reconnect to load your apps.{' '}
-              <a href="/api/meta/oauth/start" className="text-(--violet-bright) hover:text-(--violet) underline">
+              <a href="/api/meta/oauth/start" className="text-(--violet-bright) hover:text-(--violet-bright) underline">
                 Reconnect Meta
               </a>
             </p>

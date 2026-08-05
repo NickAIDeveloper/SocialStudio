@@ -99,14 +99,14 @@ export function AppSidebar() {
           </button>
         </div>
 
-        <p className="px-4 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--muted-2)">
+        <p className="px-4 pb-2 pt-3 text-xs font-semibold uppercase tracking-[0.08em] text-(--muted)">
           Workspace
         </p>
         <nav className="flex flex-col gap-1 px-2">
           {primaryItems.map((i) => navLink(i.href, i.label, i.icon))}
         </nav>
 
-        <p className="px-4 pb-2 pt-5 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--muted-2)">
+        <p className="px-4 pb-2 pt-5 text-xs font-semibold uppercase tracking-[0.08em] text-(--muted)">
           Account
         </p>
         <nav className="flex flex-col gap-1 px-2">

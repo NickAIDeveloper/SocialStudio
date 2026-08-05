@@ -79,7 +79,7 @@ export default function QueuedAdsPage() {
           </button>
           <a
             href="/ads"
-            className="text-sm font-medium text-(--violet-bright) transition-colors hover:text-(--violet)"
+            className="text-sm font-medium text-(--violet-bright) transition-colors hover:text-(--violet-bright)"
           >
             ← Back to ad builder
           </a>

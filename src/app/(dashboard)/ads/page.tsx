@@ -134,7 +134,7 @@ export default function AdsPage() {
         </div>
         <a
           href="/ads/queue"
-          className="shrink-0 text-sm font-medium text-(--violet-bright) transition-colors hover:text-(--violet)"
+          className="shrink-0 text-sm font-medium text-(--violet-bright) transition-colors hover:text-(--violet-bright)"
         >
           Queued ads →
         </a>

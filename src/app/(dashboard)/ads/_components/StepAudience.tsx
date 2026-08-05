@@ -180,7 +180,7 @@ export function StepAudience(props: {
                 className="flex items-center gap-1 rounded-full border border-(--violet-24) bg-(--violet-08) px-3 py-1 text-xs text-(--violet-bright)"
               >
                 {COUNTRY_NAME.get(code) ?? code} ({code})
-                <span className="text-(--violet)/70">×</span>
+                <span className="text-(--violet-bright)/70">×</span>
               </button>
             ))}
           </div>
@@ -232,7 +232,7 @@ export function StepAudience(props: {
                 className="flex items-center gap-1 rounded-full border border-(--violet-24) bg-(--violet-08) px-3 py-1 text-xs text-(--violet-bright)"
               >
                 {c.name}
-                <span className="text-(--violet)/70">×</span>
+                <span className="text-(--violet-bright)/70">×</span>
               </button>
             ))}
           </div>

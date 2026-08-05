@@ -23,7 +23,8 @@ import {
 // connecting a second IG creates a separate row.
 
 function redirectBack(req: NextRequest, params: Record<string, string>) {
-  const url = new URL('/meta', req.nextUrl.origin);
+  const url = new URL('/analyze', req.nextUrl.origin);
+  if (!params.source) url.searchParams.set('source', 'meta');
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   return NextResponse.redirect(url);
 }

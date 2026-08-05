@@ -48,7 +48,7 @@ export function RegisterForm() {
       if (result?.error) {
         setError('Account created but sign-in failed. Please go to login.');
       } else {
-        router.push('/home');
+        router.push('/analyze');
         router.refresh();
       }
     } catch {
@@ -144,7 +144,7 @@ export function RegisterForm() {
           Already have an account?{' '}
           <Link
             href="/login"
-            className="font-medium text-(--violet-bright) hover:text-(--violet) transition-colors"
+            className="font-medium text-(--violet-bright) hover:text-(--violet-bright) transition-colors"
           >
             Sign in
           </Link>

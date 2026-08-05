@@ -28,7 +28,7 @@ export function LoginForm() {
       if (result?.error) {
         setError('Invalid email or password');
       } else {
-        router.push('/home');
+        router.push('/analyze');
         router.refresh();
       }
     } catch {
@@ -112,7 +112,7 @@ export function LoginForm() {
           Don&apos;t have an account?{' '}
           <Link
             href="/register"
-            className="font-medium text-(--violet-bright) hover:text-(--violet) transition-colors"
+            className="font-medium text-(--violet-bright) hover:text-(--violet-bright) transition-colors"
           >
             Create one
           </Link>

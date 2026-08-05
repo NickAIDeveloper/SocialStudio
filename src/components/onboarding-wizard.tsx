@@ -495,7 +495,7 @@ function StepTools({
                   href={tool.helpLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block text-xs text-(--violet-bright) hover:text-(--violet) underline underline-offset-2 transition"
+                  className="inline-block text-xs text-(--violet-bright) hover:text-(--violet-bright) underline underline-offset-2 transition"
                 >
                   How to get this &rarr;
                 </a>

@@ -40,7 +40,7 @@ export function IgAccountPicker({ value, onChange }: IgAccountPickerProps) {
         <span>No Instagram accounts connected.</span>
         <a
           href="/settings"
-          className="text-(--violet-bright) hover:text-(--violet) underline underline-offset-2"
+          className="text-(--violet-bright) hover:text-(--violet-bright) underline underline-offset-2"
         >
           Connect in Settings
         </a>

@@ -18,10 +18,10 @@ import {
 //
 // Exchanges the authorization code for a long-lived token, fetches the user's
 // ad accounts + pages, and stores everything in meta_accounts. Then redirects
-// to /meta with a success or error query param.
+// to /analyze with a success or error query param.
 
 function redirectBack(req: NextRequest, params: Record<string, string>) {
-  const url = new URL('/analytics', req.nextUrl.origin);
+  const url = new URL('/analyze', req.nextUrl.origin);
   url.searchParams.set('source', 'meta');
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   return NextResponse.redirect(url);

@@ -213,7 +213,7 @@ export default function LandingPage() {
               key={`${item}-${i}`}
               className="inline-flex items-center gap-2 rounded-full border border-(--line) bg-(--surface) px-5 py-2.5 text-sm text-(--muted)"
             >
-              <CheckCircle2 className="h-3.5 w-3.5 text-(--violet)/70" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-(--violet-bright)/70" />
               {item}
             </span>
           ))}

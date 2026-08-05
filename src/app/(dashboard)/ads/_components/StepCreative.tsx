@@ -427,7 +427,7 @@ function SuggestButton(props: {
         type="button"
         onClick={handleSuggest}
         disabled={loading}
-        className="text-xs font-medium text-(--violet-bright) hover:text-(--violet) disabled:opacity-50"
+        className="text-xs font-medium text-(--violet-bright) hover:text-(--violet-bright) disabled:opacity-50"
       >
         {loading ? '…' : '✨ Suggest'}
       </button>

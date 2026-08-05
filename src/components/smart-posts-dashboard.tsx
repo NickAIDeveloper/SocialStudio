@@ -521,10 +521,10 @@ export function SmartPostsDashboard() {
           </button>
         ) : (
           <Link
-            href="/analytics"
+            href="/analyze"
             className={`${hasIgAccounts ? '' : 'ml-auto '}cta-violet inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold`}
           >
-            Scrape in Analytics →
+            Scrape in Analyze →
           </Link>
         )}
       </div>
@@ -824,13 +824,13 @@ function EmptyState() {
       <h2 className="mt-4 text-lg font-semibold text-white">No learnings yet</h2>
       <p className="mx-auto mt-2 max-w-md text-sm text-white">
         We need performance data before we can compose your perfect post. Scrape your Instagram
-        from Analytics to build it up.
+        from Analyze to build it up.
       </p>
       <Link
-        href="/analytics"
+        href="/analyze"
         className="mt-5 inline-flex items-center gap-2 rounded-xl bg-(--violet) px-5 py-2.5 text-sm font-semibold text-white hover:bg-(--violet-bright)"
       >
-        Go to Analytics
+        Go to Analyze
       </Link>
     </div>
   );

@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
             <div className="rounded-lg bg-(--violet-12) border border-(--violet-24) px-4 py-3 text-sm text-(--violet-bright)">
               If an account exists with that email, you will receive a password reset link shortly.
             </div>
-            <Link href="/login" className="text-sm text-(--violet-bright) hover:text-(--violet)">
+            <Link href="/login" className="text-sm text-(--violet-bright) hover:text-(--violet-bright)">
               Back to sign in
             </Link>
           </div>
@@ -62,7 +62,7 @@ export default function ForgotPasswordPage() {
               {loading ? 'Sending...' : 'Send Reset Link'}
             </button>
             <p className="text-center text-sm text-(--muted)">
-              Remember your password? <Link href="/login" className="text-(--violet-bright) hover:text-(--violet)">Sign in</Link>
+              Remember your password? <Link href="/login" className="text-(--violet-bright) hover:text-(--violet-bright)">Sign in</Link>
             </p>
           </form>
         )}

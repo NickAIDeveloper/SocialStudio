@@ -120,7 +120,7 @@ export function PostAnalyzer() {
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ml-auto flex items-center gap-1 text-xs text-(--violet-bright) hover:text-(--violet)"
+                  className="ml-auto flex items-center gap-1 text-xs text-(--violet-bright) hover:text-(--violet-bright)"
                 >
                   <ExternalLink className="h-3 w-3" />
                   View Post

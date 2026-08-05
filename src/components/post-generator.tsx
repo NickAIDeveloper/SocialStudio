@@ -1447,7 +1447,7 @@ export function PostGenerator() {
                   )}
                   <button
                     onClick={() => void loadBufferChannels(true)}
-                    className="text-xs text-(--violet-bright) hover:text-(--violet) underline"
+                    className="text-xs text-(--violet-bright) hover:text-(--violet-bright) underline"
                   >
                     Retry
                   </button>
