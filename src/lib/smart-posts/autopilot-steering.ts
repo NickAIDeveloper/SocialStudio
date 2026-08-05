@@ -29,6 +29,20 @@ export interface SteeringInput {
   recentHooks: readonly string[];
   // Pre-formatted audience research, or null when research has never run.
   painBrief: string | null;
+  // Hook shape chosen elsewhere, overriding this module's LRU rotation.
+  //
+  // Only the creative genome supplies this today. Both mechanisms answer the
+  // same question — which sentence shape should the next hook use — and two
+  // answers in one prompt is a contradiction, not variety. The genome wins
+  // because it explores WEIGHTED by what has actually earned reach, with a
+  // probability floor so no shape is ever condemned, where pickUnderusedPattern
+  // explores evenly and blind. Same mechanism, better selection; only one of
+  // them may speak.
+  //
+  // Absent or null means today's behaviour exactly: pickUnderusedPattern
+  // decides. The overuse context in the directive is unaffected either way —
+  // knowing which shapes already dominate is useful regardless of who picked.
+  targetPattern?: HookPattern | null;
 }
 
 export interface AutopilotSteering {
@@ -51,7 +65,7 @@ export function buildAutopilotSteering(input: SteeringInput): AutopilotSteering 
   // An empty history is not a reason to skip steering: a brand should get range
   // from its first post, not once it has already published a run of identical
   // shapes and the problem is visible.
-  const targetPattern = pickUnderusedPattern(patterns);
+  const targetPattern = input.targetPattern ?? pickUnderusedPattern(patterns);
   const varietyDirective = buildVarietyDirective(targetPattern, patterns);
 
   const trimmedPain = (input.painBrief ?? '').trim();

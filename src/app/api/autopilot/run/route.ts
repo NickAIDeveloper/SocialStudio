@@ -7,6 +7,7 @@ import { verifyBrainSignature } from '@/lib/brain/auth';
 import { readBrandBrain } from '@/lib/brain/consume';
 import { runGrade, shouldHoldForQuality, keepBetterDraft, shouldStopGenerating, type GradeReport } from '@/lib/brain/grade';
 import type { AngleId } from '@/lib/smart-posts/creative-angles';
+import type { SampledGenome } from '@/lib/creative/sampling';
 import { cerebrasChatCompletion } from '@/lib/cerebras';
 import { computeNextRunAt, isDueNow, nextPostSlot, type Frequency } from '@/lib/autopilot/schedule';
 import { reconcileAutopilotStatuses } from '@/lib/autopilot/reconcile';
@@ -174,6 +175,11 @@ export async function POST(req: Request): Promise<Response> {
     scheduledAt?: string | null;
     godModeRationale?: string;
     godModeFellBack?: boolean;
+    // The ingredients god-mode designed this post from, when the genome flag is
+    // on. Absent on every other path, including the god-mode fallback (which
+    // discards the LLM output the genome steered, so there is nothing to learn
+    // from). Optional by design: no new required field on the unattended rail.
+    genome?: SampledGenome;
   };
 
   const fail = (reason: string, detail?: string) =>
@@ -463,6 +469,30 @@ export async function POST(req: Request): Promise<Response> {
     discardedReason: qualityHeld ? (qualityReason ?? 'quality_held') : null,
     godModeFellBack: godPayload.godModeFellBack ?? false,
   });
+
+  // Creative genome: remember what this post was made of, so its reach can
+  // teach the INGREDIENTS rather than only this one post. Flagged and best
+  // effort — recordGenome swallows its own failures and returns null, and the
+  // extra try/catch guards the dynamic import itself.
+  //
+  // subjectId MUST be `inserted.id`, our internal posts.id (uuid).
+  // loadObservations('organic') in genome-read.ts resolves outcomes via
+  // eq(postAnalytics.postId, g.subjectId), so any other id here records a row
+  // that can never be joined to an outcome — silently learning nothing,
+  // forever. The ads side made exactly this mistake with Meta's own ad id.
+  if (process.env.CREATIVE_GENOME_ENABLED === 'true' && godPayload.genome) {
+    try {
+      const { recordGenome } = await import('@/lib/creative/genome-record');
+      await recordGenome({
+        subjectType: 'post',
+        subjectId: inserted.id,
+        brandId,
+        surface: 'organic',
+        genome: godPayload.genome,
+      });
+    } catch (err) {
+      console.warn('[autopilot] genome recording failed:', err instanceof Error ? err.message : err);    }
+  }
 
   // Visibility: a post that drafted with no usable image (god-mode returned
   // neither a stock nor a composited URL) otherwise saves silently as a

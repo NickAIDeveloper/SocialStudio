@@ -91,4 +91,45 @@ describe('buildAutopilotSteering — pain research', () => {
     expect(steering.blocks).toHaveLength(1);
     expect(steering.blocks[0]).toContain('HOOK SHAPE FOR THIS POST');
   });
+
+  describe('targetPattern override', () => {
+    // The creative genome also chooses a hook shape. Two shape instructions in
+    // one prompt contradict each other, so the caller may hand its choice in
+    // and the LRU rotation stands down.
+    const NO_OVERRIDE = buildAutopilotSteering({ recentHooks: [], painBrief: null });
+
+    it('defaults to pickUnderusedPattern when absent, undefined, or null', () => {
+      const undef = buildAutopilotSteering({ recentHooks: [], painBrief: null, targetPattern: undefined });
+      const nulled = buildAutopilotSteering({ recentHooks: [], painBrief: null, targetPattern: null });
+      expect(undef).toEqual(NO_OVERRIDE);
+      expect(nulled).toEqual(NO_OVERRIDE);
+    });
+
+    it('overrides the rotation when supplied, and the directive says so', () => {
+      const steering = buildAutopilotSteering({
+        recentHooks: [],
+        painBrief: null,
+        targetPattern: 'personal',
+      });
+      // Guard: the override must differ from what the rotation would have said,
+      // or this test proves nothing.
+      expect(NO_OVERRIDE.targetPattern).not.toBe('personal');
+      expect(steering.targetPattern).toBe('personal');
+      expect(steering.varietyDirective).toContain('HOOK SHAPE FOR THIS POST: personal');
+      expect(steering.varietyDirective).not.toContain(
+        `HOOK SHAPE FOR THIS POST: ${NO_OVERRIDE.targetPattern}`,
+      );
+    });
+
+    it('keeps the overuse context, which is about history rather than the pick', () => {
+      const steering = buildAutopilotSteering({
+        // Enough of one shape to cross OVERUSE_THRESHOLD.
+        recentHooks: ['Running is hard', 'Pace is a lie', 'Mileage is overrated'],
+        painBrief: null,
+        targetPattern: 'personal',
+      });
+      expect(steering.targetPattern).toBe('personal');
+      expect(steering.varietyDirective).toContain('Do NOT use these overused shapes');
+    });
+  });
 });

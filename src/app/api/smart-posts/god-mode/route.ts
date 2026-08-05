@@ -13,6 +13,10 @@ import { db } from '@/lib/db';
 import { brandPainPoints, posts } from '@/lib/db/schema';
 import { buildPainBrief, type RankedPain } from '@/lib/research/pain-points';
 import { buildAutopilotSteering, type AutopilotSteering } from '@/lib/smart-posts/autopilot-steering';
+import { RECORD_ONLY_DIMENSIONS } from '@/lib/creative/vocabulary';
+import type { SampledGenome } from '@/lib/creative/sampling';
+import type { HookPattern } from '@/lib/brain/creative-stats';
+import { TARGETABLE_PATTERNS } from '@/lib/brain/hook-shape';
 
 // Allow longer runtime — deep profile fetch + LLM design + image compositing.
 // Bumped from 60s to 90s after Cerebras rate-limit retries (300ms base, up to
@@ -165,11 +169,57 @@ function compactProfileForPrompt(profile: DeepProfile) {
   };
 }
 
+// The hook shape this genome chose, when it chose one this repo can steer to.
+//
+// The vocabulary's hook_shape values are deliberately the same five strings
+// classifyHookPattern() emits, so genomes and measured shapes compare directly.
+// But the vocabulary is DATA in a table and can grow without a code change, so
+// an unrecognised value degrades to letting pickUnderusedPattern decide rather
+// than naming a shape SHAPE_GUIDE has no wording for.
+export function genomeHookShape(genome: SampledGenome | null | undefined): HookPattern | null {
+  const found = genome?.ingredients.find(i => i.dimension === 'hook_shape');
+  if (!found) return null;
+  return TARGETABLE_PATTERNS.includes(found.value as HookPattern)
+    ? (found.value as HookPattern)
+    : null;
+}
+
+// The prompt text for a sampled genome. Exported so the selection rules can be
+// tested without calling a model. Mirrors buildGenomeBlock in lib/ads/ad-copy.ts
+// — same vocabulary, same skip rules, different surface.
+//
+// Two kinds of ingredient are dropped:
+//   - RECORD_ONLY_DIMENSIONS (image_style today): stored and scored so history
+//     exists when generated imagery lands, but no image path can act on it yet,
+//     and describing a picture nobody is choosing is pure noise.
+//   - hook_shape, when `hookShapeSpokenElsewhere` is true. The steering block
+//     already names it as the single HOOK SHAPE FOR THIS POST, with the
+//     overuse context attached. Repeating the bare fragment would add a
+//     second, weaker voice saying the same thing.
+export function buildGodModeGenomeBlock(
+  genome: SampledGenome | null | undefined,
+  opts: { hookShapeSpokenElsewhere: boolean },
+): string {
+  if (!genome || genome.ingredients.length === 0) return '';
+  const steerable = genome.ingredients.filter(
+    i =>
+      !RECORD_ONLY_DIMENSIONS.includes(i.dimension) &&
+      !(opts.hookShapeSpokenElsewhere && i.dimension === 'hook_shape'),
+  );
+  if (steerable.length === 0) return '';
+  return [
+    'CREATIVE DIRECTION FOR THIS POST (follow all of it):',
+    ...steerable.map(i => `- ${i.promptFragment}`),
+    'Use the direction above INTERNALLY as structure only. Never print framework names or stage labels.',
+  ].join('\n');
+}
+
 function buildUserPrompt(
   profile: DeepProfile,
   competitorIntel: CompetitorIntel | null,
   likeOfMediaId?: string,
   steering?: AutopilotSteering | null,
+  genomeBlock?: string,
 ): string {
   const compact = compactProfileForPrompt(profile);
   const likeOfLine = likeOfMediaId
@@ -194,6 +244,9 @@ function buildUserPrompt(
   const steeringBlock = steering && steering.blocks.length > 0
     ? `\n${steering.blocks.join('\n\n')}\n\nThe "pattern" you return MUST follow the hook shape above.\n`
     : '';
+  // Empty string when the genome is off or contributed nothing steerable, which
+  // keeps the joined prompt byte-identical to the pre-genome build.
+  const genomeSection = genomeBlock ? `\n${genomeBlock}\n` : '';
 
   return [
     "Below is the account's full performance profile. Use the actual numbers.",
@@ -201,7 +254,10 @@ function buildUserPrompt(
     'PROFILE_JSON:',
     JSON.stringify(compact, null, 2),
     competitorBlock,
-    steeringBlock,
+    // Concatenated into ONE array element rather than appended as a second one:
+    // an extra element would add an extra newline to the join even when empty,
+    // so the flag-off prompt would no longer be byte-identical to today's.
+    steeringBlock + genomeSection,
     '',
     capabilityNote,
     '',
@@ -351,6 +407,43 @@ export async function POST(req: NextRequest) {
       console.warn('[SmartPosts/god-mode] buildCompetitorIntel failed:', err instanceof Error ? err.message : err);
     }
 
+    // Creative genome: choose the ingredients for this post from what has
+    // actually earned reach on this surface. Flagged off by default and fully
+    // best-effort — the house pattern from ads/generate/route.ts. A genome
+    // failure must never block a post, exactly as a brain failure never blocks
+    // a caption. This is the unattended rail: undefined here means the whole
+    // route behaves exactly as it did before the genome existed.
+    let genome: SampledGenome | undefined;
+    if (process.env.CREATIVE_GENOME_ENABLED === 'true') {
+      try {
+        const [{ sampleGenome }, read] = await Promise.all([
+          import('@/lib/creative/sampling'),
+          import('@/lib/creative/genome-read'),
+        ]);
+        const [available, scores, recent, index] = await Promise.all([
+          read.loadSamplableIngredients(),
+          read.refreshScores(),
+          read.loadRecentGenomeIngredientIds('organic', 10),
+          read.nextGenomeIndex('organic'),
+        ]);
+        genome = sampleGenome({
+          available,
+          scores,
+          surface: 'organic',
+          recentGenomes: recent,
+          index,
+        });
+      } catch (err) {
+        console.warn('[SmartPosts/god-mode] genome sampling failed:', err instanceof Error ? err.message : err);
+        genome = undefined;
+      }
+    }
+
+    // Whichever shape the genome picked becomes the steering target, replacing
+    // pickUnderusedPattern's. See SteeringInput.targetPattern for why only one
+    // of the two may speak.
+    const genomeShape = genomeHookShape(genome);
+
     // Creative steering: hook-shape variety + audience pain research. Both are
     // best-effort — a brand with no research, or a transient DB error, must
     // degrade to the previous unsteered behaviour rather than block a post.
@@ -372,15 +465,23 @@ export async function POST(req: NextRequest) {
       steering = buildAutopilotSteering({
         recentHooks: recentRows.map(r => r.hookText ?? ''),
         painBrief: painRow?.ranked ? buildPainBrief(painRow.ranked as RankedPain[]) : null,
+        targetPattern: genomeShape,
       });
     } catch (err) {
       console.warn('[SmartPosts/god-mode] steering failed:', err instanceof Error ? err.message : err);
     }
 
+    // Only skip the genome's own hook_shape fragment when the steering block
+    // actually survived to say it. If steering threw, the genome is the only
+    // voice left and must keep its shape.
+    const genomeBlock = buildGodModeGenomeBlock(genome, {
+      hookShapeSpokenElsewhere: steering !== null && genomeShape !== null,
+    });
+
     const raw = await cerebrasChatCompletion(
       [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: buildUserPrompt(profile, competitorIntel, likeOfMediaId, steering) },
+        { role: 'user', content: buildUserPrompt(profile, competitorIntel, likeOfMediaId, steering, genomeBlock) },
       ],
       { temperature: LLM_TEMP, maxTokens: LLM_MAX_TOKENS },
     );
@@ -442,6 +543,15 @@ export async function POST(req: NextRequest) {
       ...outcome.data,
       godModeRationale: rationale,
       deepProfile: profile,
+      // Returned so the CALLER can record it against the post row it creates.
+      // This route never sees a posts.id, and the genome is only worth keeping
+      // once a post exists to attribute its reach to. Plain data, so it
+      // survives the HMAC-authenticated JSON hop to /api/autopilot/run intact.
+      //
+      // Spread conditionally: an undefined value is dropped by JSON.stringify
+      // anyway, but being explicit keeps the flag-off response provably
+      // key-for-key identical to today's.
+      ...(genome ? { genome } : {}),
     });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
