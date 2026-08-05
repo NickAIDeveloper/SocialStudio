@@ -23,12 +23,13 @@ const VERDICT_STYLES: Record<string, string> = {
   gathering: 'bg-white/5 text-(--muted)',
 };
 
-function Metric(props: { label: string; value: string; tone?: 'up' | 'down' }) {
+function Metric(props: { label: string; value: string; hint?: string; tone?: 'up' | 'down' }) {
   const tone = props.tone === 'up' ? 'text-green-400' : props.tone === 'down' ? 'text-red-400' : 'text-(--txt)';
   return (
     <div>
-      <div className="text-xs text-(--muted-2)">{props.label}</div>
+      <div className="text-xs text-(--muted)">{props.label}</div>
       <div className={`text-lg font-bold ${tone}`}>{props.value}</div>
+      {props.hint && <div className="text-xs text-(--muted)">{props.hint}</div>}
     </div>
   );
 }
@@ -99,17 +100,20 @@ export function AdDashboardCard({ ad }: { ad: DashboardAd }) {
 
         {i ? (
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-            <Metric label="Spend" value={`${cur} ${i.spend.toFixed(2)}`} />
-            <Metric label="Impressions" value={i.impressions.toLocaleString()} />
+            <Metric label="Spent" value={`${cur} ${i.spend.toFixed(2)}`} />
+            <Metric label="Times shown" value={i.impressions.toLocaleString()} hint="Including repeats" />
             <Metric label="Clicks" value={i.clicks.toLocaleString()} />
-            <Metric label="CTR" value={`${i.ctr.toFixed(2)}%`} tone={trendTone} />
-            <Metric label="CPC" value={`${cur} ${i.cpc.toFixed(2)}`} />
-            <Metric label="Reach" value={i.reach.toLocaleString()} />
-            <Metric label="Frequency" value={i.frequency.toFixed(1)} />
-            <Metric label="Results" value={i.results.toLocaleString()} />
+            <Metric label="Click rate" value={`${i.ctr.toFixed(2)}%`} hint="Of everyone who saw it" tone={trendTone} />
+            <Metric label="Cost per click" value={`${cur} ${i.cpc.toFixed(2)}`} />
+            <Metric label="People reached" value={i.reach.toLocaleString()} hint="Different people" />
+            <Metric label="Times seen each" value={i.frequency.toFixed(1)} hint="Average per person" />
+            <Metric
+              label={`Results (${(i.resultType || 'result').replace(/_/g, ' ')})`}
+              value={i.results.toLocaleString()}
+            />
           </div>
         ) : (
-          <p className="text-sm text-(--muted)">Gathering data — stats appear once Meta starts reporting.</p>
+          <p className="text-sm text-(--muted)">Nothing to show yet. Numbers appear here once Meta starts reporting on this ad.</p>
         )}
 
         <div className={`mt-3 rounded-lg px-3 py-2 text-sm ${VERDICT_STYLES[ad.signals.verdict]}`}>

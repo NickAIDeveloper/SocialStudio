@@ -228,7 +228,7 @@ function BrainTab({ data }: { data: InsightsData }) {
   if (!hasBrain) {
     return (
       <div className="rounded-2xl border border-(--line) bg-(--surface)/30 p-4 text-sm text-(--muted)">
-        <span className="text-amber-300">Brain hasn&apos;t run yet.</span> Daily cron fires at 03:00 UTC — discoveries land here once it has data.
+        <span className="text-amber-300">Nothing learned yet.</span> This runs automatically every night. Check back in the morning.
       </div>
     );
   }
@@ -608,7 +608,7 @@ function LearningLedger({ data }: { data: InsightsData }) {
   if (!data.brain) {
     return (
       <div className="border-b border-(--line) bg-(--surface)/30 px-5 py-3 text-xs text-(--muted)">
-        <span className="text-amber-300">Brain hasn&apos;t analyzed yet.</span> Next analysis runs nightly at 03:00 UTC.
+        <span className="text-amber-300">Nothing analysed yet.</span> This runs automatically every night.
       </div>
     );
   }
@@ -626,7 +626,6 @@ function LearningLedger({ data }: { data: InsightsData }) {
           Reviewed <span className="text-(--muted)">{reviewedOwn}</span> of your posts
           {reviewedComp > 0 && <> + <span className="text-(--muted)">{reviewedComp}</span> competitor posts across <span className="text-(--muted)">{compCount}</span> accounts</>}
         </span>
-        <span className="text-(--muted-2)">Brain v{data.brain.briefVersion}</span>
       </div>
 
       {data.narrative ? (

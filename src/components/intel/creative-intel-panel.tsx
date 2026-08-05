@@ -101,7 +101,7 @@ export function CreativeIntelPanel({ brandId, brandName }: { brandId: string; br
               {block.stats.slice(0, 5).map(s => (
                 <div key={s.value} className="flex items-center gap-2 text-[11px]">
                   <span className="text-(--muted) w-28 truncate">{s.value}</span>
-                  <span className="text-(--muted-2)">n={s.samples}</span>
+                  <span className="text-(--muted)">{s.samples} {s.samples === 1 ? 'post' : 'posts'}</span>
                   <span className="text-(--txt)">{s.meanScore.toFixed(1)}</span>
                   {!s.confident && (
                     <span className="text-[10px] text-amber-300/80" title={`Fewer than ${d.minConfidentSamples} samples`}>
@@ -116,8 +116,9 @@ export function CreativeIntelPanel({ brandId, brandName }: { brandId: string; br
       })}
 
       <div className="text-[10px] text-(--muted-2) border-t border-(--line) pt-3">
-        Score is reach plus a heavy weight on saves. Nothing below {d.minConfidentSamples} samples is acted
-        on — showing it anyway is deliberate, so you can see what is being ignored and why.
+        The score combines how many people saw the post and how many saved it. Saves
+        count for more. Nothing with fewer than {d.minConfidentSamples} posts behind it
+        is acted on, but it is still shown so you can see what is being left out.
       </div>
     </div>
   );

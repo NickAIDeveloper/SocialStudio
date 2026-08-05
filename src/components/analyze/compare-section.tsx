@@ -50,7 +50,7 @@ function rowsFromStats(
 ): CompareRow[] {
   return [
     {
-      label: 'Median engagement (likes)',
+      label: 'Typical post likes',
       you: you?.medianLikes != null ? String(you.medianLikes) : null,
       competitor: competitor?.medianLikes != null ? String(competitor.medianLikes) : null,
     },
