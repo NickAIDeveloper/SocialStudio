@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  adsReward, organicReward, scoreIngredients, SHRINKAGE_K,
+  adsReward, organicReward, organicEngagementScore, scoreIngredients,
+  SHRINKAGE_K, LIKE_WEIGHT,
   type Observation, type IngredientScore,
 } from '../scoring';
 
@@ -16,16 +17,51 @@ describe('reward definitions', () => {
     expect(adsReward(0, 0)).toBeNull();
   });
 
-  it('computes organic reward relative to the brand median', () => {
+  it('computes organic reward relative to the brand median composite score', () => {
     // NOT reach/followers: follower counts are not linked to brands, and raw
     // reach would make every pacebrain ingredient (median 14) beat every
-    // affectly one (median 3) regardless of the creative.
+    // affectly one (median 3) regardless of the creative. The composite
+    // score (reach + LIKE_WEIGHT*likes) is normalised the same way.
     expect(organicReward(28, 14)).toBeCloseTo(2);
     expect(organicReward(3, 3)).toBeCloseTo(1);
   });
 
-  it('returns null when the brand has no reach history to normalise against', () => {
+  it('returns 1.0 for a post exactly at its brand median', () => {
+    expect(organicReward(20, 20)).toBeCloseTo(1.0);
+  });
+
+  it('returns null when the brand has no history to normalise against', () => {
     expect(organicReward(10, 0)).toBeNull();
+  });
+});
+
+describe('organicEngagementScore', () => {
+  it('weights likes at LIKE_WEIGHT relative to reach', () => {
+    // Hardcoded to 5, not LIKE_WEIGHT*2: this must fail if LIKE_WEIGHT is
+    // ever changed to something else without an intentional test update.
+    expect(LIKE_WEIGHT).toBe(5);
+    expect(organicEngagementScore(10, 2)).toBe(20);
+  });
+
+  it('scores a post with reach and no likes below one with equal reach and several likes', () => {
+    const noLikes = organicEngagementScore(20, 0);
+    const someLikes = organicEngagementScore(20, 3);
+    expect(someLikes).toBeGreaterThan(noLikes);
+  });
+
+  it('is unaffected by comments, shares or saves — the signature has no room for them', () => {
+    // Regression guard: production data shows comments, shares and saves are
+    // zero or near-zero on every post (see scoring.ts header), and
+    // creative-stats.ts already learned this lesson once — scoreOutcome
+    // weights saves at 20x and that weighting has never contributed
+    // anything because the metric is always zero. Two analytics rows
+    // differing ONLY in those fields must score identically.
+    type Analytics = { reach: number; likes: number; comments: number; shares: number; saves: number };
+    const quiet: Analytics = { reach: 20, likes: 3, comments: 0, shares: 0, saves: 0 };
+    const noisy: Analytics = { reach: 20, likes: 3, comments: 5, shares: 5, saves: 5 };
+    expect(organicEngagementScore(quiet.reach, quiet.likes)).toBe(
+      organicEngagementScore(noisy.reach, noisy.likes),
+    );
   });
 });
 

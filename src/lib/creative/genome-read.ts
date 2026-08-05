@@ -16,7 +16,7 @@ import {
 } from '@/lib/db/schema';
 import { hasOutcome } from '@/lib/brain/creative-stats';
 import {
-  adsReward, organicReward, scoreIngredients,
+  adsReward, organicReward, organicEngagementScore, scoreIngredients,
   type IngredientScore, type Observation, type Surface,
 } from './scoring';
 import type { SamplableIngredient } from './sampling';
@@ -70,16 +70,20 @@ export async function nextGenomeIndex(surface: Surface): Promise<number> {
   return rows.length + 1;
 }
 
-// Median reach for one brand, used to normalise organic reward. Returns 0 when
-// the brand has no positive-reach history, which makes organicReward return
-// null and the post contribute nothing.
-async function brandMedianReach(brandId: string): Promise<number> {
+// Median engagement score (reach + like bonus) for one brand, used to
+// normalise organic reward. Returns 0 when the brand has no positive-score
+// history, which makes organicReward return null and the post contribute
+// nothing.
+async function brandMedianEngagement(brandId: string): Promise<number> {
   const rows = await db
-    .select({ reach: postAnalytics.reach })
+    .select({ reach: postAnalytics.reach, likes: postAnalytics.likes })
     .from(postAnalytics)
     .innerJoin(posts, eq(posts.id, postAnalytics.postId))
     .where(eq(posts.brandId, brandId));
-  const values = rows.map(r => r.reach ?? 0).filter(v => v > 0).sort((a, b) => a - b);
+  const values = rows
+    .map(r => organicEngagementScore(r.reach ?? 0, r.likes ?? 0))
+    .filter(v => v > 0)
+    .sort((a, b) => a - b);
   if (values.length === 0) return 0;
   const mid = Math.floor(values.length / 2);
   return values.length % 2 === 0 ? (values[mid - 1] + values[mid]) / 2 : values[mid];
@@ -123,10 +127,11 @@ export async function loadObservations(surface: Surface): Promise<Observation[]>
       if (!g.brandId) continue;
       let median = medianCache.get(g.brandId);
       if (median === undefined) {
-        median = await brandMedianReach(g.brandId);
+        median = await brandMedianEngagement(g.brandId);
         medianCache.set(g.brandId, median);
       }
-      reward = organicReward(analytics.reach ?? 0, median);
+      const score = organicEngagementScore(analytics.reach ?? 0, analytics.likes ?? 0);
+      reward = organicReward(score, median);
     }
 
     if (reward == null) continue;

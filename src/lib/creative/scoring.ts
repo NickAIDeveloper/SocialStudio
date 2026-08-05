@@ -44,16 +44,39 @@ export function adsReward(clicks: number, impressions: number): number | null {
   return clicks / impressions;
 }
 
-// Organic: reach relative to the brand's OWN median post.
+// Organic composite: reach plus a like bonus.
+//
+// Measured across all 63 production posts: comments, shares and saves are
+// zero or near-zero on every post on both brands (pacebrain and affectly),
+// so including them adds noise and no signal — creative-stats.ts already
+// learned this once (scoreOutcome weights saves at 20x and that weighting
+// has contributed nothing). Views are excluded for now too: they were only
+// persisted starting 2026-07-31, so on older posts they'd read as a failure
+// rather than as missing data. Revisit once view history fills in. Likes are
+// included because they genuinely vary on pacebrain (0-4, median 2).
+//
+// A like is a deliberate act; an impression is not. Weighting a like at 5
+// makes engagement and distribution comparable in size at current volume
+// (pacebrain median reach 14, median likes 2 -> 14 vs 10), so neither term
+// swamps the other.
+export const LIKE_WEIGHT = 5;
+
+export function organicEngagementScore(reach: number, likes: number): number {
+  return reach + LIKE_WEIGHT * likes;
+}
+
+// Organic: composite score relative to the brand's OWN median composite
+// score.
 //
 // Not reach/followers, as the spec first proposed: follower counts exist only
 // on scraped_accounts rows with brand_id NULL, so there is no reliable join.
-// And scores pool across brands, so raw reach would rank every ingredient
-// pacebrain uses (median 14) above every ingredient affectly uses (median 3)
-// regardless of the creative. This normalises that away for free.
-export function organicReward(reach: number, brandMedianReach: number): number | null {
-  if (brandMedianReach <= 0) return null;
-  return reach / brandMedianReach;
+// And scores pool across brands, so a raw composite would rank every
+// ingredient pacebrain uses (median reach 14) above every ingredient affectly
+// uses (median reach 3) regardless of the creative. This normalises that
+// away for free.
+export function organicReward(score: number, brandMedianScore: number): number | null {
+  if (brandMedianScore <= 0) return null;
+  return score / brandMedianScore;
 }
 
 function mean(values: readonly number[]): number {
