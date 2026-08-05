@@ -116,12 +116,17 @@ Details worth keeping:
   exist, not `dimensions.length === 0`.
 - Sidebar entry renamed Genome to Leaderboard.
 
-**WAVE 3 — not started.** Items 9 to 12 of the plan:
-9. Batch generate: guard the no-brands silent no-op (`batch-gallery.tsx`).
-10. `/create` busy states on the two feedback-less buttons (`post-generator.tsx`).
-11. Surface swallowed errors: `agent-plan-panel.tsx`, `image-source-selector.tsx`,
-    and the missing `res.ok` check in `AdDashboardCard.askAi`.
-12. Nav: add `/ads/queue`, apply the grouped IA.
+**WAVE 3 — DONE** (`70481bc`). Batch no-brands guard, /create busy states on
+the two feedback-less buttons, three swallowed errors surfaced (AgentPlanPanel
+loading/empty/error, ImageSourceSelector search+generate, AdDashboardCard.askAi
+missing res.ok), `/ads/queue` added to the sidebar and the nav regrouped by
+marketer intent (Make posts, Automate, Advertising, Insights, Account). Group
+headings never repeat an item label, and `/ads` no longer highlights while one
+of its children is open.
+
+**THE SWEEP IS COMPLETE.** All 12 plan items done. 946 tests / 103 files,
+0 lint errors, no new typecheck errors. Branch `feat/platform-sweep` is pushed
+but NOT merged to main and NOT deployed.
 
 **NOT DONE, deliberate:** no live-browser QA pass has been run on any of Wave 1
 or Wave 2. Everything is verified by unit tests, typecheck, lint and direct
