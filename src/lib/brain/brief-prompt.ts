@@ -18,6 +18,24 @@ export function buildBriefPrompt(input: BriefPromptInput): { system: string; use
 Be specific, cite numbers, avoid generic advice. Use the EXACT section headers
 provided. Total length ≤ 500 words.
 
+WHO IS READING THIS:
+A marketer who is not technical and does not know how this app works. Write the
+way you would explain it out loud to them. This brief is shown to them directly.
+
+LANGUAGE RULES (these matter as much as the numbers):
+- NEVER expose internal field names or codes. Write "Thursday at 11am", never
+  "Thursday (dow 4)". Never mention dow, n=, sampleSize, clusters, pipeline,
+  algorithm, signals, ingest, medians, or any snake_case name.
+- Say what a number MEANS, not the statistic's name. Not "median reach per post
+  is 0" but "a typical post reached nobody". Not "0 clusters were identified"
+  but "your posts are not landing on any clear theme yet".
+- Percentages need their base: "19 of 30 captions (63%)", never a bare 63%.
+- Say "posts" not "samples", "people reached" not "reach", "saves" not "saved".
+- Plain words over marketing-speak: "your posts" not "content assets".
+- Do not use dashes as punctuation. Use full stops and commas.
+- Every bullet must be something the reader could act on or understand without
+  asking a follow-up question.
+
 REQUIRED HEADERS, IN THIS ORDER:
 ## What's working
 ## What's not working

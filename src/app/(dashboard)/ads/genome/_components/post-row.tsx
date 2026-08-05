@@ -20,7 +20,18 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function PostRow({ row }: { row: LeaderboardRow }) {
+/**
+ * Bar width as a share of the best post's reach. A leaderboard whose ranking is
+ * only conveyed by row order makes the reader compare numbers by eye; the bar
+ * shows the GAP, which is the actual story (a top post 5x the rest reads very
+ * differently from a flat field).
+ */
+function reachShare(reach: number, maxReach: number): number {
+  if (maxReach <= 0 || reach <= 0) return 0;
+  return Math.max(2, Math.round((reach / maxReach) * 100));
+}
+
+export function PostRow({ row, maxReach }: { row: LeaderboardRow; maxReach: number }) {
   return (
     <div className="flex flex-wrap items-center gap-4 border-b border-(--line) px-4 py-3 last:border-0">
       <span className="w-6 shrink-0 text-sm font-semibold text-(--muted)">{row.rank}</span>
@@ -52,7 +63,16 @@ export function PostRow({ row }: { row: LeaderboardRow }) {
         </div>
       </div>
 
-      <Metric label="People reached" value={formatCount(row.reach)} />
+      <div className="min-w-[150px] flex-1">
+        <div className="text-sm font-semibold text-(--txt)">{formatCount(row.reach)}</div>
+        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-(--surface-2)">
+          <div
+            className="h-full rounded-full bg-(--violet)"
+            style={{ width: `${reachShare(row.reach, maxReach)}%` }}
+          />
+        </div>
+        <div className="mt-1 text-xs text-(--muted)">People reached</div>
+      </div>
       <Metric label="Likes" value={formatCount(row.likes)} />
       <Metric
         label="Liked it"

@@ -140,7 +140,14 @@ export default function LeaderboardPage() {
       {!loading && hasRows && (
         <div className="overflow-hidden rounded-2xl border border-(--line) bg-(--surface)">
           {board.surface === 'organic'
-            ? board.rows.map((r) => <PostRow key={r.postId} row={r} />)
+            ? (() => {
+                // Scale every bar against the best post ON SCREEN, so the top
+                // row is always a full bar and the rest are read against it.
+                const maxReach = Math.max(...board.rows.map((r) => r.reach), 0);
+                return board.rows.map((r) => (
+                  <PostRow key={r.postId} row={r} maxReach={maxReach} />
+                ));
+              })()
             : board.rows.map((r) => <AdRow key={r.adId} row={r} />)}
         </div>
       )}
