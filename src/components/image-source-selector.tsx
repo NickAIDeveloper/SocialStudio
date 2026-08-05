@@ -38,6 +38,10 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
   const [aiPrompt, setAiPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
+  // Search and generate failures used to reach console.error only, so a broken
+  // provider key looked exactly like "no results". Its siblings (ask-panel,
+  // candidate-strip) already render an error string; this now matches them.
+  const [error, setError] = useState<string | null>(null);
   const fetchedRef = useRef(false);
 
   useEffect(() => {
@@ -83,18 +87,19 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
     const q = query ?? searchQuery;
     if (!q.trim() || !selectedSource || isAISource) return;
     setIsLoading(true);
+    setError(null);
     try {
       const url = `/api/images?source=${encodeURIComponent(selectedSource)}&q=${encodeURIComponent(q.trim())}`;
       const response = await fetch(url);
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        console.error('Image search error:', err.error || response.status);
+        setError(`Could not search for images: ${err.error || `error ${response.status}`}`);
         return;
       }
       const data = await response.json();
       onImagesLoaded(data.images || []);
-    } catch (error) {
-      console.error('Image search failed:', error);
+    } catch {
+      setError('Could not search for images. Check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -103,6 +108,7 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
   const handleGenerate = useCallback(async () => {
     if (!aiPrompt.trim()) return;
     setIsLoading(true);
+    setError(null);
     try {
       const response = await fetch('/api/images', {
         method: 'POST',
@@ -111,13 +117,13 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
       });
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        console.error('Image generation error:', err.error || response.status);
+        setError(`Could not generate an image: ${err.error || `error ${response.status}`}`);
         return;
       }
       const data = await response.json();
       onImagesLoaded(data.images || []);
-    } catch (error) {
-      console.error('Image generation failed:', error);
+    } catch {
+      setError('Could not generate an image. Check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -130,6 +136,7 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
     // Need to call handleSearch with the query directly since state won't update yet
     if (!selectedSource) return;
     setIsLoading(true);
+    setError(null);
     const url = `/api/images?source=${encodeURIComponent(selectedSource)}&q=${encodeURIComponent(query.trim())}`;
     fetch(url)
       .then((res) => {
@@ -137,7 +144,7 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
         return res.json();
       })
       .then((data) => onImagesLoaded(data.images || []))
-      .catch((err) => console.error('Image search failed:', err))
+      .catch(() => setError('Could not search for images. Try again in a moment.'))
       .finally(() => setIsLoading(false));
   }, [selectedSource, isAISource, onImagesLoaded]);
 
@@ -175,6 +182,11 @@ export const ImageSourceSelector = forwardRef<ImageSourceSelectorHandle, ImageSo
 
   return (
     <div className="space-y-3">
+      {error && (
+        <div className="rounded-lg border border-(--line) bg-(--surface-2)/60 px-3 py-2 text-sm text-rose-400">
+          {error}
+        </div>
+      )}
       <Select
         value={selectedSource}
         onValueChange={(val) => setSelectedSource(val as SourceValue)}

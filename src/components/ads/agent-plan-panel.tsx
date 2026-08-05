@@ -24,15 +24,60 @@ const ACTION_STYLE: Record<string, string> = {
 
 export function AgentPlanPanel({ brandId, brandName }: { brandId: string; brandName: string }) {
   const [plan, setPlan] = useState<Plan | null>(null);
+  // Rendering null for loading, empty AND hard failure alike meant the whole
+  // panel vanished from /ads/queue with no trace whenever the request failed.
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/ads/agent-plan?brandId=${brandId}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setPlan)
-      .catch(() => setPlan(null));
+    let cancelled = false;
+    const run = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/ads/agent-plan?brandId=${brandId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = (await res.json()) as Plan;
+        if (!cancelled) setPlan(json);
+      } catch {
+        if (!cancelled) {
+          setPlan(null);
+          setError('Could not load the ads agent plan. Refresh to try again.');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
   }, [brandId]);
 
-  if (!plan) return null;
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-(--line) bg-(--surface)/50 p-5 text-sm text-(--muted)">
+        Loading the ads agent plan for {brandName}...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-(--line) bg-(--surface)/50 p-5 text-sm text-rose-400">
+        {error}
+      </div>
+    );
+  }
+
+  if (!plan) {
+    return (
+      <div className="rounded-2xl border border-(--line) bg-(--surface)/50 p-5 text-sm text-(--muted)">
+        No ads agent plan for {brandName} yet. It appears once this brand has ads to
+        judge.
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-(--line) bg-(--surface)/50 p-5">

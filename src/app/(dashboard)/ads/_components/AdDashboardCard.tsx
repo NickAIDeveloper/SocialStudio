@@ -69,7 +69,13 @@ export function AdDashboardCard({ ad }: { ad: DashboardAd }) {
         body: JSON.stringify({ adId: ad.id }),
       });
       const json = await res.json();
-      setAdvice(json.advice ?? json.error ?? 'No advice available.');
+      // Without this check a 500 body's `error` string was rendered in the
+      // advice box as if the AI had written it.
+      if (!res.ok) {
+        setAdvice(`Could not get advice right now: ${json.error ?? `error ${res.status}`}`);
+        return;
+      }
+      setAdvice(json.advice ?? 'No advice available.');
     } catch {
       setAdvice('Could not load advice right now.');
     } finally {

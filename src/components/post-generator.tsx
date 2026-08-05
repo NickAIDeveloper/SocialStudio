@@ -304,6 +304,7 @@ export function PostGenerator() {
 
   const generateCaption = useCallback(async () => {
     randomGeneratingRef.current = true; // Suppress reprocess timer during generation
+    setCaptionBusy(true);
     // Try AI generation first
     let newCaption = '';
     let newHashtags = '';
@@ -450,6 +451,7 @@ export function PostGenerator() {
       // Image search failed, user can manually search
     } finally {
       randomGeneratingRef.current = false;
+      setCaptionBusy(false);
     }
   }, [brand, contentType, textPosition, fontSize, overlayStyle, imageEffect]);
 
@@ -634,10 +636,15 @@ export function PostGenerator() {
 
   // Flag to suppress auto-reprocess while Random Generator is running
   const randomGeneratingRef = useRef(false);
+  // Both of these chain several fetches over multiple seconds with no feedback
+  // of their own, so users double-clicked and raced the handlers.
+  const [randomBusy, setRandomBusy] = useState(false);
+  const [captionBusy, setCaptionBusy] = useState(false);
 
   // Random Generator — randomize options weighted toward viral patterns
   const randomGenerate = useCallback(async () => {
     randomGeneratingRef.current = true;
+    setRandomBusy(true);
 
     // Clear all old state first so nothing is stale
     setSelectedImage(null);
@@ -793,6 +800,7 @@ export function PostGenerator() {
       // Image search failed, user can manually search
     } finally {
       randomGeneratingRef.current = false;
+      setRandomBusy(false);
     }
   }, [apiBrands]);
 
@@ -854,9 +862,10 @@ export function PostGenerator() {
         {/* Random Generator */}
         <Button
           onClick={randomGenerate}
-          className="cta-violet w-full h-11 text-sm font-semibold active:scale-[0.98] transition-all duration-200"
+          disabled={randomBusy}
+          className="cta-violet w-full h-11 text-sm font-semibold active:scale-[0.98] transition-all duration-200 disabled:opacity-60"
         >
-          Random Generator — Viral Post
+          {randomBusy ? 'Building your post...' : 'Random Generator — Viral Post'}
         </Button>
 
         {/* Brand, Content Type, Logo Position */}
@@ -953,9 +962,10 @@ export function PostGenerator() {
               <Button
                 onClick={generateCaption}
                 size="sm"
-                className="cta-violet h-8 text-xs font-medium active:scale-[0.98] transition-all duration-200"
+                disabled={captionBusy}
+                className="cta-violet h-8 text-xs font-medium active:scale-[0.98] transition-all duration-200 disabled:opacity-60"
               >
-                Generate
+                {captionBusy ? 'Writing...' : 'Generate'}
               </Button>
             </div>
           </div>

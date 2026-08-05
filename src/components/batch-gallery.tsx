@@ -160,6 +160,9 @@ export function BatchGallery() {
   const generatingRef = useRef(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [apiBrands, setApiBrands] = useState<ApiBrand[]>([]);
+  // Until this flips, "no brands" is indistinguishable from "not loaded yet",
+  // and generating with zero brands silently produces nothing.
+  const [brandsLoaded, setBrandsLoaded] = useState(false);
 
   // Load Buffer orgs + brands on mount (cached)
   useEffect(() => {
@@ -174,7 +177,8 @@ export function BatchGallery() {
       .then(data => {
         if (data.brands) setApiBrands(data.brands);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setBrandsLoaded(true));
   }, []);
 
   // Find matching channel for a brand
@@ -263,6 +267,9 @@ export function BatchGallery() {
   const generateBatch = useCallback(async () => {
     const currentBatchCount = batchCountRef.current;
     if (generatingRef.current) return;
+    // Without brands there is nothing to generate FOR: the old code sailed on
+    // and span through "Generating 0/0..." producing nothing, with no message.
+    if (apiBrands.length === 0) return;
     generatingRef.current = true;
     setIsGenerating(true);
     setPosts([]);
@@ -788,7 +795,8 @@ export function BatchGallery() {
           {/* Generate button */}
           <button
             onClick={() => void generateBatch()}
-            disabled={isGenerating}
+            disabled={isGenerating || !brandsLoaded || apiBrands.length === 0}
+            title={brandsLoaded && apiBrands.length === 0 ? 'Add a brand in Settings first' : undefined}
             className="px-5 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-(--violet) to-(--violet-deep) hover:from-(--violet-bright) hover:to-(--violet) text-white shadow-lg transition-all disabled:opacity-60 flex items-center gap-2"
           >
             {isGenerating ? (
@@ -796,10 +804,19 @@ export function BatchGallery() {
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 Generating {posts.filter(p => p.imageUrl).length}/{posts.length}...
               </>
+            ) : !brandsLoaded ? (
+              'Loading your brands...'
+            ) : apiBrands.length === 0 ? (
+              'No brands yet'
             ) : (
               `Generate ${batchCount} Posts`
             )}
           </button>
+          {brandsLoaded && apiBrands.length === 0 && (
+            <span className="text-sm text-(--muted)">
+              Add a brand in Settings and this will generate posts for it.
+            </span>
+          )}
         </div>
 
         {posts.length > 0 && (

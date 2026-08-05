@@ -4,20 +4,44 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { BarChart3, Sparkles, Plus, Bot, Megaphone, Menu, Settings, X, Search, MessageCircleQuestion, FlaskConical, Trophy } from 'lucide-react';
+import { BarChart3, Sparkles, Plus, Bot, Megaphone, Menu, Settings, X, Search, MessageCircleQuestion, FlaskConical, Trophy, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserMenu } from '@/components/layout/user-menu';
 
-const primaryItems = [
-  { href: '/analyze', label: 'Analyze', icon: BarChart3 },
-  { href: '/smart-posts', label: 'Smart Posts', icon: Sparkles },
-  { href: '/create', label: 'Create', icon: Plus },
-  { href: '/autopilot', label: 'Autopilot', icon: Bot },
-  { href: '/ads', label: 'Ads', icon: Megaphone },
-  { href: '/ads/genome', label: 'Leaderboard', icon: Trophy },
-  { href: '/intel', label: 'Intelligence', icon: FlaskConical },
-  { href: '/research', label: 'Research', icon: Search },
-  { href: '/ask', label: 'Ask', icon: MessageCircleQuestion },
+// Grouped by what a marketer is trying to DO, not by which system owns the
+// page. `exact` marks a route with children of its own (/ads has /ads/queue and
+// /ads/genome under it), so the parent does not light up while a child is open.
+const navGroups = [
+  {
+    // Headings never repeat an item's label: a group called "Create" holding a
+    // link called "Create" reads as a duplicate, not a grouping.
+    title: 'Make posts',
+    items: [
+      { href: '/create', label: 'Create', icon: Plus },
+      { href: '/smart-posts', label: 'Smart Posts', icon: Sparkles },
+    ],
+  },
+  {
+    title: 'Automate',
+    items: [{ href: '/autopilot', label: 'Autopilot', icon: Bot }],
+  },
+  {
+    title: 'Advertising',
+    items: [
+      { href: '/ads', label: 'Ads', icon: Megaphone, exact: true },
+      { href: '/ads/queue', label: 'Ad queue', icon: ListChecks },
+      { href: '/ads/genome', label: 'Leaderboard', icon: Trophy },
+    ],
+  },
+  {
+    title: 'Insights',
+    items: [
+      { href: '/analyze', label: 'Analyze', icon: BarChart3 },
+      { href: '/intel', label: 'Intelligence', icon: FlaskConical },
+      { href: '/ask', label: 'Ask', icon: MessageCircleQuestion },
+      { href: '/research', label: 'Research', icon: Search },
+    ],
+  },
 ];
 
 export function AppSidebar() {
@@ -38,8 +62,10 @@ export function AppSidebar() {
     setMobileOpen(false);
   }
 
-  const navLink = (href: string, label: string, Icon: typeof BarChart3) => {
-    const isActive = pathname === href || pathname.startsWith(`${href}/`);
+  const navLink = (href: string, label: string, Icon: typeof BarChart3, exact = false) => {
+    const isActive = exact
+      ? pathname === href
+      : pathname === href || pathname.startsWith(`${href}/`);
     return (
       <Link
         key={href}
@@ -99,19 +125,27 @@ export function AppSidebar() {
           </button>
         </div>
 
-        <p className="px-4 pb-2 pt-3 text-xs font-semibold uppercase tracking-[0.08em] text-(--muted)">
-          Workspace
-        </p>
-        <nav className="flex flex-col gap-1 px-2">
-          {primaryItems.map((i) => navLink(i.href, i.label, i.icon))}
-        </nav>
+        <div className="overflow-y-auto">
+          {navGroups.map((group) => (
+            <div key={group.title}>
+              <p className="px-4 pb-2 pt-3 text-xs font-semibold uppercase tracking-[0.08em] text-(--muted)">
+                {group.title}
+              </p>
+              <nav className="flex flex-col gap-1 px-2">
+                {group.items.map((i) =>
+                  navLink(i.href, i.label, i.icon, 'exact' in i ? i.exact : false),
+                )}
+              </nav>
+            </div>
+          ))}
 
-        <p className="px-4 pb-2 pt-5 text-xs font-semibold uppercase tracking-[0.08em] text-(--muted)">
-          Account
-        </p>
-        <nav className="flex flex-col gap-1 px-2">
-          {navLink('/settings', 'Settings', Settings)}
-        </nav>
+          <p className="px-4 pb-2 pt-5 text-xs font-semibold uppercase tracking-[0.08em] text-(--muted)">
+            Account
+          </p>
+          <nav className="flex flex-col gap-1 px-2">
+            {navLink('/settings', 'Settings', Settings)}
+          </nav>
+        </div>
 
         <div className="mt-auto p-2">
           <UserMenu />
