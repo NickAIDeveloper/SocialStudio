@@ -103,6 +103,10 @@ export interface AdTargeting {
   cities?: Array<{
     key: string;
     name: string;
+    /** ISO-2 of the city's own country. Used to reject targeting a country and
+     *  a city inside it at the same time, which Meta refuses. Absent on drafts
+     *  saved before this was captured. */
+    countryCode?: string;
     lat?: number;
     lng?: number;
     radius?: number;

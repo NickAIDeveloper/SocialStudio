@@ -14,7 +14,7 @@ import { getAdvertisableApps } from '@/lib/meta/client';
 import {
   OBJECTIVE_CONFIG, minDailyBudget, type AdDraft, type AdTargeting, type AdObjective,
 } from '@/lib/meta/ads-types';
-import { findOverlap, type GeoCity } from '@/lib/ads/geo-overlap';
+import { findOverlap, findCountryCityOverlap, type GeoCity } from '@/lib/ads/geo-overlap';
 import { buildTrackedUrl } from '@/lib/ads/tracked-url';
 import { resolveAudienceMode, advantageAudienceFlag } from '@/lib/ads/audience-mode';
 import type { SampledGenome } from '@/lib/creative/sampling';
@@ -132,6 +132,22 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
+    }
+
+    // A city inside a targeted country is the OTHER shape of Meta's
+    // "locations overlap" rejection, and the one the city-vs-city check above
+    // cannot see. Cities without a stored country code pass through.
+    const countryClash = findCountryCityOverlap(
+      targeting.countries ?? [],
+      (targeting.cities ?? []) as Array<{ key: string; name: string; countryCode?: string }>,
+    );
+    if (countryClash) {
+      return NextResponse.json(
+        {
+          error: `Locations overlap: "${countryClash.city}" is inside ${countryClash.countryCode}, which you are already targeting. Remove one and try again.`,
+        },
+        { status: 400 },
+      );
     }
 
     // APP objective: validate required App Store fields before any write.

@@ -41,3 +41,44 @@ export function citiesOverlap(a: GeoCity, b: GeoCity): boolean {
 export function findOverlap(existing: GeoCity[], candidate: GeoCity): GeoCity | null {
   return existing.find((c) => citiesOverlap(c, candidate)) ?? null;
 }
+
+// ---------------------------------------------------------------------------
+// Country vs city
+// ---------------------------------------------------------------------------
+
+export interface GeoCityWithCountry {
+  key: string;
+  name: string;
+  /** ISO-2, from Meta's adgeolocation search. Absent on drafts saved before
+   *  we started capturing it — those are let through rather than blocked. */
+  countryCode?: string;
+}
+
+export interface CountryCityClash {
+  city: string;
+  countryCode: string;
+}
+
+/**
+ * Meta rejects an ad set that targets a country AND a city inside that same
+ * country ("Some of your locations overlap", subcode 1487756). The city-vs-city
+ * check above does not catch it, which is how six ads on this account failed.
+ *
+ * Targeting the US plus London is NOT an overlap, so this compares the city's
+ * own country rather than blocking any country+city combination.
+ */
+export function findCountryCityOverlap(
+  countries: readonly string[],
+  cities: readonly GeoCityWithCountry[],
+): CountryCityClash | null {
+  const targeted = new Set(countries.map((c) => c.trim().toUpperCase()).filter(Boolean));
+  if (targeted.size === 0) return null;
+
+  for (const city of cities) {
+    const code = city.countryCode?.trim().toUpperCase();
+    if (code && targeted.has(code)) {
+      return { city: city.name, countryCode: code };
+    }
+  }
+  return null;
+}

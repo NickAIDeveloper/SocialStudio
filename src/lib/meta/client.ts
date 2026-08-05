@@ -246,6 +246,8 @@ export interface AdGeoLocation {
   name: string;
   type: string;
   countryName?: string;
+  /** ISO-2. Needed to detect a city that sits inside a targeted country. */
+  countryCode?: string;
   region?: string;
   lat?: number;
   lng?: number;
@@ -289,6 +291,7 @@ export async function searchAdGeoLocations(
       name: d.name,
       type: (d as { type?: string }).type ?? '',
       countryName: (d as { country_name?: string }).country_name,
+      countryCode: (d as { country_code?: string }).country_code,
       region: (d as { region?: string }).region,
       lat: typeof (d as { latitude?: number }).latitude === 'number'
         ? (d as { latitude?: number }).latitude

@@ -3,11 +3,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { AdTargeting } from '@/lib/meta/ads-types';
-import { findOverlap, type GeoCity } from '@/lib/ads/geo-overlap';
+import { findOverlap, findCountryCityOverlap, type GeoCity } from '@/lib/ads/geo-overlap';
 import { runDays, endDateForDays, describeRun } from '@/lib/ads/budget-plan';
 
 // A single Meta adgeolocation result row returned by /api/meta/geo-search.
-interface GeoResult { key: string; name: string; type: string; countryName?: string; region?: string; lat?: number; lng?: number }
+interface GeoResult { key: string; name: string; type: string; countryName?: string; countryCode?: string; region?: string; lat?: number; lng?: number }
 
 // Main ad markets, ISO-2 code + display name. Sorted by name in the picker.
 const COUNTRIES: { code: string; name: string }[] = [
@@ -95,6 +95,16 @@ export function StepAudience(props: {
 
   function addCountry(code: string) {
     if (!code || targeting.countries.includes(code)) return;
+    // Same overlap, approached from the other side: the user may pick the city
+    // first and the country second.
+    const clash = findCountryCityOverlap([code], targeting.cities ?? []);
+    if (clash) {
+      setCityWarning(
+        `You are already targeting ${clash.city}, which is inside this country. Remove that city first, or target the country on its own.`,
+      );
+      return;
+    }
+    setCityWarning(null);
     set('countries', [...targeting.countries, code]);
   }
 
@@ -142,8 +152,21 @@ export function StepAudience(props: {
         return;
       }
     }
+    // The other overlap Meta refuses: a city inside a country already targeted.
+    const countryClash = findCountryCityOverlap(targeting.countries ?? [], [
+      { key: r.key, name: r.name, countryCode: r.countryCode },
+    ]);
+    if (countryClash) {
+      setCityWarning(
+        `${r.name} is inside ${countryClash.countryCode}, which you are already targeting. Remove the country to target this city on its own.`,
+      );
+      return;
+    }
     setCityWarning(null);
-    set('cities', [...cities, { key: r.key, name: r.name, lat: r.lat, lng: r.lng }]);
+    set('cities', [
+      ...cities,
+      { key: r.key, name: r.name, countryCode: r.countryCode, lat: r.lat, lng: r.lng },
+    ]);
     setCityQuery('');
     setCityResults([]);
     cityReqId.current++; // discard any in-flight response for the cleared query
