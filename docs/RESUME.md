@@ -58,7 +58,54 @@ making any edits, then execute.
 
 ---
 
-## OUTSTANDING
+## SWEEP PROGRESS
+
+**Plan:** `docs/superpowers/plans/2026-08-05-platform-sweep.md` (12 items, 3 waves)
+**Branch:** `feat/platform-sweep`, merged to main and develop
+
+**WAVE 1 — DONE and shipped** (`9f849ea`, `8c2c40d`, `57cc69b`)
+- Contrast fixed at the token level. `--muted` #8A8F98 -> #A2A7B0 (4.84 ->
+  ~6.4:1), `--muted-2` #6B7178 -> #8E939C (3.19 FAIL -> ~4.9:1 PASS), sidebar
+  labels off the dimmest tier, flat `--violet` as text -> `--violet-bright`
+  across 13 files (3.72 FAIL -> 6.1-7:1). Zero bracket-form `text-[--x]` found
+  or introduced.
+- Six redirect-shim pages deleted (/analytics /batch /generate /competitors
+  /home /meta) plus dead command-center.tsx. Dashboard is 18 pages -> 11.
+  6 permanent redirects added to next.config.ts so bookmarks do not 404.
+  The cleanup agent found a SECOND Meta OAuth callback not in my brief
+  (`src/app/api/meta/oauth/callback/route.ts`, the ad-account one) that also
+  pointed at a deleted page. Repointed.
+- 879 tests / 98 files, 0 lint errors.
+
+**PROCESS FAILURE TO NOT REPEAT:** I ran two implementers in parallel in ONE
+working tree. Their `git add` calls collided and commit 9f849ea contains both
+agents' work under a message describing only one. Content verified intact; only
+the history is muddled. Run ONE implementer at a time in a shared tree.
+
+**WAVE 2 — NEXT, not started.** Needs a fresh context; the leaderboard is the
+biggest remaining build.
+1. `/analyze` brand picker — `brand-selector.tsx` EXISTS and is imported
+   nowhere. Wire it via `?brand=` URL state, auto-default to the first brand.
+   This also un-hides the Brand Brain panel, which has never rendered.
+2. **Post-level leaderboard replacing the ingredient table on `/ads/genome`.**
+   Organic tab is live TODAY from 63 posts (rank by reach, show likes and
+   engagement rate, angle chips, a "do more of X" sentence). Ads tab is an
+   honest empty state until an ad delivers. Demote the ingredient table to a
+   collapsed section. See plan §4 for the full design.
+3. `/ask` renders raw `JSON.stringify` in a `<pre>` — replace with sentences
+   and tables (`ask-panel.tsx:99-106`).
+
+**WAVE 3 — not started.** Batch no-brands guard, /create busy states, surface
+swallowed errors (AgentPlanPanel, ImageSourceSelector, askAi res.ok), add
+/ads/queue to nav + grouped IA.
+
+**ALSO CONFIRMED, fix during Wave 2:** `/ads/genome`'s "Nothing recorded yet"
+banner is unreachable — gated on `dimensions.length === 0` (page.tsx:65) but
+the API always returns 6 dimensions from the seeded vocabulary (route.ts:59).
+
+---
+
+## OUTSTANDING (beyond the sweep)
 
 1. **Leaderboard of POSTS on `/ads/genome`.** Owner explicitly wants this and
    the current page is not it. Today the page ranks INGREDIENTS (which hook
