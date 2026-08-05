@@ -1,50 +1,94 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { PostRow } from './_components/post-row';
+import { AdRow } from './_components/ad-row';
+import {
+  IngredientSection,
+  type IngredientDimension,
+} from './_components/ingredient-section';
+import type { LeaderboardRow } from '@/lib/leaderboard/organic';
+import type { LeaderboardAdRow } from '@/lib/leaderboard/ads';
 
-interface Row {
-  value: string; n: number;
-  meanReward: number | null; shrunkScore: number | null;
-  borrowed: boolean; confident: boolean;
+type Surface = 'organic' | 'ads';
+
+interface LeaderboardPayload {
+  rows: LeaderboardRow[] | LeaderboardAdRow[];
+  totalAnalysed: number;
+  verdict: string | null;
 }
-interface Dimension { dimension: string; ingredients: Row[] }
 
-export default function GenomePage() {
-  const [surface, setSurface] = useState<'ads' | 'organic'>('organic');
-  const [dimensions, setDimensions] = useState<Dimension[]>([]);
+const EMPTY: LeaderboardPayload = { rows: [], totalAnalysed: 0, verdict: null };
+
+export default function LeaderboardPage() {
+  const [surface, setSurface] = useState<Surface>('organic');
+  const [board, setBoard] = useState<LeaderboardPayload>(EMPTY);
+  const [dimensions, setDimensions] = useState<IngredientDimension[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ingredientsLoading, setIngredientsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
       setLoading(true);
+      setError(null);
       try {
-        const res = await fetch(`/api/creative/genome?surface=${surface}`);
-        const json = await res.json();
-        if (!cancelled) setDimensions(json.dimensions ?? []);
+        const res = await fetch(`/api/creative/leaderboard?surface=${surface}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = (await res.json()) as LeaderboardPayload;
+        if (!cancelled) setBoard({ ...EMPTY, ...json });
       } catch {
-        if (!cancelled) setDimensions([]);
+        if (!cancelled) {
+          setBoard(EMPTY);
+          setError('Could not load the leaderboard. Refresh the page to try again.');
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     void run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [surface]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      setIngredientsLoading(true);
+      try {
+        const res = await fetch(`/api/creative/genome?surface=${surface}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = (await res.json()) as { dimensions?: IngredientDimension[] };
+        if (!cancelled) setDimensions(json.dimensions ?? []);
+      } catch {
+        if (!cancelled) setDimensions([]);
+      } finally {
+        if (!cancelled) setIngredientsLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [surface]);
+
+  const isOrganic = surface === 'organic';
+  const hasRows = board.rows.length > 0;
 
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-xl font-semibold text-(--txt)">Creative genome</h1>
+        <h1 className="text-xl font-semibold text-(--txt)">Leaderboard</h1>
         <p className="mt-1 text-sm text-(--muted)">
-          Which ingredients earn attention. Scores are shrunk toward the average in
-          proportion to how little data backs them, so a single lucky post cannot
-          look like a proven winner.
+          Your posts and ads ranked by how many people they actually reached, best
+          first. Make more like the ones at the top.
         </p>
       </div>
 
       <div className="flex gap-2">
-        {(['organic', 'ads'] as const).map(s => (
+        {(['organic', 'ads'] as const).map((s) => (
           <button
             key={s}
             type="button"
@@ -60,35 +104,43 @@ export default function GenomePage() {
         ))}
       </div>
 
-      {loading && <p className="text-sm text-(--muted)">Loading…</p>}
+      {board.verdict && !loading && (
+        <div className="rounded-2xl border border-(--violet-24) bg-gradient-to-br from-(--violet-12) to-(--surface) p-5">
+          <p className="text-base text-(--txt)">{board.verdict}</p>
+        </div>
+      )}
 
-      {!loading && dimensions.length === 0 && (
-        <p className="text-sm text-(--muted)">
-          Nothing recorded yet. Ingredients appear here once creatives have been
-          generated with the genome enabled.
+      {error && (
+        <p className="rounded-2xl border border-(--line) bg-(--surface) p-5 text-sm text-rose-400">
+          {error}
         </p>
       )}
 
-      {dimensions.map(d => (
-        <div key={d.dimension} className="overflow-hidden rounded-2xl border border-(--line) bg-(--surface)">
-          <div className="border-b border-(--line) px-4 py-3 text-xs font-semibold uppercase tracking-wider text-(--muted)">
-            {d.dimension.replace(/_/g, ' ')}
-          </div>
-          {d.ingredients.map(i => (
-            <div key={i.value} className="grid grid-cols-4 gap-4 border-b border-(--line) px-4 py-3 text-sm last:border-0">
-              <span className="font-medium text-(--txt)">{i.value.replace(/_/g, ' ')}</span>
-              <span className="text-(--muted)">{i.n} {i.n === 1 ? 'use' : 'uses'}</span>
-              <span className={i.confident ? 'text-(--txt)' : 'text-(--muted-2) italic'}>
-                {i.shrunkScore != null ? i.shrunkScore.toFixed(3) : '— no data'}
-                {!i.confident && i.n > 0 && ' (too few to trust)'}
-              </span>
-              <span className="text-xs text-(--muted)">
-                {i.borrowed ? 'prior borrowed from Instagram' : ''}
-              </span>
-            </div>
-          ))}
+      {loading && <p className="text-sm text-(--muted)">Loading…</p>}
+
+      {!loading && !error && !hasRows && (
+        <p className="rounded-2xl border border-(--line) bg-(--surface) p-5 text-sm text-(--muted)">
+          {isOrganic
+            ? 'No posts have been measured yet. Once a published post has been live long enough for Instagram to report its reach, it ranks here.'
+            : 'Your ads have not reached anyone yet, so there is nothing to rank. Once an ad is live and delivering, it appears here ordered by cost per result.'}
+        </p>
+      )}
+
+      {!loading && hasRows && (
+        <div className="overflow-hidden rounded-2xl border border-(--line) bg-(--surface)">
+          {isOrganic
+            ? (board.rows as LeaderboardRow[]).map((r) => <PostRow key={r.postId} row={r} />)
+            : (board.rows as LeaderboardAdRow[]).map((r) => <AdRow key={r.adId} row={r} />)}
         </div>
-      ))}
+      )}
+
+      {!loading && hasRows && board.totalAnalysed > board.rows.length && (
+        <p className="text-xs text-(--muted)">
+          Showing the top {board.rows.length} of {board.totalAnalysed} measured.
+        </p>
+      )}
+
+      <IngredientSection dimensions={dimensions} loading={ingredientsLoading} />
     </div>
   );
 }
