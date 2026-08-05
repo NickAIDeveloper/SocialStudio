@@ -109,15 +109,27 @@ export function ResearchPanel({ brandId, brandName }: { brandId: string; brandNa
               <div className="text-xs text-(--muted) font-medium">
                 Used in generation ({data.minMentionsToTrust}+ people)
               </div>
-              {trusted.map(p => (
-                <div key={p.theme} className="rounded-lg border border-(--success)/30 bg-(--success)/5 px-3 py-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-(--txt)">{p.theme}</span>
-                    <span className="text-[10px] text-(--success)">{p.mentions} people</span>
+              {(() => {
+                // Scaled against the most-mentioned theme: "12 people" and
+                // "5 people" sat identically on the page, so the reader could
+                // not see which problem actually dominates.
+                const top = Math.max(...trusted.map(t => t.mentions), 0);
+                return trusted.map(p => (
+                  <div key={p.theme} className="rounded-lg border border-(--success)/30 bg-(--success)/5 px-3 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-(--txt)">{p.theme}</span>
+                      <span className="text-[10px] text-(--success)">{p.mentions} people</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-(--surface-2)">
+                      <div
+                        className="h-full rounded-full bg-(--success)"
+                        style={{ width: `${top > 0 ? Math.max(3, Math.round((p.mentions / top) * 100)) : 0}%` }}
+                      />
+                    </div>
+                    <div className="mt-1.5 text-xs italic text-(--muted)">&ldquo;{p.topQuote}&rdquo;</div>
                   </div>
-                  <div className="mt-1 text-xs text-(--muted) italic">&ldquo;{p.topQuote}&rdquo;</div>
-                </div>
-              ))}
+                ));
+              })()}
             </div>
           ) : (
             <div className="mt-4 text-xs text-amber-300 bg-amber-950/20 border border-amber-900/50 rounded px-2 py-1.5">
