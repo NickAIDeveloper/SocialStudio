@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useHubState } from '@/lib/url-state';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
@@ -94,7 +95,12 @@ function CompetitorRow({ comp, rank, color, onRemove }: {
 
 export function CompetitorDashboard() {
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [selectedBrandId, setSelectedBrandId] = useState('');
+  // Brand lives in `?brand=` (shared with the picker at the top of /analyze)
+  // instead of local state, so switching tabs or refreshing keeps the choice.
+  const { brand: hubBrand, setBrand: setSelectedBrandId } = useHubState();
+  const selectedBrandId = hubBrand ?? '';
+  const hubBrandRef = useRef(selectedBrandId);
+  hubBrandRef.current = selectedBrandId;
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
@@ -137,7 +143,10 @@ export function CompetitorDashboard() {
         if (data?.brands) {
           const withHandle = data.brands.filter((b: Brand) => b.instagramHandle);
           setBrands(withHandle);
-          if (withHandle.length > 0) setSelectedBrandId(withHandle[0].id);
+          // Only seed a default when the URL/localStorage has no brand yet.
+          if (withHandle.length > 0 && !hubBrandRef.current) {
+            setSelectedBrandId(withHandle[0].id);
+          }
         }
       })
       .catch(() => {});

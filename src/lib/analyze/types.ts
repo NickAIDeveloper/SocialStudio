@@ -21,6 +21,8 @@ export interface AnalysisStep {
   status: AnalysisStepStatus;
   durationMs?: number;
   error?: string;
+  /** Plain-English explanation shown alongside the step (used for skipped steps). */
+  note?: string;
 }
 
 export interface AnalysisOpts {

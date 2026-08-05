@@ -19,6 +19,7 @@ import type { InsightCard } from '@/lib/health-score';
 import { isActionable } from '@/lib/smart-posts';
 import { decodeLearnings } from '@/lib/analyze/learnings';
 import { useHubState } from '@/lib/url-state';
+import { resolveIgForBrand } from '@/lib/brand-ig';
 import { useIgAccounts } from '@/lib/ig-accounts';
 import { SourceToggle } from '@/components/performance/source-toggle';
 import { WhyThisWorks } from '@/components/smart-posts/why-this-works';
@@ -34,28 +35,6 @@ interface BrandRow {
   name: string;
   slug: string;
   instagramHandle?: string | null;
-}
-
-interface IgAccountLite {
-  igUserId: string;
-  igUsername: string | null;
-}
-
-// Resolve the IG account that belongs to a given brand. Brands carry a
-// free-text `instagramHandle` field; we case-insensitively match it against
-// connected Meta accounts. Returns null when the brand has no handle, or when
-// the handle isn't among the user's connected accounts.
-function resolveIgForBrand(
-  brandId: string | null,
-  brands: BrandRow[],
-  accounts: IgAccountLite[],
-): string | null {
-  if (!brandId) return null;
-  const brand = brands.find((b) => b.id === brandId);
-  if (!brand?.instagramHandle) return null;
-  const handle = brand.instagramHandle.replace(/^@/, '').toLowerCase();
-  const account = accounts.find((a) => a.igUsername?.toLowerCase() === handle);
-  return account?.igUserId ?? null;
 }
 
 interface PerfectPost {

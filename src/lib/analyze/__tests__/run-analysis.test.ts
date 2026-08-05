@@ -63,6 +63,12 @@ describe('runAnalysis', () => {
     expect(deps.fetchDeepProfile).not.toHaveBeenCalled();
   });
 
+  it('explains why deep-profile was skipped', async () => {
+    const result = await runAnalysis({ ...baseOpts, igUserId: null }, stubDeps());
+    const step = result.steps.find((s) => s.id === 'deep-profile');
+    expect(step?.note).toBe('Pick an Instagram account above to include this');
+  });
+
   it('continues on error: one step failure does not break the whole run', async () => {
     const deps = stubDeps({
       fetchCompetitorInsights: vi

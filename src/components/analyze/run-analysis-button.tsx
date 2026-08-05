@@ -36,6 +36,9 @@ function StepRow({ step }: { step: AnalysisStep }) {
       {step.durationMs != null && step.status === 'success' && (
         <span className="text-(--muted-2)">{(step.durationMs / 1000).toFixed(1)}s</span>
       )}
+      {step.status === 'skipped' && step.note && (
+        <span className="text-(--muted-2)">{step.note}</span>
+      )}
       {step.status === 'error' && step.error && (
         <span className="text-rose-400 truncate max-w-[200px]" title={step.error}>
           {step.error}
