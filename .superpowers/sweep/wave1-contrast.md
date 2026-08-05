@@ -1,5 +1,12 @@
 # Wave 1 — Contrast fix report
 
+**Note:** these changes ended up co-mingled into commit `9f849ea` ("chore: delete six
+phantom redirect-shim pages and repoint their links") — another agent ran a broad `git add`
+in this shared working directory while my edits were sitting unstaged, and committed both
+sets of changes together. Content verified intact via `git show 9f849ea -- <file>` for every
+file below; no rewrite attempted (only `add`+`commit` were authorized, no history rewriting).
+
+
 ## Files changed
 - `src/app/globals.css` — `.dark` block: `--muted` and `--muted-2` raised.
 - `src/components/layout/app-sidebar.tsx` — sidebar section labels (`Workspace`, `Account`) moved off `--muted-2`/11px onto `--muted`/12px (`text-xs`).
