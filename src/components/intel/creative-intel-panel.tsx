@@ -98,18 +98,28 @@ export function CreativeIntelPanel({ brandId, brandName }: { brandId: string; br
               <span className={`text-[10px] ${verdict.tone}`}>{verdict.text}</span>
             </div>
             <div className="mt-1.5 space-y-1">
-              {block.stats.slice(0, 5).map(s => (
-                <div key={s.value} className="flex items-center gap-2 text-[11px]">
-                  <span className="text-(--muted) w-28 truncate">{s.value}</span>
-                  <span className="text-(--muted)">{s.samples} {s.samples === 1 ? 'post' : 'posts'}</span>
-                  <span className="text-(--txt)">{s.meanScore.toFixed(1)}</span>
-                  {!s.confident && (
-                    <span className="text-[10px] text-amber-300/80" title={`Fewer than ${d.minConfidentSamples} samples`}>
-                      too few to trust
-                    </span>
-                  )}
-                </div>
-              ))}
+              {(() => {
+                const shown = block.stats.slice(0, 5);
+                // Scale within the dimension: these scores only mean anything
+                // relative to each other, so a bare "3.4" told the reader
+                // nothing without mentally diffing it against its neighbours.
+                const best = Math.max(...shown.map(x => x.meanScore), 0);
+                return shown.map(s => (
+                  <div key={s.value} className="flex items-center gap-2 text-[11px]">
+                    <span className="w-28 shrink-0 truncate text-(--muted)">{s.value}</span>
+                    <div className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-(--surface-2)">
+                      <div
+                        className={`h-full rounded-full ${s.confident ? 'bg-(--violet)' : 'bg-(--violet)/40'}`}
+                        style={{ width: `${best > 0 && s.meanScore > 0 ? Math.max(2, Math.round((s.meanScore / best) * 100)) : 0}%` }}
+                      />
+                    </div>
+                    <span className="shrink-0 text-(--muted)">{s.samples} {s.samples === 1 ? 'post' : 'posts'}</span>
+                    {!s.confident && (
+                      <span className="text-[10px] text-amber-300/80">too few to trust</span>
+                    )}
+                  </div>
+                ));
+              })()}
             </div>
           </div>
         );
