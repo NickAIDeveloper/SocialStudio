@@ -14,6 +14,7 @@
 import { CREATIVE_ANGLES, type AngleId } from '@/lib/smart-posts/creative-angles';
 import { classifyHookAngle } from '@/lib/smart-posts/hook-variety';
 import { MIN_CONFIDENT_SAMPLES } from '@/lib/brain/creative-stats';
+import { formatCount } from '@/lib/format-number';
 
 /**
  * Marketer-facing names for the angles. The labels on CREATIVE_ANGLES are
@@ -112,12 +113,8 @@ function isoOf(value: Date | string | null): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-/** Locale-independent thousands separators, so the copy reads the same everywhere. */
-export function formatCount(n: number): string {
-  return Math.round(n)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
+// Re-exported so ads.ts and this module's callers keep one import site.
+export { formatCount };
 
 export function rankOrganicPosts(inputs: readonly LeaderboardPostInput[]): LeaderboardRow[] {
   return [...inputs]

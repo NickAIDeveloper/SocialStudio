@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { renderAnswerRow, type AnswerTable } from '@/lib/analytics/answer-render';
 
 interface Answer {
   answered: boolean;
@@ -9,6 +10,40 @@ interface Answer {
   message?: string;
   rows?: Array<Record<string, unknown>>;
   canAnswer?: Array<{ id: string; label: string }>;
+}
+
+function ResultTable({ table }: { table: AnswerTable }) {
+  return (
+    <div className="mt-3 overflow-x-auto rounded-lg border border-(--line)">
+      {table.caption && (
+        <div className="border-b border-(--line) px-3 py-2 text-xs font-medium text-(--muted)">
+          {table.caption}
+        </div>
+      )}
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b border-(--line)">
+            {table.columns.map((c) => (
+              <th key={c} className="px-3 py-2 text-xs font-medium text-(--muted)">
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {table.rows.map((row, i) => (
+            <tr key={i} className="border-b border-(--line) last:border-0">
+              {row.map((cell, j) => (
+                <td key={j} className="px-3 py-2 text-(--txt)">
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 export function AskPanel() {
@@ -93,17 +128,33 @@ export function AskPanel() {
             <>
               <div className="text-sm font-medium text-(--txt)">{answer.label}</div>
               {(answer.rows ?? []).length === 0 ? (
-                <div className="mt-2 text-sm text-(--muted)">No data for that yet.</div>
+                <div className="mt-2 text-sm text-(--muted)">
+                  Nothing to report on that yet. This answer is built from your own
+                  published posts and ads, so it fills in once you have some. Try one
+                  of the other questions above in the meantime.
+                </div>
               ) : (
-                <div className="mt-3 space-y-3">
-                  {(answer.rows ?? []).map((row, i) => (
-                    <pre
-                      key={i}
-                      className="text-[11px] text-(--muted) bg-(--bg) border border-(--line) rounded-lg p-3 overflow-x-auto whitespace-pre-wrap"
-                    >
-                      {JSON.stringify(row, null, 2)}
-                    </pre>
-                  ))}
+                <div className="mt-3 space-y-5">
+                  {(answer.rows ?? []).map((row, i) => {
+                    const rendered = renderAnswerRow(answer.question ?? '', row);
+                    return (
+                      <div key={i}>
+                        {rendered.heading && (
+                          <div className="text-xs font-medium uppercase tracking-wider text-(--muted)">
+                            {rendered.heading}
+                          </div>
+                        )}
+                        {rendered.sentences.map((s, j) => (
+                          <p key={j} className="mt-1 text-sm text-(--txt)">
+                            {s}
+                          </p>
+                        ))}
+                        {rendered.tables.map((t, j) => (
+                          <ResultTable key={j} table={t} />
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </>

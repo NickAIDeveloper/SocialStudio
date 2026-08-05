@@ -8,9 +8,8 @@ export default function AskPage() {
           Ask your data <span aria-hidden>💬</span>
         </h1>
         <p className="mt-1 text-sm text-(--muted)">
-          Plain-English questions about reach, creative, failures, ads and cadence. Questions pick
-          from a fixed set of hand-written queries — nothing generates SQL against your database, so
-          this can only ever read.
+          Ask about your reach, your posts, what failed, your ads and how often you
+          post. This tool only reads your data, it never changes anything.
         </p>
       </div>
       <AskPanel />
