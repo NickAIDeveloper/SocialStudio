@@ -82,36 +82,56 @@ working tree. Their `git add` calls collided and commit 9f849ea contains both
 agents' work under a message describing only one. Content verified intact; only
 the history is muddled. Run ONE implementer at a time in a shared tree.
 
-**WAVE 2 — NEXT, not started.** Needs a fresh context; the leaderboard is the
-biggest remaining build.
-1. `/analyze` brand picker — `brand-selector.tsx` EXISTS and is imported
-   nowhere. Wire it via `?brand=` URL state, auto-default to the first brand.
-   This also un-hides the Brand Brain panel, which has never rendered.
-2. **Post-level leaderboard replacing the ingredient table on `/ads/genome`.**
-   Organic tab is live TODAY from 63 posts (rank by reach, show likes and
-   engagement rate, angle chips, a "do more of X" sentence). Ads tab is an
-   honest empty state until an ad delivers. Demote the ingredient table to a
-   collapsed section. See plan §4 for the full design.
-3. `/ask` renders raw `JSON.stringify` in a `<pre>` — replace with sentences
-   and tables (`ask-panel.tsx:99-106`).
+**WAVE 2 — DONE, not yet merged.** On `feat/platform-sweep`.
+| What | Commit |
+|---|---|
+| `/analyze` brand picker + Brand Brain un-hidden | `f5d0f76` |
+| Post-level leaderboard replacing the ingredient table | `c5a9396` |
+| `/ask` sentences and tables instead of raw JSON | `bc1c5ef` |
+| Wave 1 item 5 plain-English copy pass (had never been applied) | `a80d0f7` |
 
-**WAVE 3 — not started.** Batch no-brands guard, /create busy states, surface
-swallowed errors (AgentPlanPanel, ImageSourceSelector, askAi res.ok), add
-/ads/queue to nav + grouped IA.
+Suite now **944 tests / 103 files, 0 lint errors**, no new typecheck errors.
 
-**ALSO CONFIRMED, fix during Wave 2:** `/ads/genome`'s "Nothing recorded yet"
-banner is unreachable — gated on `dimensions.length === 0` (page.tsx:65) but
-the API always returns 6 dimensions from the seeded vocabulary (route.ts:59).
+Details worth keeping:
+- `resolveIgForBrand` extracted from `smart-posts-dashboard.tsx` to
+  `src/lib/brand-ig.ts`; `/analyze` and `/smart-posts` share it. The brand
+  picker only pushes `ig` on an ACTUAL brand change, so the legacy accordion's
+  own IG picker is not snapped back.
+- Leaderboard verdict names the angle that OUT-REACHES the rest, never the most
+  frequent one. Counting occurrences would have crowned the collapsed
+  "Your X is lying" myth shape and told the owner to make more of the exact
+  pattern the variety engine exists to break up. An angle also needs
+  MIN_CONFIDENT_SAMPLES (5) posts behind it.
+- Verified against PRODUCTION, not assumed: 65 posts carry reach (only 16 have
+  `posts.angle` set, the rest infer from hook text and all 65 have one); 11 ads
+  exist with ZERO recorded impressions, so the ads tab shows its empty state.
+  Live verdict reads: "Your top 10 posts reached 201 people. Posts that open
+  with a number reach 11 people on average, against 7 for the rest."
+- Reusable diagnostics, left UNTRACKED like the other diag scripts:
+  `scripts/diag-leaderboard.mjs` (SQL only) and
+  `scripts/diag-leaderboard-verdict.ts` (runs the real ranking code over prod,
+  `npx tsx`).
+- The `/ads/genome` "Nothing recorded yet" unreachable-banner bug is FIXED: the
+  demoted ingredient section keys its empty state off whether any OBSERVATIONS
+  exist, not `dimensions.length === 0`.
+- Sidebar entry renamed Genome to Leaderboard.
+
+**WAVE 3 — not started.** Items 9 to 12 of the plan:
+9. Batch generate: guard the no-brands silent no-op (`batch-gallery.tsx`).
+10. `/create` busy states on the two feedback-less buttons (`post-generator.tsx`).
+11. Surface swallowed errors: `agent-plan-panel.tsx`, `image-source-selector.tsx`,
+    and the missing `res.ok` check in `AdDashboardCard.askAi`.
+12. Nav: add `/ads/queue`, apply the grouped IA.
+
+**NOT DONE, deliberate:** no live-browser QA pass has been run on any of Wave 1
+or Wave 2. Everything is verified by unit tests, typecheck, lint and direct
+production queries only.
 
 ---
 
 ## OUTSTANDING (beyond the sweep)
 
-1. **Leaderboard of POSTS on `/ads/genome`.** Owner explicitly wants this and
-   the current page is not it. Today the page ranks INGREDIENTS (which hook
-   types work). He wants to see which actual social posts and ads are ranking,
-   both surfaces side by side. Organic post data exists today (63 posts with
-   reach and likes); ads have none until an ad delivers.
+1. ~~Leaderboard of POSTS on `/ads/genome`.~~ DONE in Wave 2 (`c5a9396`).
 2. **Ads status reconciliation.** `meta_ads.status` is written only by our own
    app, so it cannot see a change made in Ads Manager or by a Meta rule. Build
    the Buffer-style drift check. Low value until ads actually run.
