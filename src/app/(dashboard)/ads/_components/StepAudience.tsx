@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AdTargeting } from '@/lib/meta/ads-types';
 import { findOverlap, type GeoCity } from '@/lib/ads/geo-overlap';
+import { runDays, endDateForDays, describeRun } from '@/lib/ads/budget-plan';
 
 // A single Meta adgeolocation result row returned by /api/meta/geo-search.
 interface GeoResult { key: string; name: string; type: string; countryName?: string; region?: string; lat?: number; lng?: number }
@@ -152,8 +153,9 @@ export function StepAudience(props: {
     set('cities', cities.filter((c) => c.key !== key));
   }
 
-  const budgetLabel = currency ? `Daily budget (${currency})` : 'Daily budget';
-  const budgetHint = `Most ad accounts require at least ~5–10${currency ? ` ${currency}` : ''} / day.`;
+  const days = runDays(targeting.startDate, targeting.endDate);
+  const budgetLabel = currency ? `Spend per day (${currency})` : 'Spend per day';
+  const budgetHint = `Most ad accounts need at least ${currency ? `${currency} ` : ''}5 a day.`;
 
   return (
     <div className="space-y-5">
@@ -313,23 +315,80 @@ export function StepAudience(props: {
         <p className="mt-1 text-xs text-(--muted-2)">Custom interests are matched to Meta&apos;s interest list on publish; unmatched ones are skipped.</p>
       </Labeled>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Labeled label={budgetLabel}>
-          <input type="number" min={0} step="0.01" value={(targeting.dailyBudgetMinor / 100).toString()}
-            onChange={(e) => { const n = Number(e.target.value); set('dailyBudgetMinor', Number.isNaN(n) ? 0 : Math.round(n * 100)); }}
-            className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-3 py-2 text-sm text-(--txt)" />
-          <p className="mt-1 text-xs text-(--muted-2)">{budgetHint}</p>
-        </Labeled>
-        <Labeled label="Run dates">
-          <div className="flex gap-2">
+      {/* Budget and duration. The old version showed a per-day figure and two
+          date pickers, leaving the reader to work out both the length of the
+          run and what it would actually cost. Days are the unit people think
+          in, so they are entered directly and the end date is derived. */}
+      <div className="rounded-2xl border border-(--line-strong) bg-(--surface) p-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Labeled label={budgetLabel}>
+            <input type="number" min={0} step="0.01" value={(targeting.dailyBudgetMinor / 100).toString()}
+              onChange={(e) => { const n = Number(e.target.value); set('dailyBudgetMinor', Number.isNaN(n) ? 0 : Math.round(n * 100)); }}
+              className="w-full rounded-2xl border border-(--line-strong) bg-(--bg) px-3 py-2 text-sm text-(--txt)" />
+            <p className="mt-1 text-xs text-(--muted)">{budgetHint}</p>
+          </Labeled>
+
+          <Labeled label="Run it for">
+            <div className="flex flex-wrap gap-1.5">
+              {[3, 7, 14, 30].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => set('endDate', endDateForDays(targeting.startDate, d))}
+                  className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                    days === d
+                      ? 'border-(--violet-24) bg-(--violet-08) text-(--violet-bright)'
+                      : 'border-(--line-strong) text-(--muted) hover:text-(--txt)'
+                  }`}
+                >
+                  {d} days
+                </button>
+              ))}
+              <input
+                type="number"
+                min={1}
+                aria-label="Number of days to run"
+                value={days || ''}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (Number.isFinite(n) && n >= 1) set('endDate', endDateForDays(targeting.startDate, n));
+                }}
+                className="w-20 rounded-full border border-(--line-strong) bg-(--bg) px-3 py-1 text-xs text-(--txt)"
+              />
+            </div>
+          </Labeled>
+        </div>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Labeled label="Starting">
             <input type="date" value={targeting.startDate.slice(0, 10)}
-              onChange={(e) => { if (e.target.value) set('startDate', new Date(e.target.value).toISOString()); }}
-              className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-2 py-2 text-xs text-(--txt)" />
+              onChange={(e) => {
+                if (!e.target.value) return;
+                const nextStart = new Date(e.target.value).toISOString();
+                // Hold the run LENGTH steady when the start moves, rather than
+                // silently shortening or extending it.
+                setTargeting({ ...targeting, startDate: nextStart, endDate: endDateForDays(nextStart, days || 1) });
+              }}
+              className="w-full rounded-2xl border border-(--line-strong) bg-(--bg) px-3 py-2 text-sm text-(--txt)" />
+          </Labeled>
+          <Labeled label="Ending">
             <input type="date" value={targeting.endDate.slice(0, 10)}
               onChange={(e) => { if (e.target.value) set('endDate', new Date(e.target.value).toISOString()); }}
-              className="w-full rounded-2xl border border-(--line-strong) bg-(--surface) px-2 py-2 text-xs text-(--txt)" />
-          </div>
-        </Labeled>
+              className="w-full rounded-2xl border border-(--line-strong) bg-(--bg) px-3 py-2 text-sm text-(--txt)" />
+          </Labeled>
+        </div>
+
+        <p className="mt-4 border-t border-(--line) pt-3 text-sm font-medium text-(--txt)">
+          {describeRun({
+            startDate: targeting.startDate,
+            endDate: targeting.endDate,
+            dailyBudgetMinor: targeting.dailyBudgetMinor,
+            currency: currency || 'GBP',
+          })}
+        </p>
+        <p className="mt-1 text-xs text-(--muted)">
+          Meta will not spend more than the daily amount, and stops on the end date.
+        </p>
       </div>
 
       <div className="flex justify-between">
