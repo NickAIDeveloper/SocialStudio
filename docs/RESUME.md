@@ -128,6 +128,32 @@ of its children is open.
 0 lint errors, no new typecheck errors. Branch `feat/platform-sweep` is pushed
 but NOT merged to main and NOT deployed.
 
+**PR REVIEW DONE** (`eaa56ff`). Five specialist reviewers over the branch diff
+(code, silent-failure, tests, comments, types). All confirmed findings fixed,
+each verified directly rather than taken on trust. Highlights: a failed
+/api/brands request was telling users they had no brands (two components); the
+verdict could recommend a fabricated 'Curiosity gap' angle because
+classifyHookAngle uses it as a catch-all (fixed with classifyHookAngleStrict);
+unmeasured posts were ranked as zero-reach and skewed the median; the sidebar
+test named after the exact-match flag could not actually exercise it; tenant
+scoping on the new route had no assertion at all.
+
+**KNOWN GAPS, deliberately not closed** (ranked by the reviewers' own priority):
+1. Four ref-guarded effects have NO component tests: analyze-page's brand-to-IG
+   sync, brand-selector's autoSelectFirst, competitor-dashboard's seed guard,
+   ask-panel. Each guards a real regression and each looks like dead weight to
+   a future cleanup pass. This was the test reviewer's top ask.
+2. `MAX_SCAN = 200` truncates the organic scan by REACH, so past 200 measured
+   posts "typical post" is the median of the best 200 and the multiplier
+   understates. Order by publishedAt instead if the account grows.
+3. IngredientRow/IngredientDimension are declared in a client component and
+   rebuilt independently in api/creative/genome; one wire contract, two
+   definitions, free to drift.
+4. RENDERERS in answer-render is Record<string, ...>; a 7th question id would
+   silently fall through to the key/value table with no compile error.
+5. Currency is hardcoded to $ in the leaderboard (metaAdInsights.currency is
+   captured but dropped by the route).
+
 **NOT DONE, deliberate:** no live-browser QA pass has been run on any of Wave 1
 or Wave 2. Everything is verified by unit tests, typecheck, lint and direct
 production queries only.

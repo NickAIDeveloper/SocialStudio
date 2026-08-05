@@ -113,7 +113,10 @@ export async function POST(req: Request): Promise<Response> {
             active: ads.filter(a => a.status === 'ACTIVE').length,
             paused: ads.filter(a => a.status === 'PAUSED').length,
             failed: ads.filter(a => a.status === 'FAILED').length,
-            note: 'Spend appears once an ad has delivered; none have yet.',
+            // Deliberately not "none have delivered yet": this route has no
+            // insight rows to check, so asserting it would become false the
+            // moment an ad delivers, with nothing to catch the change.
+            note: 'Spend and results appear here once an ad has started delivering.',
           });
         }
         break;
