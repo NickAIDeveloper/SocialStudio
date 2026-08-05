@@ -1,10 +1,7 @@
 'use client';
 
 import { humanResultType, type LeaderboardAdRow } from '@/lib/leaderboard/ads';
-
-function formatCount(n: number): string {
-  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
+import { formatCount } from '@/lib/format-number';
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
@@ -22,8 +19,10 @@ export function AdRow({ row }: { row: LeaderboardAdRow }) {
 
       <div className="min-w-[180px] flex-1">
         <p className="text-sm text-(--txt)">{row.label}</p>
+        {/* Meta is queried with date_preset=last_14d, so this is a trailing
+            fortnight, not lifetime. Saying "so far" would overstate it. */}
         <p className="mt-1 text-xs text-(--muted)">
-          ${row.spend.toFixed(2)} spent so far
+          ${row.spend.toFixed(2)} spent in the last 14 days
         </p>
       </div>
 
@@ -33,10 +32,7 @@ export function AdRow({ row }: { row: LeaderboardAdRow }) {
       />
       <Metric label="Results" value={formatCount(row.results)} />
       <Metric label="Times shown" value={formatCount(row.impressions)} />
-      <Metric
-        label="Clicked it"
-        value={row.clickRate === null ? 'n/a' : `${(row.clickRate * 100).toFixed(1)}%`}
-      />
+      <Metric label="Clicked it" value={`${(row.clickRate * 100).toFixed(1)}%`} />
     </div>
   );
 }

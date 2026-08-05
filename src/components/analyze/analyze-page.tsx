@@ -21,8 +21,9 @@ export function AnalyzePage() {
 
   // Brand is URL state (`?brand=`) so it survives a refresh and can be shared;
   // useHubState also remembers the last choice in localStorage. Before this
-  // page had a picker nothing ever set the param, so the Brand Brain panel
-  // below never rendered for anyone.
+  // page had a picker, nothing ON THIS PAGE ever set the param, so the Brand
+  // Brain panel below only appeared for users who happened to have `hub.brand`
+  // already in localStorage from /smart-posts, and never on a first visit.
   const { brand: brandId, ig: igUserId, setBrand, setIg } = useHubState();
   const [brandList, setBrandList] = useState<BrandRow[]>([]);
   const { accounts, loading: accountsLoading } = useIgAccounts();
@@ -37,8 +38,11 @@ export function AnalyzePage() {
     if (lastSyncedBrand.current === brandId) return;
     lastSyncedBrand.current = brandId;
     const resolved = resolveIgForBrand(brandId, brandList, accounts);
-    // A brand with no connected handle leaves any existing selection alone.
-    if (resolved && resolved !== igUserId) setIg(resolved);
+    // Assign even when null. Leaving a stale `ig` in place would run the
+    // Meta-backed steps against the PREVIOUS brand's Instagram account and
+    // report its reach under the newly-selected brand's name. Manual picks in
+    // the accordion still survive, because this only runs on a brand change.
+    if (resolved !== igUserId) setIg(resolved);
   }, [brandId, brandList, accounts, accountsLoading, igUserId, setIg]);
 
   return (

@@ -130,6 +130,36 @@ describe('renderAnswerRow', () => {
     expect(out.sentences[0]).toContain('Autopilot is off');
   });
 
+  it('keeps every table row the same width as its header', () => {
+    const rows: Array<[string, Record<string, unknown>]> = [
+      ['top_hook_patterns', { brand: 'b', byHookShape: [{ value: 'a', samples: 1, meanScore: 1, confident: true }], byAngle: [{ value: 'b', samples: 9, meanScore: 2, confident: false }] }],
+      ['failed_posts', { brand: 'b', failed: [{ at: '2026-08-01T00:00:00Z', hook: 'h', reason: 'r' }, {}] }],
+      ['pain_points', { brand: 'b', trusted: [{ theme: 't', mentions: 2, quote: 'q' }] }],
+      ['unknown_id', { brand: 'b', a: 1, b: 'two' }],
+    ];
+    for (const [id, row] of rows) {
+      for (const table of renderAnswerRow(id, row).tables) {
+        for (const r of table.rows) {
+          expect(r.length, `${id} / ${table.caption ?? 'fallback'}`).toBe(table.columns.length);
+        }
+      }
+    }
+  });
+
+  it('summarises nested values instead of dumping JSON into a cell', () => {
+    const out = renderAnswerRow('unknown_id', {
+      brand: 'b',
+      byHookShape: [{ value: 'question', samples: 3 }],
+      meta: { a: 1, b: 2 },
+      empty: [],
+    });
+    const cells = out.tables[0].rows.map((r) => r[1]).join(' | ');
+    expect(cells).not.toContain('{');
+    expect(cells).not.toContain('[');
+    expect(cells).toContain('1 item');
+    expect(cells).toContain('None');
+  });
+
   it('falls back to a labelled table for an unknown question', () => {
     const out = renderAnswerRow('something_new', { brand: 'b', avgReach: 12, note: 'hi' });
     expect(out.sentences).toEqual([]);

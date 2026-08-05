@@ -4,7 +4,8 @@
 // a FIXED set of hand-written questions (lib/analytics/questions.ts), so every
 // row shape is known ahead of time and each one can have a real renderer. The
 // generic key/value fallback exists so an unrecognised shape still reads as a
-// labelled table rather than reverting to raw JSON.
+// labelled table. Nested values inside that fallback are summarised rather
+// than dumped, so no path prints a raw object at the user.
 //
 // Pure, no I/O.
 
@@ -66,6 +67,23 @@ function titleCase(key: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
+/**
+ * Describes a nested value in words. Previously this was JSON.stringify, which
+ * put `[{"value":"question","samples":3}]` in a table cell: the exact raw-JSON
+ * output this module exists to remove, just relocated into a nicer border.
+ */
+function summariseValue(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  if (Array.isArray(v)) {
+    return v.length === 0 ? 'None' : `${formatCount(v.length)} ${v.length === 1 ? 'item' : 'items'}`;
+  }
+  if (typeof v === 'object') {
+    const keys = Object.keys(v as Record<string, unknown>);
+    return keys.length === 0 ? 'None' : keys.map(titleCase).join(', ');
+  }
+  return str(v);
+}
+
 /** Last-resort rendering: a labelled two-column table, never raw JSON. */
 function keyValueTable(row: Record<string, unknown>): AnswerTable {
   return {
@@ -73,10 +91,7 @@ function keyValueTable(row: Record<string, unknown>): AnswerTable {
     columns: ['Detail', 'Value'],
     rows: Object.entries(row)
       .filter(([k]) => k !== 'brand')
-      .map(([k, v]) => [
-        titleCase(k),
-        typeof v === 'object' && v !== null ? JSON.stringify(v) : str(v),
-      ]),
+      .map(([k, v]) => [titleCase(k), summariseValue(v)]),
   };
 }
 
@@ -253,8 +268,11 @@ export function renderAnswerRow(
   }
   try {
     return { heading, ...renderer(row) };
-  } catch {
-    // An unexpected shape must still read as a table, never as raw JSON.
+  } catch (err) {
+    // The safe readers coerce rather than throw, so reaching here means a BUG
+    // in a renderer, not merely odd data. Log it: silently degrading to a
+    // table would disguise the bug as an intentional layout.
+    console.error('[answer-render] renderer threw', { questionId, err });
     return { heading, sentences: [], tables: [keyValueTable(row)] };
   }
 }

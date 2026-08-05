@@ -56,7 +56,7 @@ export async function runAnalysis(
           id: 'deep-profile',
           label: STEP_LABELS['deep-profile'],
           status: 'skipped',
-          note: 'Pick an Instagram account above to include this',
+          note: 'Pick a brand with a connected Instagram account to include this',
         },
         value: null,
       });

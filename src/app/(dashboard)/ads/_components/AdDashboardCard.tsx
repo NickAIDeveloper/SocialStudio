@@ -68,13 +68,17 @@ export function AdDashboardCard({ ad }: { ad: DashboardAd }) {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ adId: ad.id }),
       });
-      const json = await res.json();
-      // Without this check a 500 body's `error` string was rendered in the
-      // advice box as if the AI had written it.
+      // Status is checked BEFORE parsing: an edge 502/504 returns an HTML
+      // body, and awaiting .json() on it would throw into the generic catch,
+      // losing the very status this check exists to report.
       if (!res.ok) {
-        setAdvice(`Could not get advice right now: ${json.error ?? `error ${res.status}`}`);
+        const body = await res.json().catch(() => ({}) as { error?: string });
+        setAdvice(`Could not get advice right now: ${body.error ?? `error ${res.status}`}`);
         return;
       }
+      const json = await res.json();
+      // Previously `json.advice ?? json.error`, so a 500's error string was
+      // rendered in the advice box as if the AI had written it.
       setAdvice(json.advice ?? 'No advice available.');
     } catch {
       setAdvice('Could not load advice right now.');

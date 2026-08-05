@@ -2,8 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AppSidebar } from '../app-sidebar';
 
+const { nav } = vi.hoisted(() => ({ nav: { pathname: '/analyze' } }));
+
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/analyze',
+  usePathname: () => nav.pathname,
 }));
 
 vi.mock('next/link', () => ({
@@ -47,17 +49,38 @@ describe('AppSidebar', () => {
     }
   });
 
-  it('does not light up the Ads parent while a child route is open', () => {
-    render(<AppSidebar />);
-    // usePathname is mocked to /analyze, so nothing under /ads is active.
-    const ads = screen.getAllByRole('link').find((a) => a.getAttribute('href') === '/ads');
-    expect(ads?.getAttribute('data-active')).toBe('false');
-    // Two links point at /analyze: the logo (no data-active) and the nav item.
-    const analyze = screen
+  /** The nav link for `href`, ignoring the logo link which carries no state. */
+  const navItem = (href: string) =>
+    screen
       .getAllByRole('link')
-      .filter((a) => a.getAttribute('href') === '/analyze' && a.hasAttribute('data-active'));
-    expect(analyze).toHaveLength(1);
-    expect(analyze[0].getAttribute('data-active')).toBe('true');
+      .filter((a) => a.getAttribute('href') === href && a.hasAttribute('data-active'))[0];
+
+  it('marks the current route active', () => {
+    nav.pathname = '/analyze';
+    render(<AppSidebar />);
+    expect(navItem('/analyze').getAttribute('data-active')).toBe('true');
+    expect(navItem('/ads').getAttribute('data-active')).toBe('false');
+  });
+
+  it('does not light up the Ads parent while one of its children is open', () => {
+    // The whole point of the `exact` flag. With a constant pathname mock this
+    // assertion passed whether or not the flag was there.
+    nav.pathname = '/ads/queue';
+    render(<AppSidebar />);
+    expect(navItem('/ads').getAttribute('data-active')).toBe('false');
+    expect(navItem('/ads/queue').getAttribute('data-active')).toBe('true');
+  });
+
+  it('still lights up Ads on the Ads page itself', () => {
+    nav.pathname = '/ads';
+    render(<AppSidebar />);
+    expect(navItem('/ads').getAttribute('data-active')).toBe('true');
+  });
+
+  it('keeps a non-exact parent active on its own sub-routes', () => {
+    nav.pathname = '/analyze/deep-dive';
+    render(<AppSidebar />);
+    expect(navItem('/analyze').getAttribute('data-active')).toBe('true');
   });
 
   it('renders the user menu trigger from the footer', () => {

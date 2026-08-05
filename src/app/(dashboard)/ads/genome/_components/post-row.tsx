@@ -1,10 +1,7 @@
 'use client';
 
 import type { LeaderboardRow } from '@/lib/leaderboard/organic';
-
-function formatCount(n: number): string {
-  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
+import { formatCount } from '@/lib/format-number';
 
 function formatDate(iso: string | null): string {
   if (!iso) return '';

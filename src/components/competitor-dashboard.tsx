@@ -124,6 +124,11 @@ export function CompetitorDashboard() {
   const [computedInsights, setComputedInsights] = useState<any[]>([]);
 
   const selectedBrand = brands.find(b => b.id === selectedBrandId);
+  // `brands` here is filtered to those WITH an Instagram handle, but the picker
+  // at the top of /analyze offers every brand. Pick a handle-less one and
+  // selectedBrand is undefined, which used to make Scan and Suggest return
+  // silently with no button highlighted and no explanation.
+  const brandHasNoInstagram = !loading && selectedBrandId !== '' && !selectedBrand;
   const ownHandles = brands.map(b => b.instagramHandle).filter(Boolean);
 
   // Persist analyses and AI insights
@@ -421,6 +426,14 @@ export function CompetitorDashboard() {
             </button>
           ))}
         </div>
+      )}
+
+      {brandHasNoInstagram && (
+        <p className="rounded-xl border border-(--line) bg-(--surface) px-4 py-3 text-sm text-(--muted)">
+          This brand has no Instagram account connected, so there is nothing to
+          compare it against. Pick another brand above, or add the handle in
+          Settings.
+        </p>
       )}
 
       {/* Action bar */}

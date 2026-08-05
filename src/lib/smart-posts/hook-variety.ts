@@ -108,15 +108,30 @@ const METAPHOR_CUE = /\b(like|as)\b/i;
  * recent posts already used so the generator can pick a least-recently-used one.
  */
 export function classifyHookAngle(hook: string | null | undefined): AngleId {
+  return classifyHookAngleStrict(hook) ?? 'curiosity';
+}
+
+/**
+ * Same rules as `classifyHookAngle`, but returns null when NO rule matches
+ * instead of falling back to 'curiosity'.
+ *
+ * The fallback is right for the generator, which must always pick something to
+ * rotate away from. It is wrong anywhere the classification is reported back to
+ * the user: 'curiosity' is simultaneously a real angle and the catch-all, so an
+ * unclassifiable hook is indistinguishable from a deliberate curiosity gap.
+ * The leaderboard verdict uses this strict form so it can never recommend
+ * "do more curiosity gaps" off the back of posts it simply could not read.
+ */
+export function classifyHookAngleStrict(hook: string | null | undefined): AngleId | null {
   const text = (hook ?? '').trim();
-  if (!text) return 'curiosity';
+  if (!text) return null;
   if (/\?\s*$/.test(text)) return 'question';
   if (/\d/.test(text)) return 'stat';
   if (COMMAND_VERB.test(text)) return 'command';
   if (MYTH_CUE.test(text)) return 'myth';
   if (METAPHOR_CUE.test(text)) return 'metaphor';
   if (CONFESSION_CUE.test(text)) return 'confession';
-  return 'curiosity';
+  return null;
 }
 
 /**

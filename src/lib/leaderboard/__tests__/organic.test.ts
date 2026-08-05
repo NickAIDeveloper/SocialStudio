@@ -56,10 +56,49 @@ describe('rankOrganicPosts', () => {
     expect(row.engagementRate).toBeNull();
   });
 
-  it('treats null metrics as zero rather than dropping the post', () => {
-    const [row] = rankOrganicPosts([post({ reach: null, likes: null })]);
-    expect(row.reach).toBe(0);
+  it('drops posts that were never measured, but keeps posts measured at zero', () => {
+    // reach null = no analytics row written yet. reach 0 = we asked, nobody saw it.
+    const rows = rankOrganicPosts([
+      post({ postId: 'unmeasured', reach: null }),
+      post({ postId: 'measured-zero', reach: 0 }),
+    ]);
+    expect(rows.map((r) => r.postId)).toEqual(['measured-zero']);
+  });
+
+  it('treats a null like count on a measured post as zero', () => {
+    const [row] = rankOrganicPosts([post({ reach: 10, likes: null })]);
     expect(row.likes).toBe(0);
+  });
+
+  it('does not let unmeasured posts deflate the typical-post baseline', () => {
+    const measured = Array.from({ length: 5 }, (_, i) =>
+      post({ postId: `m${i}`, reach: 100, angle: null, hookText: null }),
+    );
+    const withGhosts = [
+      ...measured,
+      ...Array.from({ length: 5 }, (_, i) =>
+        post({ postId: `g${i}`, reach: null, angle: null, hookText: null }),
+      ),
+      post({ postId: 'best', reach: 200, angle: null, hookText: null }),
+    ];
+    // Median stays 100 either way; if ghosts counted as 0 it would halve and
+    // the headline multiplier would roughly double.
+    expect(buildVerdict(rankOrganicPosts(withGhosts))).toBe(
+      buildVerdict(rankOrganicPosts([...measured, post({ postId: 'best', reach: 200, angle: null, hookText: null })])),
+    );
+  });
+
+  it('never infers an angle from a hook that matches no rule', () => {
+    // 'curiosity' is both a real angle and classifyHookAngle's catch-all, so an
+    // unreadable hook must produce NO tag rather than a curiosity gap.
+    const [row] = rankOrganicPosts([post({ angle: null, hookText: 'Mile eighteen legs gone' })]);
+    expect(row.angleId).toBeNull();
+  });
+
+  it('still honours curiosity when it was explicitly recorded', () => {
+    const [row] = rankOrganicPosts([post({ angle: 'curiosity', hookText: 'anything' })]);
+    expect(row.angleId).toBe('curiosity');
+    expect(row.angleLabel).toBe('Curiosity gap');
   });
 
   it('prefers the recorded angle over inferring one from the hook', () => {
@@ -131,6 +170,37 @@ describe('buildVerdict', () => {
     }));
     // Only 'myth' clears the five-post bar, so there is nothing to compare to.
     expect(buildVerdict(rows)).not.toContain('Do more of those');
+  });
+
+  it('compares angle MEANS, not totals', () => {
+    // 5 question posts at 1000 vs 10 stat posts at 600: mean picks question,
+    // summed reach would pick stat. Stops "mean" being quietly rewritten.
+    const rows = many(15, (i) => ({
+      reach: i < 5 ? 1000 : 600,
+      angle: i < 5 ? 'question' : 'stat',
+    }));
+    expect(buildVerdict(rows)).toContain('Posts that open with a question');
+  });
+
+  it('stays silent when too few of the posts carry any angle at all', () => {
+    // 4 of 10 tagged is below MIN_ANGLE_COVERAGE even though both angles clear
+    // the 5-post bar individually... they cannot, so use enough rows to isolate
+    // the coverage gate: 20 rows, 8 tagged (0.4), 4 per angle.
+    const under = many(20, (i) => ({
+      reach: i < 4 ? 1000 : 100,
+      angle: i < 4 ? 'question' : i < 8 ? 'stat' : null,
+      hookText: null,
+    }));
+    expect(buildVerdict(under)).not.toContain('Do more of those');
+
+    // Same shape, but 12 of 20 tagged (0.6) with 6 per angle: coverage and the
+    // per-angle bar are both cleared, so a winner can be named.
+    const over = many(20, (i) => ({
+      reach: i < 6 ? 1000 : 100,
+      angle: i < 6 ? 'question' : i < 12 ? 'stat' : null,
+      hookText: null,
+    }));
+    expect(buildVerdict(over)).toContain('Do more of those');
   });
 
   it('formats the reach total with thousands separators', () => {

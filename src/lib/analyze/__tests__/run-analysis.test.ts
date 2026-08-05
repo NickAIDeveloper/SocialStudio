@@ -66,7 +66,10 @@ describe('runAnalysis', () => {
   it('explains why deep-profile was skipped', async () => {
     const result = await runAnalysis({ ...baseOpts, igUserId: null }, stubDeps());
     const step = result.steps.find((s) => s.id === 'deep-profile');
-    expect(step?.note).toBe('Pick an Instagram account above to include this');
+    // Not "pick an Instagram account above": on /analyze the only control above
+    // is the BRAND picker, and the IG picker sits below inside a collapsed
+    // accordion. The note has to name the action that actually works.
+    expect(step?.note).toBe('Pick a brand with a connected Instagram account to include this');
   });
 
   it('continues on error: one step failure does not break the whole run', async () => {

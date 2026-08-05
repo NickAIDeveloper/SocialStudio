@@ -3,15 +3,14 @@
 // Ads rank by COST PER RESULT ascending, because that is the question a
 // marketer with a budget is actually asking. Ads that have not produced a
 // result yet cannot be costed, so they sit below the ones that have, ordered
-// by how many people they reached.
+// by IMPRESSIONS (times shown, including repeats) rather than reach.
 //
-// As of this writing no ad on this account has ever delivered an impression,
-// so in practice the page shows the empty state. This module exists so the
-// first ad that does deliver ranks correctly instead of hitting a gap.
+// Every figure here comes from the newest insights snapshot, which is a
+// TRAILING 14-DAY aggregate, not lifetime. See api/creative/leaderboard.
 //
 // Pure, no I/O.
 
-import { formatCount } from './organic';
+import { formatCount } from '@/lib/format-number';
 
 export interface LeaderboardAdInput {
   adId: string;
@@ -33,10 +32,14 @@ export interface LeaderboardAdRow {
   reach: number;
   results: number;
   resultType: string | null;
-  /** Spend divided by results. Null until the ad has produced a result. */
+  /**
+   * Spend divided by results. Null until the ad has produced a result, which
+   * is load-bearing: it sinks the ad in the sort and switches the verdict
+   * sentence. Do not "simplify" it to 0.
+   */
   costPerResult: number | null;
-  /** Clicks per impression. Null when the ad has not been shown. */
-  clickRate: number | null;
+  /** Clicks per impression. Never null: rankAds drops unshown ads first. */
+  clickRate: number;
 }
 
 /** "link_click" reads as machinery; "link click" reads as English. */
@@ -58,7 +61,7 @@ export function rankAds(inputs: readonly LeaderboardAdInput[]): LeaderboardAdRow
       results: a.results,
       resultType: a.resultType,
       costPerResult: a.results > 0 ? a.spend / a.results : null,
-      clickRate: a.impressions > 0 ? a.clicks / a.impressions : null,
+      clickRate: a.clicks / a.impressions,
     }))
     .sort((a, b) => {
       // Costed ads first; among them, cheapest wins.

@@ -158,11 +158,13 @@ export function BatchGallery() {
   const [bufferOrgs, setBufferOrgs] = useState<BufferOrganization[]>([]);
   const [filter, setFilter] = useState('all');
   const generatingRef = useRef(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [apiBrands, setApiBrands] = useState<ApiBrand[]>([]);
   // Until this flips, "no brands" is indistinguishable from "not loaded yet",
   // and generating with zero brands silently produces nothing.
   const [brandsLoaded, setBrandsLoaded] = useState(false);
+  // ...and a FAILED request must not read as "you have no brands" either,
+  // which would tell a user with five brands to go and create one.
+  const [brandsError, setBrandsError] = useState(false);
 
   // Load Buffer orgs + brands on mount (cached)
   useEffect(() => {
@@ -177,7 +179,7 @@ export function BatchGallery() {
       .then(data => {
         if (data.brands) setApiBrands(data.brands);
       })
-      .catch(() => {})
+      .catch(() => setBrandsError(true))
       .finally(() => setBrandsLoaded(true));
   }, []);
 
@@ -796,7 +798,7 @@ export function BatchGallery() {
           <button
             onClick={() => void generateBatch()}
             disabled={isGenerating || !brandsLoaded || apiBrands.length === 0}
-            title={brandsLoaded && apiBrands.length === 0 ? 'Add a brand in Settings first' : undefined}
+            title={brandsLoaded && !brandsError && apiBrands.length === 0 ? 'Add a brand in Settings first' : undefined}
             className="px-5 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-(--violet) to-(--violet-deep) hover:from-(--violet-bright) hover:to-(--violet) text-white shadow-lg transition-all disabled:opacity-60 flex items-center gap-2"
           >
             {isGenerating ? (
@@ -806,13 +808,20 @@ export function BatchGallery() {
               </>
             ) : !brandsLoaded ? (
               'Loading your brands...'
+            ) : brandsError ? (
+              'Unavailable'
             ) : apiBrands.length === 0 ? (
               'No brands yet'
             ) : (
               `Generate ${batchCount} Posts`
             )}
           </button>
-          {brandsLoaded && apiBrands.length === 0 && (
+          {brandsLoaded && brandsError && (
+            <span className="text-sm text-rose-400">
+              Could not load your brands. Refresh the page to try again.
+            </span>
+          )}
+          {brandsLoaded && !brandsError && apiBrands.length === 0 && (
             <span className="text-sm text-(--muted)">
               Add a brand in Settings and this will generate posts for it.
             </span>

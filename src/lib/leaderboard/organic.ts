@@ -4,15 +4,15 @@
 // scores. This ranks the actual posts, which is the thing a marketer can act
 // on: "this one worked, make more like it".
 //
-// Ranking metric is REACH, descending. Reach exists today for every analysed
-// post, it is what the autopilot brain already optimises, and it answers
-// "which posts worked". Likes and engagement rate are shown but do not rank:
+// Ranking metric is REACH, descending: it is what the autopilot brain already
+// optimises and it answers "which posts worked". Likes break a reach TIE, and
+// publishedAt breaks a likes tie; engagement rate never sorts. Ranking on
 // likes alone would promote small-reach flukes to the top.
 //
 // Pure, no I/O. The route supplies rows straight from the DB join.
 
 import { CREATIVE_ANGLES, type AngleId } from '@/lib/smart-posts/creative-angles';
-import { classifyHookAngle } from '@/lib/smart-posts/hook-variety';
+import { classifyHookAngleStrict } from '@/lib/smart-posts/hook-variety';
 import { MIN_CONFIDENT_SAMPLES } from '@/lib/brain/creative-stats';
 import { formatCount } from '@/lib/format-number';
 
@@ -97,14 +97,17 @@ function headlineFor(input: LeaderboardPostInput): string {
 
 /**
  * The angle we are willing to claim for a post: the recorded one when it is a
- * known angle, otherwise inferred from the hook. Posts with neither get null
- * rather than a guessed default, so the verdict never counts a fabricated tag.
+ * known angle, otherwise inferred from the hook.
+ *
+ * Inference uses the STRICT classifier, which returns null when no rule
+ * matches. The lenient one falls back to 'curiosity', which is also a real
+ * angle, so unreadable hooks would pile into that bucket and the verdict could
+ * end up recommending "do more curiosity gaps" purely because those posts could
+ * not be classified. A post we cannot read gets no tag at all.
  */
 function angleFor(input: LeaderboardPostInput): AngleId | null {
   if (input.angle && KNOWN_ANGLES.has(input.angle)) return input.angle as AngleId;
-  const hook = String(input.hookText ?? '').trim();
-  if (!hook) return null;
-  return classifyHookAngle(hook);
+  return classifyHookAngleStrict(input.hookText);
 }
 
 function isoOf(value: Date | string | null): string | null {
@@ -113,11 +116,15 @@ function isoOf(value: Date | string | null): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-// Re-exported so ads.ts and this module's callers keep one import site.
-export { formatCount };
-
 export function rankOrganicPosts(inputs: readonly LeaderboardPostInput[]): LeaderboardRow[] {
-  return [...inputs]
+  return (
+    inputs
+      // `reach: null` means NEVER MEASURED, which is not the same as measured
+      // at zero. Coercing it to 0 would let unsynced posts sit in the ranking
+      // as legitimate zero-reach entries and drag down the median that
+      // "Nx more than typical" is computed against, inflating that multiplier.
+      .filter((input) => input.reach !== null && input.reach !== undefined)
+  )
     .map((input) => {
       const reach = num(input.reach);
       const likes = num(input.likes);

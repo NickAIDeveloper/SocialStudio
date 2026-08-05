@@ -83,13 +83,18 @@ function DimensionBlock({ block }: { block: IngredientDimension }) {
 export function IngredientSection({
   dimensions,
   loading,
+  error,
 }: {
   dimensions: IngredientDimension[];
   loading: boolean;
+  error?: boolean;
 }) {
-  // The API always returns all six dimensions from the seeded vocabulary, so
-  // `dimensions.length` can never be zero and the old empty-state banner was
-  // unreachable. What is actually empty is the OBSERVATIONS.
+  // The old banner keyed off `dimensions.length === 0`, which with a seeded
+  // vocabulary is normally unreachable: the API returns every dimension that
+  // has at least one active ingredient. What is actually empty is the
+  // OBSERVATIONS, so that is what this checks. Length CAN still be zero when
+  // the request fails, which is why `error` is handled separately below rather
+  // than folded into the empty state.
   const hasObservations = dimensions.some((d) => d.ingredients.some((i) => i.n > 0));
 
   return (
@@ -103,7 +108,14 @@ export function IngredientSection({
       <div className="space-y-3 p-4 pt-0">
         {loading && <p className="text-sm text-(--muted)">Loading…</p>}
 
-        {!loading && !hasObservations && (
+        {!loading && error && (
+          <p className="text-sm text-rose-400">
+            Could not load what is inside your winners. Refresh the page to try
+            again.
+          </p>
+        )}
+
+        {!loading && !error && !hasObservations && (
           <p className="text-sm text-(--muted)">
             Nothing recorded yet. Every post published from now on records which
             ingredients it used, and after a few weeks this shows which ones earn
@@ -112,6 +124,7 @@ export function IngredientSection({
         )}
 
         {!loading &&
+          !error &&
           hasObservations &&
           dimensions.map((d) => <DimensionBlock key={d.dimension} block={d} />)}
       </div>

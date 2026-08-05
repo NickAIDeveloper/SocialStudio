@@ -51,15 +51,17 @@ vi.mock('@/lib/db', () => ({
 }));
 
 vi.mock('@/lib/db/schema', () => ({
-  posts: { __t: 'posts' },
-  postAnalytics: { __t: 'postAnalytics' },
-  metaAds: { __t: 'metaAds' },
-  metaAdInsights: { __t: 'metaAdInsights' },
+  // Columns carry identifiable values so the WHERE predicates can be asserted.
+  posts: { __t: 'posts', id: 'posts.id', userId: 'posts.userId', brandId: 'posts.brandId' },
+  postAnalytics: { __t: 'postAnalytics', postId: 'postAnalytics.postId', reach: 'postAnalytics.reach' },
+  metaAds: { __t: 'metaAds', id: 'metaAds.id', userId: 'metaAds.userId', brandId: 'metaAds.brandId' },
+  metaAdInsights: { __t: 'metaAdInsights', metaAdsId: 'metaAdInsights.metaAdsId' },
 }));
 
 vi.mock('drizzle-orm', () => ({ eq: vi.fn(), desc: vi.fn(), and: vi.fn() }));
 
 import { GET } from '../route';
+import { eq, and } from 'drizzle-orm';
 
 function req(qs: string): Request {
   return new Request(`http://localhost/api/creative/leaderboard${qs}`);
@@ -71,6 +73,8 @@ beforeEach(() => {
   state.snapshots = [];
   state.userId = 'u1';
   state.shouldThrow = false;
+  vi.mocked(eq).mockClear();
+  vi.mocked(and).mockClear();
 });
 
 describe('GET /api/creative/leaderboard', () => {
@@ -148,6 +152,29 @@ describe('GET /api/creative/leaderboard', () => {
     expect(json.rows[0].label).toBe('Summer promo');
     expect(json.rows[0].costPerResult).toBeCloseTo(2);
     expect(json.verdict).toContain('$2.00 per link click');
+  });
+
+  it('scopes posts to the signed-in user', async () => {
+    // Dropping this predicate is a cross-account data leak.
+    await GET(req('?surface=organic'));
+    expect(vi.mocked(eq).mock.calls).toContainEqual(['posts.userId', 'u1']);
+  });
+
+  it('scopes ads to the signed-in user', async () => {
+    await GET(req('?surface=ads'));
+    expect(vi.mocked(eq).mock.calls).toContainEqual(['metaAds.userId', 'u1']);
+  });
+
+  it('narrows by brand only when one is given, never widening the user scope', async () => {
+    await GET(req('?surface=organic&brandId=b1'));
+    expect(vi.mocked(eq).mock.calls).toContainEqual(['posts.brandId', 'b1']);
+
+    vi.mocked(eq).mockClear();
+    vi.mocked(and).mockClear();
+    await GET(req('?surface=organic'));
+    expect(vi.mocked(eq).mock.calls).not.toContainEqual(['posts.brandId', 'b1']);
+    // Absent brand must pass undefined to `and`, not drop the user predicate.
+    expect(vi.mocked(and).mock.calls[0][1]).toBeUndefined();
   });
 
   it('500s rather than leaking a database error', async () => {

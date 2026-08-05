@@ -12,20 +12,26 @@ import type { LeaderboardAdRow } from '@/lib/leaderboard/ads';
 
 type Surface = 'organic' | 'ads';
 
-interface LeaderboardPayload {
-  rows: LeaderboardRow[] | LeaderboardAdRow[];
-  totalAnalysed: number;
-  verdict: string | null;
-}
+// Discriminated on `surface`, which the ROUTE reports. Branching on the
+// requested surface instead would read the request state while `rows` still
+// held the previous surface's response.
+type LeaderboardPayload = { totalAnalysed: number; verdict: string | null } & (
+  | { surface: 'organic'; rows: LeaderboardRow[] }
+  | { surface: 'ads'; rows: LeaderboardAdRow[] }
+);
 
-const EMPTY: LeaderboardPayload = { rows: [], totalAnalysed: 0, verdict: null };
+const emptyFor = (surface: Surface): LeaderboardPayload =>
+  surface === 'organic'
+    ? { surface: 'organic', rows: [], totalAnalysed: 0, verdict: null }
+    : { surface: 'ads', rows: [], totalAnalysed: 0, verdict: null };
 
 export default function LeaderboardPage() {
   const [surface, setSurface] = useState<Surface>('organic');
-  const [board, setBoard] = useState<LeaderboardPayload>(EMPTY);
+  const [board, setBoard] = useState<LeaderboardPayload>(() => emptyFor('organic'));
   const [dimensions, setDimensions] = useState<IngredientDimension[]>([]);
   const [loading, setLoading] = useState(true);
   const [ingredientsLoading, setIngredientsLoading] = useState(true);
+  const [ingredientsError, setIngredientsError] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,10 +43,10 @@ export default function LeaderboardPage() {
         const res = await fetch(`/api/creative/leaderboard?surface=${surface}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = (await res.json()) as LeaderboardPayload;
-        if (!cancelled) setBoard({ ...EMPTY, ...json });
+        if (!cancelled) setBoard({ ...emptyFor(surface), ...json });
       } catch {
         if (!cancelled) {
-          setBoard(EMPTY);
+          setBoard(emptyFor(surface));
           setError('Could not load the leaderboard. Refresh the page to try again.');
         }
       } finally {
@@ -57,13 +63,17 @@ export default function LeaderboardPage() {
     let cancelled = false;
     const run = async () => {
       setIngredientsLoading(true);
+      setIngredientsError(false);
       try {
         const res = await fetch(`/api/creative/genome?surface=${surface}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = (await res.json()) as { dimensions?: IngredientDimension[] };
         if (!cancelled) setDimensions(json.dimensions ?? []);
       } catch {
-        if (!cancelled) setDimensions([]);
+        if (!cancelled) {
+          setDimensions([]);
+          setIngredientsError(true);
+        }
       } finally {
         if (!cancelled) setIngredientsLoading(false);
       }
@@ -74,7 +84,8 @@ export default function LeaderboardPage() {
     };
   }, [surface]);
 
-  const isOrganic = surface === 'organic';
+  // Read from the RESPONSE, not the requested surface.
+  const isOrganic = board.surface === 'organic';
   const hasRows = board.rows.length > 0;
 
   return (
@@ -128,9 +139,9 @@ export default function LeaderboardPage() {
 
       {!loading && hasRows && (
         <div className="overflow-hidden rounded-2xl border border-(--line) bg-(--surface)">
-          {isOrganic
-            ? (board.rows as LeaderboardRow[]).map((r) => <PostRow key={r.postId} row={r} />)
-            : (board.rows as LeaderboardAdRow[]).map((r) => <AdRow key={r.adId} row={r} />)}
+          {board.surface === 'organic'
+            ? board.rows.map((r) => <PostRow key={r.postId} row={r} />)
+            : board.rows.map((r) => <AdRow key={r.adId} row={r} />)}
         </div>
       )}
 
@@ -140,7 +151,11 @@ export default function LeaderboardPage() {
         </p>
       )}
 
-      <IngredientSection dimensions={dimensions} loading={ingredientsLoading} />
+      <IngredientSection
+        dimensions={dimensions}
+        loading={ingredientsLoading}
+        error={ingredientsError}
+      />
     </div>
   );
 }

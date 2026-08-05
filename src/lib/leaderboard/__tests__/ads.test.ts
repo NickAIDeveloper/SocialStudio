@@ -39,7 +39,7 @@ describe('rankAds', () => {
     expect(rows[1].costPerResult).toBeNull();
   });
 
-  it('orders the resultless ads by how many people saw them', () => {
+  it('orders the resultless ads by how many times they were shown', () => {
     const rows = rankAds([
       ad({ adId: 'small', results: 0, impressions: 100 }),
       ad({ adId: 'big', results: 0, impressions: 900 }),
@@ -50,6 +50,8 @@ describe('rankAds', () => {
   it('computes click rate out of impressions', () => {
     const [row] = rankAds([ad({ impressions: 1000, clicks: 25 })]);
     expect(row.clickRate).toBeCloseTo(0.025);
+    // Unshown ads are filtered out before this is computed, so it is never null.
+    expect(rankAds([ad({ impressions: 0 })])).toEqual([]);
   });
 });
 

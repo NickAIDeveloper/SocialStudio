@@ -302,9 +302,13 @@ export function PostGenerator() {
     if (match) setSelectedChannelId(match.id);
   }, [brand, bufferOrgs]);
 
-  const generateCaption = useCallback(async () => {
+  // Both of these chain several fetches over multiple seconds with no feedback
+  // of their own, so users double-clicked and raced the handlers.
+  const [randomBusy, setRandomBusy] = useState(false);
+  const [captionBusy, setCaptionBusy] = useState(false);
+
+  const generateCaptionImpl = useCallback(async () => {
     randomGeneratingRef.current = true; // Suppress reprocess timer during generation
-    setCaptionBusy(true);
     // Try AI generation first
     let newCaption = '';
     let newHashtags = '';
@@ -451,9 +455,20 @@ export function PostGenerator() {
       // Image search failed, user can manually search
     } finally {
       randomGeneratingRef.current = false;
-      setCaptionBusy(false);
     }
   }, [brand, contentType, textPosition, fontSize, overlayStyle, imageEffect]);
+
+  // The busy flag wraps the WHOLE call. Setting it beside one of the inner try
+  // blocks meant a throw before that block left the button permanently
+  // disabled reading "Writing...", recoverable only by reloading the page.
+  const generateCaption = useCallback(async () => {
+    setCaptionBusy(true);
+    try {
+      await generateCaptionImpl();
+    } finally {
+      setCaptionBusy(false);
+    }
+  }, [generateCaptionImpl]);
 
   const processImage = useCallback(async (image: ImageResult) => {
     setIsProcessing(true);
@@ -636,15 +651,10 @@ export function PostGenerator() {
 
   // Flag to suppress auto-reprocess while Random Generator is running
   const randomGeneratingRef = useRef(false);
-  // Both of these chain several fetches over multiple seconds with no feedback
-  // of their own, so users double-clicked and raced the handlers.
-  const [randomBusy, setRandomBusy] = useState(false);
-  const [captionBusy, setCaptionBusy] = useState(false);
 
   // Random Generator — randomize options weighted toward viral patterns
-  const randomGenerate = useCallback(async () => {
+  const randomGenerateImpl = useCallback(async () => {
     randomGeneratingRef.current = true;
-    setRandomBusy(true);
 
     // Clear all old state first so nothing is stale
     setSelectedImage(null);
@@ -800,9 +810,17 @@ export function PostGenerator() {
       // Image search failed, user can manually search
     } finally {
       randomGeneratingRef.current = false;
-      setRandomBusy(false);
     }
   }, [apiBrands]);
+
+  const randomGenerate = useCallback(async () => {
+    setRandomBusy(true);
+    try {
+      await randomGenerateImpl();
+    } finally {
+      setRandomBusy(false);
+    }
+  }, [randomGenerateImpl]);
 
   // Auto-reprocess image ONLY when user manually changes overlay settings
   // Uses a generation timestamp to skip reprocessing for 3 seconds after any generation
