@@ -90,3 +90,44 @@ making any edits, then execute.
   then do the verification directly and record it as a controller action.
 - **Subagents must be forbidden from any git branch operation.** One wandered to
   main previously and orphaned commits.
+
+---
+
+## SWEEP AUDIT RESULTS (2026-08-05) — all four auditors reported
+
+Full findings in the scratchpad files listed above. Headlines:
+
+**Readability.** One token causes the owner's "light grey on black" complaint:
+`--muted-2` (#6B7178) scores 3.19:1 on sidebar labels, 3.39:1 on cards,
+3.87:1 on page bg. WCAG AA needs 4.5:1. 205 usages, 60 paired with 11-12px
+text. `--muted` (392 usages) passes at only 4.84:1, near-zero margin.
+Proposed: `--muted` -> #A2A7B0, `--muted-2` -> #8E939C, and stop using flat
+`--violet` as text (3.72:1) in favour of `--violet-bright`.
+=> Two token edits fix 200+ usages at once.
+
+**Redundancy.** /analyze is the real hub; /analytics is a redirect shim.
+Six bare-redirect pages deletable: /analytics /batch /generate /competitors
+/home /meta. /ads/queue is a real dashboard missing from nav. NO genuine
+feature overlap found; create vs smart-posts, research vs intel are distinct.
+
+**Broken.** /analyze has NO brand picker — brandId only ever comes from the
+URL (analyze-page.tsx:17-18,28), so the Brand Brain panel never renders. A
+finished BrandSelector component exists and is imported nowhere.
+Also: batch-gallery can silently generate zero posts; profile shares one
+`saving` flag across two buttons; AdDashboardCard renders raw error JSON as
+if it were AI advice. No missing API routes anywhere.
+
+**Clarity.** /ask renders answers as raw JSON.stringify in a <pre> block —
+the worst offender. /ads/genome is untranslated stats jargon with no
+recommendation anywhere on the page. /research and /autopilot already follow
+the desired plain-English style and are the model to copy.
+
+**CONTROLLER-CONFIRMED BUG:** /ads/genome's "Nothing recorded yet" banner is
+gated on `dimensions.length === 0` (page.tsx:65), but the API builds
+dimensions from the 23 seeded ingredients and filters to non-empty
+(route.ts:59), so it is ALWAYS 6. The empty state is unreachable; the user
+sees 23 rows of "— no data" instead. This is why it looked broken.
+
+**IN FLIGHT:** Fable 5 supervisor synthesising all four into
+`docs/superpowers/plans/2026-08-05-platform-sweep.md`. Present to Nick for
+approval BEFORE any edits.
