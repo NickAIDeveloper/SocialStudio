@@ -2,6 +2,7 @@
 'use client';
 
 import { useState } from 'react';
+import { humanMetaError } from '@/lib/meta/error-message';
 
 interface Insight {
   spend: number; impressions: number; reach: number; clicks: number;
@@ -36,6 +37,10 @@ function Metric(props: { label: string; value: string; hint?: string; tone?: 'up
 
 export function AdDashboardCard({ ad }: { ad: DashboardAd }) {
   const [advice, setAdvice] = useState<string | null>(null);
+  // Pixabay `/get/` links expire, so a stored preview URL can 404 long after
+  // the ad itself published fine. Without this the card shows a broken-image
+  // icon, which reads as "the ad is broken" rather than "the preview is".
+  const [imageBroken, setImageBroken] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activating, setActivating] = useState(false);
   const [activateMsg, setActivateMsg] = useState<string | null>(null);
@@ -59,6 +64,9 @@ export function AdDashboardCard({ ad }: { ad: DashboardAd }) {
   }
   const i = ad.insight;
   const cur = i?.currency ?? '';
+  // Meta says what went wrong in plain English inside the error payload; this
+  // pulls it out of the JSON blob we store.
+  const failureReason = humanMetaError(ad.lastError);
   const trendTone = ad.ctrTrend?.direction === 'up' ? 'up' : ad.ctrTrend?.direction === 'down' ? 'down' : undefined;
 
   async function askAi() {
@@ -90,10 +98,19 @@ export function AdDashboardCard({ ad }: { ad: DashboardAd }) {
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-(--line) bg-(--bg) p-4 md:flex-row">
       <div className="w-full shrink-0 overflow-hidden rounded-xl border border-(--line) md:w-56">
-        {ad.preview.imageUrl || ad.preview.thumbnailUrl
+        {(ad.preview.imageUrl || ad.preview.thumbnailUrl) && !imageBroken ? (
           // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={(ad.preview.thumbnailUrl || ad.preview.imageUrl) as string} alt="Ad" className="aspect-[1.91/1] w-full object-cover" />
-          : <div className="flex aspect-[1.91/1] items-center justify-center bg-(--surface-2) text-xs text-(--muted-2)">No image</div>}
+          <img
+            src={(ad.preview.thumbnailUrl || ad.preview.imageUrl) as string}
+            alt="Ad"
+            onError={() => setImageBroken(true)}
+            className="aspect-[1.91/1] w-full object-cover"
+          />
+        ) : (
+          <div className="flex aspect-[1.91/1] items-center justify-center bg-(--surface-2) px-3 text-center text-xs text-(--muted)">
+            {imageBroken ? 'Preview image expired' : 'No image'}
+          </div>
+        )}
         <div className="p-3">
           <div className="text-xs text-(--muted-2)">{ad.preview.destinationUrl ?? 'yoursite.com'} · Sponsored</div>
           <div className="text-sm font-semibold text-(--txt)">{ad.preview.headline ?? 'Your headline'}</div>
@@ -126,9 +143,16 @@ export function AdDashboardCard({ ad }: { ad: DashboardAd }) {
           <p className="text-sm text-(--muted)">Nothing to show yet. Numbers appear here once Meta starts reporting on this ad.</p>
         )}
 
-        <div className={`mt-3 rounded-lg px-3 py-2 text-sm ${VERDICT_STYLES[ad.signals.verdict]}`}>
-          {ad.signals.reasons.join(' ')}
-        </div>
+        {failureReason ? (
+          <div className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            <span className="font-medium">This ad could not be published.</span>{' '}
+            {failureReason}
+          </div>
+        ) : (
+          <div className={`mt-3 rounded-lg px-3 py-2 text-sm ${VERDICT_STYLES[ad.signals.verdict]}`}>
+            {ad.signals.reasons.join(' ')}
+          </div>
+        )}
         {ad.signals.tips.length > 0 && (
           <div className="mt-2 rounded-lg bg-white/5 px-3 py-2 text-sm text-(--txt)">
             💡 {ad.signals.tips.join(' ')}

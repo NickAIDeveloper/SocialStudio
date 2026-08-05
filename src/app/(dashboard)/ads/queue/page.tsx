@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { AdDashboardCard, type DashboardAd } from '../_components/AdDashboardCard';
 import { AgentPlanPanel } from '@/components/ads/agent-plan-panel';
+import { humanMetaError } from '@/lib/meta/error-message';
 
 interface DashboardResponse {
   success: boolean;
@@ -55,13 +56,6 @@ export default function QueuedAdsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      {brands.length > 0 && (
-        <div className="mb-6 space-y-4">
-          {brands.map((b) => (
-            <AgentPlanPanel key={b.id} brandId={b.id} brandName={b.name ?? b.slug} />
-          ))}
-        </div>
-      )}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">Ads dashboard</h1>
@@ -108,6 +102,34 @@ export default function QueuedAdsPage() {
         </div>
       )}
 
+      {!error && ads !== null && (() => {
+        const failed = ads.filter((a) => a.status === 'FAILED' && a.lastError);
+        if (failed.length === 0) return null;
+        const reason = humanMetaError(failed[0].lastError);
+        const sameReason = failed.every(
+          (a) => humanMetaError(a.lastError) === reason,
+        );
+        return (
+          <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/5 p-4 text-sm">
+            <p className="font-medium text-red-300">
+              {failed.length === 1
+                ? '1 ad could not be published.'
+                : `${failed.length} ads could not be published.`}
+            </p>
+            {reason && (
+              <p className="mt-1 text-(--muted)">
+                {sameReason && failed.length > 1 ? 'They all failed for the same reason: ' : 'Reason: '}
+                <span className="text-(--txt)">{reason}</span>
+              </p>
+            )}
+            <p className="mt-2 text-(--muted)">
+              Fix that in the builder and publish again. Nothing was charged for a
+              failed ad.
+            </p>
+          </div>
+        );
+      })()}
+
       {!error && ads !== null && ads.length > 0 && (() => {
         const live = ads.filter((a) => !isHidden(a));
         const hidden = ads.filter(isHidden);
@@ -135,6 +157,22 @@ export default function QueuedAdsPage() {
           </>
         );
       })()}
+
+      {brands.length > 0 && (
+        <details className="mt-8 rounded-2xl border border-(--line) bg-(--bg)">
+          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-(--muted) hover:text-(--txt)">
+            What the ads agent would do
+            <span className="ml-2 text-xs text-(--muted)">
+              (preview only, it cannot change anything)
+            </span>
+          </summary>
+          <div className="space-y-4 p-4 pt-0">
+            {brands.map((b) => (
+              <AgentPlanPanel key={b.id} brandId={b.id} brandName={b.name ?? b.slug} />
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }
