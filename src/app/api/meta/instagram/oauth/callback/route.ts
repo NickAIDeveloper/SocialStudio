@@ -86,6 +86,17 @@ export async function GET(req: NextRequest) {
 
     const tokenExpiresAt = new Date(Date.now() + longLived.expires_in * 1000);
 
+    // Record what Meta actually GRANTED, not what we asked for. These diverge:
+    // a user can decline an individual permission in the dialog, and an app
+    // without the right access level silently gets fewer scopes than it
+    // requested. Storing IG_SCOPES here meant the DB always claimed success —
+    // so a missing instagram_business_content_publish would look identical to a
+    // granted one until a publish call failed at 403.
+    const grantedScopes =
+      shortLived.permissions && shortLived.permissions.length > 0
+        ? shortLived.permissions.join(',')
+        : IG_SCOPES.join(',');
+
     const now = new Date();
     await db
       .insert(instagramAccounts)
@@ -98,7 +109,7 @@ export async function GET(req: NextRequest) {
         profilePictureUrl: me.profile_picture_url ?? null,
         accessToken: encrypt(longLived.access_token),
         tokenExpiresAt,
-        scopes: IG_SCOPES.join(','),
+        scopes: grantedScopes,
         connectedAt: now,
         updatedAt: now,
       })
@@ -111,7 +122,7 @@ export async function GET(req: NextRequest) {
           profilePictureUrl: me.profile_picture_url ?? null,
           accessToken: encrypt(longLived.access_token),
           tokenExpiresAt,
-          scopes: IG_SCOPES.join(','),
+          scopes: grantedScopes,
           updatedAt: now,
         },
       });

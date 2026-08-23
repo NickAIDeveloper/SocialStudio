@@ -15,12 +15,25 @@ export interface InstagramOAuthConfig {
   scopes: string[];
 }
 
-// Read-only scope set. `instagram_business_basic` is required — covers
-// /me and /me/media. `instagram_business_manage_insights` is needed to
-// hit the /insights endpoints (both account-level and per-media).
+// `instagram_business_basic` is required — covers /me and /me/media.
+// `instagram_business_manage_insights` is needed to hit the /insights
+// endpoints (both account-level and per-media).
+//
+// `instagram_business_content_publish` lets us POST /me/media +
+// /me/media_publish and publish straight to Instagram on this token. It exists
+// so Buffer stops being a single point of failure: Buffer's own per-channel
+// Meta credential expires every few weeks and Buffer's API has NO auth
+// mutation, so reconnecting it is human-only, forever. This token, by
+// contrast, we refresh ourselves (see ig-token.ts / getFreshIgToken) and it has
+// not needed a manual reconnect since 2026-06-20.
+//
+// Adding a scope here does NOT retro-grant it: existing stored tokens keep
+// whatever they were granted at consent time and must re-run the OAuth flow
+// once to pick this up.
 export const IG_SCOPES = [
   'instagram_business_basic',
   'instagram_business_manage_insights',
+  'instagram_business_content_publish',
 ];
 
 // Mirrors buildRedirectUri() in config.ts: pinned env var wins so prod can
