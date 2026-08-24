@@ -96,24 +96,46 @@ async function bufferGraphQL<T>(apiKey: string, query: string, variables?: Recor
   return json.data as T;
 }
 
+// Organizations with their channels.
+//
+// Deliberately TWO queries. Asking for organizations.channels in one go returns
+// FORBIDDEN from Buffer's nested channels resolver, and because the field is
+// non-null that error propagates over the ENTIRE response — so the whole call
+// fails, not just the channels. That took down the channel dropdown once
+// already; getChannelHealth was moved to the top-level channels(input:) query
+// for the same reason, but these callers were missed and every consumer of this
+// function (calendar, linked accounts, default-channel picker, the queue view)
+// has been failing with "Not authorized to access this resource".
 export async function getOrganizationsAndChannels(apiKey: string): Promise<BufferOrganization[]> {
   const data = await bufferGraphQL<{
-    account: { organizations: BufferOrganization[] };
+    account: { organizations: Array<{ id: string; name: string }> };
   }>(apiKey, `{
     account {
       organizations {
         id
         name
-        channels {
-          id
-          name
-          service
-          avatar
-        }
       }
     }
   }`);
-  return data.account.organizations;
+
+  const orgs = data.account?.organizations ?? [];
+
+  return Promise.all(
+    orgs.map(async (org) => {
+      const res = await bufferGraphQL<{ channels: BufferChannel[] }>(
+        apiKey,
+        `{
+          channels(input: { organizationId: ${JSON.stringify(org.id)} }) {
+            id
+            name
+            service
+            avatar
+          }
+        }`,
+      );
+      return { id: org.id, name: org.name, channels: res.channels ?? [] };
+    }),
+  );
 }
 
 // Per-channel health for an organization, keyed by channel id.
