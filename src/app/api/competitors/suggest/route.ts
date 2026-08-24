@@ -5,6 +5,7 @@ import { linkedAccounts } from '@/lib/db/schema';
 import { getUserId } from '@/lib/auth-helpers';
 import { decrypt } from '@/lib/encryption';
 import { competitors as hardcodedCompetitors } from '@/data/competitor-insights';
+import { llmChatCompletion, isLlmAvailable } from '@/lib/cerebras';
 
 interface Suggestion {
   handle: string;
@@ -174,46 +175,29 @@ async function callCerebras(
   brandDescription: string,
   niche: string,
 ): Promise<Suggestion[]> {
-  const apiKey = process.env.CEREBUS;
-  if (!apiKey) throw new Error('No Cerebras key');
+  // Was a hand-rolled fetch pinned to llama3.1-8b, a model Cerebras retired —
+  // so this endpoint had been failing 404 regardless of billing. Going through
+  // the shared client picks up the configured provider, the retry/backoff
+  // policy and the reasoning-model token guard for free.
+  if (!isLlmAvailable()) throw new Error('No LLM provider configured');
 
   const safeBrand = brandDescription.trim().slice(0, 500).replace(/[`${}]/g, '');
   const safeNiche = niche.trim().slice(0, 100).replace(/[`${}]/g, '');
   const prompt = `You are an Instagram marketing expert. Given a brand that is: ${safeBrand} in the ${safeNiche} niche, suggest 10 real Instagram accounts that would be direct competitors. Mix of large and small accounts. Return ONLY a JSON array of objects with 'handle' (without @) and 'reason' (one sentence why they compete). No other text.`;
 
-  const response = await fetch(
-    'https://api.cerebras.ai/v1/chat/completions',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'llama3.1-8b',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 800,
-      }),
-    },
-  );
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error');
-    throw new Error(`OpenAI API error (${response.status}): ${errorBody}`);
-  }
-
-  const data = await response.json();
-  const content: string = data.choices?.[0]?.message?.content ?? '';
+  const content = await llmChatCompletion([{ role: 'user', content: prompt }], {
+    maxTokens: 800,
+  });
 
   const jsonMatch = content.match(/\[[\s\S]*\]/);
   if (!jsonMatch) {
-    throw new Error('Failed to parse OpenAI response as JSON array');
+    throw new Error('Failed to parse the model response as a JSON array');
   }
 
   const parsed: unknown = JSON.parse(jsonMatch[0]);
 
   if (!Array.isArray(parsed)) {
-    throw new Error('OpenAI response is not an array');
+    throw new Error('Model response is not an array');
   }
 
   return parsed
