@@ -47,3 +47,20 @@ describe('buildCerebrasRequestBody', () => {
     expect(body.max_tokens).toBe(1500);
   });
 });
+
+// Gemini 3.x Flash burn max_tokens on hidden thinking exactly like gpt-oss.
+// Verified live 2026-08-24: without reasoning_effort, gemini-3.5-flash returned
+// finish_reason 'length' and a truncated '{"caption":'; with it, clean JSON.
+describe('gemini is treated as a reasoning model', () => {
+  it('floors max_tokens and sets reasoning_effort=low for gemini flash', () => {
+    const body = buildCerebrasRequestBody(MSGS, { maxTokens: 400 }, 'gemini-3.5-flash');
+    expect(body.max_tokens).toBe(4000);
+    expect(body.reasoning_effort).toBe('low');
+  });
+
+  it('covers every gemini variant we might switch to', () => {
+    for (const m of ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite']) {
+      expect(buildCerebrasRequestBody(MSGS, { maxTokens: 400 }, m).reasoning_effort).toBe('low');
+    }
+  });
+});

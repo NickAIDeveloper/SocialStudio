@@ -1,15 +1,14 @@
 /**
- * Cerebras AI utility — platform-wide LLM for all AI features.
- * Uses the CEREBUS env var key. No user API key needed.
+ * Platform-wide LLM client for all AI features. No user API key needed.
+ *
+ * Provider is resolved at call time (see lib/llm/provider.ts) — Gemini when its
+ * key is present, Cerebras otherwise, and LLM_PROVIDER overrides both. Both
+ * speak the OpenAI chat-completions shape, so only the URL, key and model
+ * differ. The exported names still say "cerebras" so the ~21 existing call
+ * sites keep working; llmChatCompletion is the name to use in new code.
  */
 
-const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
-// Cerebras retired llama3.1-8b for this account (404 model_not_found). The
-// account currently has gpt-oss-120b and zai-glm-4.7. Default to gpt-oss-120b
-// (stronger, OpenAI-compatible JSON mode); override via env if the available
-// models change again so this never needs a code edit + redeploy.
-const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL ?? 'gpt-oss-120b';
-
+import { resolveLlmProvider, keyVarFor } from './llm/provider';
 // Retry policy: a single autopilot run fans out to 3-4 Cerebras calls
 // (god-mode design, image-query, captions main, optional narrative).
 // Two parallel "Run now" clicks can put 8+ requests on the wire within
@@ -67,7 +66,12 @@ function sleep(ms: number): Promise<void> {
 // Verified live: glm-4.7 and gpt-oss-120b both return full captions at a 4000
 // floor. The floor is a CEILING, not consumption — calls still stop early, so it
 // adds no latency or token cost for well-behaved output.
-const REASONING_MODEL_RE = /gpt-oss|glm|qwen|deepseek|\br1\b/i;
+// Gemini 3.x Flash think before answering and bill those tokens against
+// max_tokens exactly like gpt-oss does. Verified live 2026-08-24: at
+// max_tokens 400 with no reasoning_effort, gemini-3.5-flash returned
+// finish_reason 'length' and a truncated '{"caption":' — the same
+// empty_generation failure. With reasoning_effort 'low' it returns clean JSON.
+const REASONING_MODEL_RE = /gpt-oss|glm|qwen|deepseek|gemini|\br1\b/i;
 const REASONING_MIN_MAX_TOKENS = Number(process.env.CEREBRAS_MIN_MAX_TOKENS) || 4000;
 
 export function buildCerebrasRequestBody(
@@ -94,14 +98,16 @@ export function buildCerebrasRequestBody(
   return body;
 }
 
-export async function cerebrasChatCompletion(
+export async function llmChatCompletion(
   messages: CerebrasMessage[],
   options?: { temperature?: number; maxTokens?: number; responseFormat?: 'json' | 'text' },
 ): Promise<string> {
-  const apiKey = process.env.CEREBUS;
-  if (!apiKey) throw new Error('CEREBUS env var not set');
+  const provider = resolveLlmProvider();
+  if (!provider.apiKey) {
+    throw new Error(`${keyVarFor(provider.name)} env var not set`);
+  }
 
-  const body = buildCerebrasRequestBody(messages, options, CEREBRAS_MODEL);
+  const body = buildCerebrasRequestBody(messages, options, provider.model);
 
   const serialized = JSON.stringify(body);
   let lastErr: Error | null = null;
@@ -109,11 +115,11 @@ export async function cerebrasChatCompletion(
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     let response: Response;
     try {
-      response = await fetch(CEREBRAS_API_URL, {
+      response = await fetch(provider.url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${provider.apiKey}`,
         },
         body: serialized,
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -125,7 +131,9 @@ export async function cerebrasChatCompletion(
         await sleep(backoffDelayMs(attempt));
         continue;
       }
-      throw new Error(`Cerebras network error after ${attempt + 1} attempts: ${lastErr.message}`);
+      throw new Error(
+        `${provider.name} network error after ${attempt + 1} attempts: ${lastErr.message}`,
+      );
     }
 
     if (response.ok) {
@@ -135,7 +143,7 @@ export async function cerebrasChatCompletion(
 
     const text = await response.text().catch(() => '');
     if (shouldRetry(response.status) && attempt < MAX_RETRIES) {
-      // Honour Retry-After if Cerebras provides it, otherwise back off.
+      // Honour Retry-After if the provider sends it, otherwise back off.
       const retryAfter = Number(response.headers.get('retry-after')) * 1000;
       const delay =
         Number.isFinite(retryAfter) && retryAfter > 0
@@ -145,13 +153,24 @@ export async function cerebrasChatCompletion(
       continue;
     }
 
-    throw new Error(`Cerebras API error (${response.status}) after ${attempt + 1} attempts: ${text}`);
+    throw new Error(
+      `${provider.name} API error (${response.status}) after ${attempt + 1} attempts: ${text}`,
+    );
   }
 
   // Unreachable under normal control flow, but TS needs an exit.
-  throw new Error(`Cerebras retry loop exhausted: ${lastErr?.message ?? 'unknown'}`);
+  throw new Error(`${provider.name} retry loop exhausted: ${lastErr?.message ?? 'unknown'}`);
 }
 
-export function isCerebrasAvailable(): boolean {
-  return !!process.env.CEREBUS;
+// Back-compat alias: the call sites predate the provider swap and there is no
+// value in a 21-file rename just to change a word.
+export const cerebrasChatCompletion = llmChatCompletion;
+
+// "Is any LLM configured?" — used by callers to degrade gracefully rather than
+// throw. Must follow the same resolution as llmChatCompletion, otherwise a
+// Gemini-only deployment reports "no AI available" while working fine.
+export function isLlmAvailable(): boolean {
+  return Boolean(resolveLlmProvider().apiKey);
 }
+
+export const isCerebrasAvailable = isLlmAvailable;
